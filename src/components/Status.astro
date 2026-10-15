@@ -1,0 +1,18 @@
+---
+// Estado de una app con su año: texto plano con un punto de color, sin caja.
+import { getLang, useT } from '../i18n/utils';
+
+interface Props {
+  status: 'live' | 'beta' | 'wip';
+  year: number;
+  class?: string;
+}
+const { status, year, class: className } = Astro.props;
+const t = useT(getLang(Astro.url));
+const color = { live: 'bg-brote', beta: 'bg-calendula', wip: 'bg-helecho' }[status];
+---
+
+<p class:list={['flex items-center gap-2.5 text-helecho', className]}>
+  <span class:list={['size-2 rounded-full', color]} aria-hidden="true"></span>
+  {t(`status.${status}`).replace('{year}', String(year))}
+</p>

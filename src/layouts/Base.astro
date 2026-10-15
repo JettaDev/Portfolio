@@ -4,6 +4,8 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { getLang, useT, switchLangPath } from '../i18n/utils';
 import { languages, type Lang } from '../i18n/ui';
+// La misma fuente que importa global.css: precargarla evita el salto al cambiar de tipografía.
+import fuente from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2?url';
 
 interface Props {
   title?: string;
@@ -34,6 +36,8 @@ const ogImage = new URL(image, Astro.site);
       <link rel="alternate" hreflang={l} href={new URL(switchLangPath(Astro.url, l), Astro.site)} />
     ))}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href={fuente} as="font" type="font/woff2" crossorigin />
+    <script is:inline>document.documentElement.classList.add('js')</script>
     <meta name="theme-color" content="#10291c" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
@@ -63,5 +67,23 @@ const ogImage = new URL(image, Astro.site);
       <slot />
     </main>
     <Footer />
+    <script>
+      // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.
+      // Con data-reveal="cada" (textos largos) cada hijo entra por su cuenta al llegar a él.
+      const bloques = [...document.querySelectorAll<HTMLElement>('[data-reveal]')];
+      const objetivos = bloques.flatMap((b) => {
+        const hijos = [...b.children] as HTMLElement[];
+        if (b.dataset.reveal === 'cada') return hijos;
+        hijos.forEach((c, i) => c.style.setProperty('--i', String(i)));
+        return [b];
+      });
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entradas) => entradas.forEach((e) => e.isIntersecting && (e.target.classList.add('visto'), io.unobserve(e.target))),
+          { rootMargin: '0px 0px -8% 0px' },
+        );
+        objetivos.forEach((o) => io.observe(o));
+      } else objetivos.forEach((o) => o.classList.add('visto'));
+    </script>
   </body>
 </html>

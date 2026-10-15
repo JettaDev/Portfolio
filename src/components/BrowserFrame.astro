@@ -11,20 +11,21 @@ const { domain, hue = '#7fe0a6', class: className, name } = Astro.props;
 ---
 
 <div
-  class:list={['overflow-hidden rounded-ventana border border-corteza bg-bosque-hondo shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)]', className]}
+  class:list={['overflow-hidden rounded-ventana bg-bosque-hondo', className]}
   style={`--hue:${hue}${name ? `; view-transition-name:${name}; view-transition-class:ventana` : ''}`}
   data-vt={name}
 >
-  <div class="flex items-center gap-3 border-b border-corteza/70 px-4 py-2.5">
+  <div class="flex items-center gap-3 bg-musgo px-4 py-2.5">
     <span class="flex gap-1.5" aria-hidden="true">
-      <span class="size-2.5 rounded-full bg-corteza"></span>
-      <span class="size-2.5 rounded-full bg-corteza"></span>
-      <span class="size-2.5 rounded-full bg-corteza"></span>
+      <span class="size-2.5 rounded-full bg-musgo-claro"></span>
+      <span class="size-2.5 rounded-full bg-musgo-claro"></span>
+      <span class="size-2.5 rounded-full bg-musgo-claro"></span>
     </span>
-    <span class="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-musgo px-3 py-1 text-xs text-helecho">
+    <span class="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-bosque-hondo/60 px-3 py-1 text-sm text-helecho">
       <span class="size-1.5 shrink-0 rounded-full bg-(--hue)" aria-hidden="true"></span>
-      <span class="truncate">{domain}</span>
+      <span class="truncate" translate="no">{domain}</span>
     </span>
+    <slot name="acciones" />
   </div>
   <slot />
 </div>

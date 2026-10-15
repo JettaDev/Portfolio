@@ -26,16 +26,18 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
 ---
 
 {shots.length > 0 && (
-  <section class="border-t border-corteza/60 bg-bosque-hondo/40 py-16 lg:py-24" aria-labelledby="galeria" style={`--hue:${hue}`}>
+  <section class="bg-bosque-hondo py-24 lg:py-36" aria-labelledby="galeria" style={`--hue:${hue}`}>
     <div class="contenedor">
-      <h2 id="galeria" class="text-[clamp(2rem,4vw,3rem)] leading-none font-bold tracking-[-0.03em] [font-variation-settings:'opsz'_96]">
-        {t('gallery.title')}
-      </h2>
-      <p class="mt-4 max-w-[52ch] text-lg text-helecho">{t('gallery.lead')}</p>
+      <div data-reveal>
+        <h2 id="galeria" class="text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]">
+          {t('gallery.title')}
+        </h2>
+        <p class="mt-5 max-w-[52ch] text-xl text-liquen">{t('gallery.lead')}</p>
+      </div>
 
-      <div class="mt-12 flex flex-col gap-16 lg:mt-16 lg:gap-24" data-gallery>
+      <div class="mt-16 flex flex-col gap-20 lg:mt-24 lg:gap-32" data-gallery>
         {rows.map((row, r) => (
-          <div class="grid items-center gap-10 md:grid-cols-12 md:gap-12">
+          <div class="grid items-center gap-10 md:grid-cols-12 md:gap-12" data-reveal>
             {row.map((shot) => {
               const mobile = shot.device === 'mobile';
               return (
@@ -50,7 +52,7 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
                     aria-label={`${t('gallery.open')}: ${shot.title}`}
                   >
                     {mobile ? (
-                      <div class="mx-auto max-w-[17rem] rounded-[2.4rem] border border-corteza bg-bosque-hondo p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
+                      <div class="mx-auto max-w-[17rem] rounded-[2.4rem] bg-musgo p-2.5 transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
                         <div class="overflow-hidden rounded-[1.9rem]">
                           <Image src={shot.src} alt={shot.alt} widths={[300, 520, 780]} sizes="17rem" class="w-full" />
                         </div>
@@ -61,9 +63,9 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
                       </BrowserFrame>
                     )}
                   </button>
-                  <figcaption class:list={['mt-5', mobile && 'mx-auto max-w-[17rem]']}>
-                    <span class="block font-semibold text-liquen">{shot.title}</span>
-                    {shot.caption && <span class="mt-1 block max-w-[52ch] text-helecho">{shot.caption}</span>}
+                  <figcaption class:list={['mt-6', mobile && 'mx-auto max-w-[17rem]']}>
+                    <span class="block text-xl font-semibold text-liquen">{shot.title}</span>
+                    {shot.caption && <span class="mt-2 block max-w-[52ch] text-lg text-liquen/80">{shot.caption}</span>}
                   </figcaption>
                 </figure>
               );
@@ -73,9 +75,9 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
       </div>
     </div>
 
-    <dialog class="visor m-auto max-h-none max-w-none bg-transparent p-0 text-liquen" aria-label={t('gallery.title')} data-visor>
+    <dialog class="visor m-auto max-h-none max-w-none overscroll-contain bg-transparent p-0 text-liquen" aria-label={t('gallery.title')} data-visor>
       <div class="flex h-dvh w-screen flex-col items-center justify-center gap-4 p-4 sm:p-8">
-        <img alt="" class="min-h-0 max-w-full flex-1 rounded-lg object-contain shadow-[0_40px_120px_-40px_rgb(0_0_0/0.9)]" data-visor-img />
+        <img alt="" class="min-h-0 max-w-full flex-1 rounded-lg object-contain" data-visor-img />
         <div class="flex w-full max-w-3xl items-center justify-between gap-4">
           <button type="button" class="visor-btn" data-visor-prev aria-label={t('gallery.prev')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
@@ -100,17 +102,18 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
     width: 2.75rem;
     height: 2.75rem;
     flex-shrink: 0;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--color-corteza);
-    background: var(--color-musgo);
-    transition: border-color 150ms;
+    border-radius: 9999px;
+    background: var(--color-musgo-claro);
+    transition: background-color 150ms, transform 150ms;
   }
   .visor-btn:hover {
-    border-color: var(--color-liquen);
+    background: color-mix(in oklab, var(--color-musgo-claro) 80%, var(--color-liquen));
+  }
+  .visor-btn:active {
+    transform: scale(0.95);
   }
   .visor::backdrop {
-    background: color-mix(in oklab, var(--color-bosque-hondo) 96%, transparent);
-    backdrop-filter: blur(8px);
+    background: color-mix(in oklab, var(--color-bosque-hondo) 97%, transparent);
   }
   .visor[open] {
     animation: visor-entra 220ms var(--ease-salida, ease-out);

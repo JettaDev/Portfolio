@@ -13,7 +13,7 @@ const first = apps[0];
 ---
 
 <div class="hero-browser relative" data-hero-browser>
-  <div class="ventana overflow-hidden rounded-ventana border border-corteza bg-bosque-hondo shadow-[0_40px_120px_-40px_rgb(0_0_0/0.85)]">
+  <div class="ventana overflow-hidden rounded-ventana bg-bosque-hondo">
     <!-- Pestañas = apps -->
     <div class="flex items-end gap-1 overflow-x-auto px-3 pt-3 [scrollbar-width:none]" role="tablist" aria-label={t('hero.tabsLabel')}>
       {apps.map((app, i) => (
@@ -28,6 +28,7 @@ const first = apps[0];
           data-hue={app.data.hue}
           style={`--hue:${app.data.hue}; --i:${i}`}
           class="pestana group relative flex min-w-0 shrink-0 items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium text-helecho transition-colors hover:text-liquen aria-selected:bg-musgo aria-selected:text-liquen"
+          translate="no"
         >
           <span class="size-2 rounded-full bg-(--hue)" aria-hidden="true"></span>
           {app.data.title}
@@ -36,35 +37,37 @@ const first = apps[0];
     </div>
 
     <div class="bg-musgo px-3 py-2.5">
-      <div class="flex items-center gap-2 rounded-md bg-bosque-hondo/70 px-3 py-1.5 text-xs text-helecho">
+      <div class="flex items-center gap-2 rounded-md bg-bosque-hondo/70 px-3 py-1.5 text-sm text-helecho">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-        <span data-domain-label>{first?.data.domain}</span>
+        <span data-domain-label translate="no">{first?.data.domain}</span>
       </div>
     </div>
 
-    <div class="relative aspect-[16/10] bg-musgo">
+    <!-- Todos los paneles en la misma celda: la ventana mide lo que el más alto -->
+    <div class="grid">
       {apps.map((app, i) => (
         <div
           role="tabpanel"
           id={`panel-${app.slug}`}
           aria-labelledby={`tab-${app.slug}`}
-          class="panel absolute inset-0"
+          class="panel [grid-area:1/1]"
           data-active={i === 0 ? 'true' : 'false'}
         >
-          <a href={localePath(lang, `/apps/${app.slug}`)} class="block size-full">
-          <Image
-            src={app.data.cover}
-            alt={app.data.coverAlt}
-            widths={[480, 640, 960, 1280]}
-            sizes="(min-width: 64rem) 44rem, 100vw"
-            loading={i === 0 ? 'eager' : 'lazy'}
-            fetchpriority={i === 0 ? 'high' : 'auto'}
-            class="size-full object-cover object-top"
-          />
-          <span class="pie absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-linear-to-t from-bosque-hondo/95 via-bosque-hondo/60 to-transparent px-5 pt-16 pb-4">
-            <span class="text-[0.95rem] text-liquen">{app.data.tagline}</span>
-            <span class="shrink-0 text-sm font-semibold text-calendula">{t('apps.details')}</span>
-          </span>
+          <a href={localePath(lang, `/apps/${app.slug}`)} class="group block">
+            <Image
+              src={app.data.cover}
+              alt={app.data.coverAlt}
+              widths={[480, 640, 960, 1280, 1600]}
+              sizes="(min-width: 76rem) 72rem, 100vw"
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : 'auto'}
+              class="aspect-[16/10] w-full object-cover object-top"
+            />
+            <!-- Barra de estado del navegador -->
+            <span class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 bg-musgo px-5 py-3.5">
+              <span class="text-liquen">{app.data.tagline}</span>
+              <span class="font-semibold text-calendula underline-offset-4 group-hover:underline">{t('apps.details')}<span class="sr-only">: {app.data.title}</span></span>
+            </span>
           </a>
         </div>
       ))}
@@ -76,7 +79,7 @@ const first = apps[0];
   .panel {
     opacity: 0;
     visibility: hidden;
-    transform: scale(1.015);
+    transform: scale(1.01);
     transition: opacity 0.35s var(--ease-salida), transform 0.5s var(--ease-salida), visibility 0s 0.35s;
   }
   .panel[data-active='true'] {
@@ -84,11 +87,6 @@ const first = apps[0];
     visibility: visible;
     transform: none;
     transition-delay: 0s;
-  }
-  .pie { transition: opacity 0.25s; }
-  @media (hover: hover) {
-    .panel .pie { opacity: 0.85; }
-    .panel:hover .pie, .panel a:focus-visible .pie { opacity: 1; }
   }
 
   /* Único momento orquestado de la página: la ventana se abre y aparecen las pestañas */
