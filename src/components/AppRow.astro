@@ -2,6 +2,7 @@
 import { Image } from 'astro:assets';
 import BrowserFrame from './BrowserFrame.astro';
 import StatusPill from './StatusPill.astro';
+import NewTab from './NewTab.astro';
 import type { App } from '../lib/apps';
 import { getLang, useT, localePath } from '../i18n/utils';
 
@@ -39,16 +40,16 @@ const d = app.data;
 
     <div class="mt-7 flex flex-wrap gap-3">
       <a href={href} class="rounded-lg bg-calendula px-4 py-2.5 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
-        {t('apps.details')}
+        {t('apps.details')}<span class="sr-only">: {d.title}</span>
       </a>
       {d.demo && (
         <a href={d.demo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-4 py-2.5 font-medium transition-colors hover:border-liquen">
-          {t('apps.demo')}
+          {t('apps.demo')}<span class="sr-only">: {d.title}</span><NewTab />
         </a>
       )}
       {d.url && (
         <a href={d.url} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-4 py-2.5 font-medium transition-colors hover:border-liquen">
-          {t('apps.live')}
+          {t('apps.live')}<span class="sr-only">: {d.title}</span><NewTab />
         </a>
       )}
     </div>

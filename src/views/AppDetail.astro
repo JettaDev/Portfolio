@@ -5,6 +5,7 @@ import Base from '../layouts/Base.astro';
 import BrowserFrame from '../components/BrowserFrame.astro';
 import StatusPill from '../components/StatusPill.astro';
 import Gallery from '../components/Gallery.astro';
+import NewTab from '../components/NewTab.astro';
 import type { App } from '../lib/apps';
 import { getLang, useT, localePath } from '../i18n/utils';
 
@@ -49,17 +50,17 @@ const { Content } = await render(app);
                   d.url ? 'border border-corteza font-medium hover:border-liquen' : 'bg-calendula font-semibold text-bosque-hondo hover:bg-calendula-hondo',
                 ]}
               >
-                {t('apps.demo')}
+                {t('apps.demo')}<NewTab />
               </a>
             )}
             {d.url && (
               <a href={d.url} target="_blank" rel="noopener" class="rounded-lg bg-calendula px-5 py-3 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
-                {t('apps.live')}
+                {t('apps.live')}<NewTab />
               </a>
             )}
             {d.repo && (
               <a href={d.repo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-5 py-3 font-medium transition-colors hover:border-liquen">
-                {t('apps.code')}
+                {t('apps.code')}<NewTab />
               </a>
             )}
           </div>

@@ -44,15 +44,14 @@ const first = apps[0];
 
     <div class="relative aspect-[16/10] bg-musgo">
       {apps.map((app, i) => (
-        <a
-          href={localePath(lang, `/apps/${app.slug}`)}
+        <div
           role="tabpanel"
           id={`panel-${app.slug}`}
           aria-labelledby={`tab-${app.slug}`}
-          class="panel absolute inset-0 block"
+          class="panel absolute inset-0"
           data-active={i === 0 ? 'true' : 'false'}
-          tabindex={i === 0 ? 0 : -1}
         >
+          <a href={localePath(lang, `/apps/${app.slug}`)} class="block size-full">
           <Image
             src={app.data.cover}
             alt={app.data.coverAlt}
@@ -66,7 +65,8 @@ const first = apps[0];
             <span class="text-[0.95rem] text-liquen">{app.data.tagline}</span>
             <span class="shrink-0 text-sm font-semibold text-calendula">{t('apps.details')}</span>
           </span>
-        </a>
+          </a>
+        </div>
       ))}
     </div>
   </div>
@@ -88,7 +88,7 @@ const first = apps[0];
   .pie { transition: opacity 0.25s; }
   @media (hover: hover) {
     .panel .pie { opacity: 0.85; }
-    .panel:hover .pie, .panel:focus-visible .pie { opacity: 1; }
+    .panel:hover .pie, .panel a:focus-visible .pie { opacity: 1; }
   }
 
   /* Único momento orquestado de la página: la ventana se abre y aparecen las pestañas */
@@ -113,10 +113,7 @@ const first = apps[0];
         t.setAttribute('aria-selected', String(active));
         t.tabIndex = active ? 0 : -1;
         const panel = document.getElementById(t.getAttribute('aria-controls')!);
-        if (panel) {
-          panel.dataset.active = String(active);
-          panel.tabIndex = active ? 0 : -1;
-        }
+        if (panel) panel.dataset.active = String(active);
       }
       if (label) label.textContent = tab.dataset.domain ?? '';
       if (focus) tab.focus();

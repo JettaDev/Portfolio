@@ -38,10 +38,10 @@ const links = [
         href={switchLangPath(Astro.url, other)}
         hreflang={other}
         lang={other}
-        aria-label={t('lang.switch')}
+        title={t('lang.switch')}
         class="hidden rounded-md border border-corteza px-2.5 py-1.5 text-sm font-semibold text-liquen transition-colors hover:border-brote hover:text-brote sm:inline-block"
       >
-        {other.toUpperCase()}
+        {other.toUpperCase()}<span class="sr-only"> ({languages[other]})</span>
       </a>
 
       <!-- Menú móvil -->
@@ -142,6 +142,8 @@ const links = [
       toggle.setAttribute('aria-label', (open ? toggle.dataset.labelClose : toggle.dataset.labelOpen) ?? '');
       menu.dataset.open = String(open);
       menu.inert = !open;
+      // El menú tapa la página: lo de detrás no debe recibir el foco ni leerse mientras está abierto.
+      document.querySelectorAll<HTMLElement>('body > :not(header):not(#menu-movil):not(script)').forEach((el) => (el.inert = open));
       document.documentElement.style.overflow = open ? 'hidden' : '';
     };
 
