@@ -41,6 +41,11 @@ const d = app.data;
       <a href={href} class="rounded-lg bg-calendula px-4 py-2.5 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
         {t('apps.details')}
       </a>
+      {d.demo && (
+        <a href={d.demo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-4 py-2.5 font-medium transition-colors hover:border-liquen">
+          {t('apps.demo')}
+        </a>
+      )}
       {d.url && (
         <a href={d.url} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-4 py-2.5 font-medium transition-colors hover:border-liquen">
           {t('apps.live')}

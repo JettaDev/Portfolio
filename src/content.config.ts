@@ -15,6 +15,8 @@ const apps = defineCollection({
       domain: z.string(),
       url: z.url().optional(),
       repo: z.url().optional(),
+      /** Ruta de la demo con datos simulados, servida desde public/demo/ */
+      demo: z.string().startsWith('/demo/').optional(),
       stack: z.array(z.string()),
       year: z.number(),
       status: z.enum(['live', 'beta', 'wip']),

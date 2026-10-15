@@ -1,0 +1,34 @@
+---
+title: Mi Equipo F7
+tagline: Line-ups, call-ups and results for 7-a-side football teams.
+summary: A PWA where each team builds its line-up on the pitch, knows who’s coming to the match, logs goals and MVP, and shares posters as images.
+cover: ../../../assets/apps/mi-equipo-f7.png
+coverAlt: Mi Equipo F7 home screen with the next match, the call-up status and the line-up drawn on the pitch.
+domain: miequipof7
+demo: /demo/futbol7/
+stack: [React, TypeScript, Vite, Supabase, PostgreSQL, Cloudflare]
+year: 2026
+status: live
+hue: "#7fb6ff"
+order: 1
+---
+
+## The problem
+
+In an amateur 7-a-side team everything goes through the WhatsApp group: who can play on Sunday, who’s in goal, how the last match ended. Captains end up drawing the line-up on a napkin and nobody keeps track of the season’s goals.
+
+## What it does
+
+- **Call-ups**: each player says whether they can make it, and captains see at a glance how many still have to answer.
+- **Line-up on the pitch**: 2-3-1, 3-2-1 and 2-2-2 formations, or free placement by dragging each player. Undo, substitutes and warnings when someone is missing.
+- **Results**: score, scorers, assists, saves per goalkeeper and MVP. That feeds the season’s stats and leaderboards.
+- **Shareable posters**: the line-up and the result export as images with the team’s colours and crest.
+- **Many teams, one app**: each team only sees its own data, with admin, captain and player roles.
+
+## How it’s built
+
+A **React 19** and **TypeScript** SPA built with Vite and installable as a PWA. Data lives in **Supabase**: every operation is a PostgreSQL function that checks membership, and row-level security keeps teams from seeing each other’s data. Saves are versioned, so when two captains edit at once nobody overwrites the other: the app shows the conflict and lets you choose.
+
+## The demo
+
+It runs entirely in your browser against a simulated server with a fictional team. You can sign in as admin, captain or player to see what each one can do, and use the demo tools to trigger a save conflict or a server failure. The interface is in Spanish.

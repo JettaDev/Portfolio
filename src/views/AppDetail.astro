@@ -36,17 +36,33 @@ const { Content } = await render(app);
           <div><dt class="text-sm text-helecho">{t('apps.status')}</dt><dd class="mt-1"><StatusPill status={d.status} /></dd></div>
           <div class="col-span-2"><dt class="text-sm text-helecho">{t('apps.stack')}</dt><dd class="mt-1">{d.stack.join(', ')}</dd></div>
         </dl>
-        <div class="flex flex-wrap gap-3">
-          {d.url && (
-            <a href={d.url} target="_blank" rel="noopener" class="rounded-lg bg-calendula px-5 py-3 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
-              {t('apps.live')}
-            </a>
-          )}
-          {d.repo && (
-            <a href={d.repo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-5 py-3 font-medium transition-colors hover:border-liquen">
-              {t('apps.code')}
-            </a>
-          )}
+        <div class="flex flex-col gap-3 md:items-end">
+          <div class="flex flex-wrap gap-3">
+            {d.demo && (
+              <a
+                href={d.demo}
+                target="_blank"
+                rel="noopener"
+                class:list={[
+                  'rounded-lg px-5 py-3 transition-colors',
+                  d.url ? 'border border-corteza font-medium hover:border-liquen' : 'bg-calendula font-semibold text-bosque-hondo hover:bg-calendula-hondo',
+                ]}
+              >
+                {t('apps.demo')}
+              </a>
+            )}
+            {d.url && (
+              <a href={d.url} target="_blank" rel="noopener" class="rounded-lg bg-calendula px-5 py-3 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
+                {t('apps.live')}
+              </a>
+            )}
+            {d.repo && (
+              <a href={d.repo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-5 py-3 font-medium transition-colors hover:border-liquen">
+                {t('apps.code')}
+              </a>
+            )}
+          </div>
+          {d.demo && <p class="max-w-[36ch] text-sm text-helecho md:text-right">{t('apps.demoNote')}</p>}
         </div>
       </div>
     </header>

@@ -1,0 +1,1 @@
+export{t as mockAdapter}from"./mockAdapter-klXitgg6.js";

@@ -1,0 +1,34 @@
+---
+title: FocusPrime
+tagline: Habits, goals and workouts in one place.
+summary: A personal growth platform to plan activities, track goals and workouts, and see each week’s real progress.
+cover: ../../../assets/apps/focusprime.png
+coverAlt: FocusPrime progress screen with the week’s completed activities, the level reached and the list of milestones.
+domain: focusprime
+demo: /demo/focusprime/
+stack: [Next.js, React, TypeScript, TanStack Query, Supabase, Cloudflare Workers]
+year: 2026
+status: beta
+hue: "#62d6a4"
+order: 2
+---
+
+## The problem
+
+Habit apps count streaks and punish the day you miss; workout apps know nothing about your goals, and your calendar knows nothing about either. Progress ends up split across three places and none of them tells the truth.
+
+## What it does
+
+- **Today**: the day’s activities, ready to mark as done, partial or skipped.
+- **Calendar and recurrence**: activities that repeat, get postponed or edited without breaking the history.
+- **Plans and goals**: each plan hangs from a goal with a date and a success criterion.
+- **Workouts**: routines with exercises, sets and a live session that survives switching screens.
+- **Honest progress**: only what was due counts; rest days and optional items stay apart. Levels and milestones that never take points away.
+
+## How it’s built
+
+**Next.js 16** with the App Router and **React 19**, accessible components from React Aria and data through **TanStack Query**. Screens talk to a Zod-typed operations contract with two implementations: the real one on **Supabase** with row-level security, and a simulated one that passes the same contract tests. It deploys to **Cloudflare Workers** with OpenNext.
+
+## The demo
+
+It uses the simulated implementation: click “Entrar en la demostración” and you’ll get several weeks of sample activity. Changes live in memory and are lost on reload. “Escenarios de prueba” lets you simulate going offline, a service failure, a save conflict or an expired session. The interface is in Spanish.

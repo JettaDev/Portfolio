@@ -1,0 +1,34 @@
+---
+title: FocusPrime
+tagline: Hábitos, objetivos y entrenamientos en un solo sitio.
+summary: Plataforma de evolución personal para planificar actividades, seguir objetivos y entrenamientos y ver el progreso real de cada semana.
+cover: ../../../assets/apps/focusprime.png
+coverAlt: Pantalla de progreso de FocusPrime con las actividades completadas de la semana, el nivel alcanzado y la lista de hitos.
+domain: focusprime
+demo: /demo/focusprime/
+stack: [Next.js, React, TypeScript, TanStack Query, Supabase, Cloudflare Workers]
+year: 2026
+status: beta
+hue: "#62d6a4"
+order: 2
+---
+
+## El problema
+
+Las apps de hábitos cuentan rachas y castigan el día que fallas; las de entrenamiento no saben nada de tus objetivos, y el calendario no sabe nada de ninguna de las dos. Al final el progreso está repartido en tres sitios y ninguno dice la verdad.
+
+## Qué hace
+
+- **Hoy**: las actividades del día, listas para marcar como hechas, parciales u omitidas.
+- **Calendario y recurrencias**: actividades que se repiten, se posponen o se editan sin romper el historial.
+- **Planes y objetivos**: cada plan cuelga de un objetivo con fecha y criterio de cumplimiento.
+- **Entrenamientos**: rutinas con ejercicios, series y una sesión en directo que no se pierde si cambias de pantalla.
+- **Progreso honesto**: solo cuenta lo que tocaba hacer; descansos y opcionales quedan aparte. Niveles e hitos que nunca restan puntos.
+
+## Cómo está hecha
+
+**Next.js 16** con App Router y **React 19**, componentes accesibles de React Aria y datos con **TanStack Query**. Las pantallas hablan con un contrato de operaciones tipado con Zod que tiene dos implementaciones: la real, sobre **Supabase** con seguridad a nivel de fila, y una simulada que cumple las mismas pruebas de contrato. Se despliega en **Cloudflare Workers** con OpenNext.
+
+## La demo
+
+Usa la implementación simulada: entra con «Entrar en la demostración» y tendrás varias semanas de actividad de ejemplo. Los cambios viven en memoria y se pierden al recargar. Desde «Escenarios de prueba» puedes simular que te quedas sin conexión, un fallo del servicio, un conflicto al guardar o una sesión caducada.

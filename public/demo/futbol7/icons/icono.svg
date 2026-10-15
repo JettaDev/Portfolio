@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mi Equipo F7">
+  <rect width="512" height="512" rx="112" fill="#101318"/>
+  <g transform="translate(86 84) scale(3.4)">
+    <path d="M33 6 Q50 17 67 6 L74 8 L98 24 L88 44 L77 37 L77 96 Q50 99 23 96 L23 37 L12 44 L2 24 L26 8 Z" fill="#1F6FEB"/>
+    <path d="M50 12 L67 6 L74 8 L98 24 L88 44 L77 37 L77 96 Q63 98 50 98 Z" fill="#000" fill-opacity="0.1"/>
+    <path d="M2 24 L12 44 L14.6 42.4 L4.6 22.3 Z M98 24 L88 44 L85.4 42.4 L95.4 22.3 Z M33 6 Q50 17 67 6 L63.5 5 Q50 13 36.5 5 Z" fill="#fff"/>
+    <path d="M33 6 Q50 17 67 6 L74 8 L98 24 L88 44 L77 37 L77 96 Q50 99 23 96 L23 37 L12 44 L2 24 L26 8 Z" fill="none" stroke="#fff" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="M37 40 H63 V48 L50.5 80 H40.5 L52.5 49 H37 Z" fill="#fff"/>
+  </g>
+</svg>
