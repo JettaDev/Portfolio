@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "demos": "node demos/build.mjs"
+    "demos": "node demos/build.mjs",
+    "og": "node scripts/og.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.3",
@@ -20,5 +21,8 @@
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.8",
     "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.0"
   }
 }

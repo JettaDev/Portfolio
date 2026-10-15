@@ -19,7 +19,7 @@ const d = app.data;
 const { Content } = await render(app);
 ---
 
-<Base title={d.title} description={d.summary} image={d.cover.src}>
+<Base title={d.title} description={d.summary} image={`/og/${lang}/${app.slug}.png`} imageAlt={`${d.title}: ${d.tagline}`}>
   <article style={`--hue:${d.hue}`}>
     <header class="contenedor pt-10 pb-12 lg:pt-14">
       <a href={localePath(lang, '/#apps')} class="inline-flex items-center gap-2 text-sm text-helecho hover:text-liquen">
