@@ -7,8 +7,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  // TODO: cambiar por el dominio definitivo
-  site: 'https://jettadev.github.io',
+  site: 'https://portfolio.igp06.workers.dev',
 
   i18n: {
     defaultLocale: 'es',

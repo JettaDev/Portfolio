@@ -1,0 +1,163 @@
+---
+// Galería de capturas de una app: filas que emparejan una captura de escritorio
+// (en BrowserFrame) con una de móvil (en marco de teléfono), alternando el lado.
+// Cada captura se amplía en un <dialog> con navegación por teclado.
+import { Image, getImage } from 'astro:assets';
+import BrowserFrame from './BrowserFrame.astro';
+import type { App } from '../lib/apps';
+import { getLang, useT } from '../i18n/utils';
+
+interface Props {
+  app: App;
+}
+const { app } = Astro.props;
+const t = useT(getLang(Astro.url));
+const { gallery, domain, hue } = app.data;
+
+const shots = await Promise.all(
+  gallery.map(async (shot, index) => ({
+    ...shot,
+    index,
+    full: (await getImage({ src: shot.src, width: shot.device === 'mobile' ? 780 : 2400, format: 'webp' })).src,
+  })),
+);
+const rows: (typeof shots)[] = [];
+for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
+---
+
+{shots.length > 0 && (
+  <section class="border-t border-corteza/60 bg-bosque-hondo/40 py-16 lg:py-24" aria-labelledby="galeria" style={`--hue:${hue}`}>
+    <div class="contenedor">
+      <h2 id="galeria" class="text-[clamp(2rem,4vw,3rem)] leading-none font-bold tracking-[-0.03em] [font-variation-settings:'opsz'_96]">
+        {t('gallery.title')}
+      </h2>
+      <p class="mt-4 max-w-[52ch] text-lg text-helecho">{t('gallery.lead')}</p>
+
+      <div class="mt-12 flex flex-col gap-16 lg:mt-16 lg:gap-24" data-gallery>
+        {rows.map((row, r) => (
+          <div class="grid items-center gap-10 md:grid-cols-12 md:gap-12">
+            {row.map((shot) => {
+              const mobile = shot.device === 'mobile';
+              return (
+                <figure class:list={[mobile ? 'md:col-span-4' : 'md:col-span-8', r % 2 === 1 && (mobile ? 'md:order-1' : 'md:order-2')]}>
+                  <button
+                    type="button"
+                    class="group block w-full cursor-zoom-in rounded-ventana text-left"
+                    data-zoom={shot.index}
+                    data-full={shot.full}
+                    data-alt={shot.alt}
+                    data-title={shot.title}
+                    aria-label={`${t('gallery.open')}: ${shot.title}`}
+                  >
+                    {mobile ? (
+                      <div class="mx-auto max-w-[17rem] rounded-[2.4rem] border border-corteza bg-bosque-hondo p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
+                        <div class="overflow-hidden rounded-[1.9rem]">
+                          <Image src={shot.src} alt={shot.alt} widths={[300, 520, 780]} sizes="17rem" class="w-full" />
+                        </div>
+                      </div>
+                    ) : (
+                      <BrowserFrame domain={domain} hue={hue} class="transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
+                        <Image src={shot.src} alt={shot.alt} widths={[640, 960, 1440, 1920]} sizes="(min-width: 76rem) 48rem, (min-width: 48rem) 64vw, 100vw" class="w-full" />
+                      </BrowserFrame>
+                    )}
+                  </button>
+                  <figcaption class:list={['mt-5', mobile && 'mx-auto max-w-[17rem]']}>
+                    <span class="block font-semibold text-liquen">{shot.title}</span>
+                    {shot.caption && <span class="mt-1 block max-w-[52ch] text-helecho">{shot.caption}</span>}
+                  </figcaption>
+                </figure>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <dialog class="visor m-auto max-h-none max-w-none bg-transparent p-0 text-liquen" aria-label={t('gallery.title')} data-visor>
+      <div class="flex h-dvh w-screen flex-col items-center justify-center gap-4 p-4 sm:p-8">
+        <img alt="" class="min-h-0 max-w-full flex-1 rounded-lg object-contain shadow-[0_40px_120px_-40px_rgb(0_0_0/0.9)]" data-visor-img />
+        <div class="flex w-full max-w-3xl items-center justify-between gap-4">
+          <button type="button" class="visor-btn" data-visor-prev aria-label={t('gallery.prev')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <p class="min-w-0 flex-1 text-center text-sm text-helecho" data-visor-title aria-live="polite"></p>
+          <button type="button" class="visor-btn" data-visor-next aria-label={t('gallery.next')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button type="button" class="visor-btn" data-visor-close aria-label={t('gallery.close')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </dialog>
+  </section>
+)}
+
+<style>
+  .visor-btn {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-corteza);
+    background: var(--color-musgo);
+    transition: border-color 150ms;
+  }
+  .visor-btn:hover {
+    border-color: var(--color-liquen);
+  }
+  .visor::backdrop {
+    background: color-mix(in oklab, var(--color-bosque-hondo) 96%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .visor[open] {
+    animation: visor-entra 220ms var(--ease-salida, ease-out);
+  }
+  @keyframes visor-entra {
+    from { opacity: 0; transform: scale(0.98); }
+  }
+</style>
+
+<script>
+  for (const visor of document.querySelectorAll<HTMLDialogElement>('[data-visor]')) {
+    const section = visor.closest('section')!;
+    const shots = [...section.querySelectorAll<HTMLButtonElement>('[data-zoom]')];
+    const img = visor.querySelector<HTMLImageElement>('[data-visor-img]')!;
+    const title = visor.querySelector<HTMLElement>('[data-visor-title]')!;
+    let current = 0;
+
+    const show = (i: number) => {
+      current = (i + shots.length) % shots.length;
+      const shot = shots[current];
+      img.src = shot.dataset.full!;
+      img.alt = shot.dataset.alt!;
+      title.textContent = `${shot.dataset.title} (${current + 1}/${shots.length})`;
+    };
+
+    shots.forEach((shot, i) =>
+      shot.addEventListener('click', () => {
+        show(i);
+        visor.showModal();
+        document.documentElement.style.overflow = 'hidden';
+      }),
+    );
+    visor.addEventListener('close', () => {
+      document.documentElement.style.overflow = '';
+      shots[current].focus();
+    });
+    visor.querySelector('[data-visor-prev]')!.addEventListener('click', () => show(current - 1));
+    visor.querySelector('[data-visor-next]')!.addEventListener('click', () => show(current + 1));
+    visor.querySelector('[data-visor-close]')!.addEventListener('click', () => visor.close());
+    // Pulsar fuera de la imagen y de los controles cierra.
+    visor.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target === visor || target === visor.firstElementChild) visor.close();
+    });
+    visor.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') show(current - 1);
+      if (e.key === 'ArrowRight') show(current + 1);
+    });
+  }
+</script>

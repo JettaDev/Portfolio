@@ -17,6 +17,18 @@ const apps = defineCollection({
       repo: z.url().optional(),
       /** Ruta de la demo con datos simulados, servida desde public/demo/ */
       demo: z.string().startsWith('/demo/').optional(),
+      /** Capturas para la galería del detalle; se emparejan escritorio + móvil en ese orden */
+      gallery: z
+        .array(
+          z.object({
+            src: image(),
+            alt: z.string(),
+            title: z.string(),
+            caption: z.string().optional(),
+            device: z.enum(['desktop', 'mobile']).default('desktop'),
+          }),
+        )
+        .default([]),
       stack: z.array(z.string()),
       year: z.number(),
       status: z.enum(['live', 'beta', 'wip']),

@@ -4,6 +4,7 @@ import { render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import BrowserFrame from '../components/BrowserFrame.astro';
 import StatusPill from '../components/StatusPill.astro';
+import Gallery from '../components/Gallery.astro';
 import type { App } from '../lib/apps';
 import { getLang, useT, localePath } from '../i18n/utils';
 
@@ -78,6 +79,8 @@ const { Content } = await render(app);
         <Content />
       </div>
     </div>
+
+    <Gallery app={app} />
   </article>
 
   {next && (

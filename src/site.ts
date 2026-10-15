@@ -1,7 +1,7 @@
-// Datos personales del sitio. TODO: confirmar email y redes.
+// Datos personales del sitio. TODO: confirmar redes.
 export const site = {
   name: 'JettaDev',
-  email: 'hola@jettadev.com',
+  email: 'isragarciap06@gmail.com',
   github: 'https://github.com/JettaDev',
   linkedin: '',
   stack: {
