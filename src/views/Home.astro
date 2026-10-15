@@ -1,0 +1,83 @@
+---
+import Base from '../layouts/Base.astro';
+import HeroBrowser from '../components/HeroBrowser.astro';
+import AppRow from '../components/AppRow.astro';
+import { getApps } from '../lib/apps';
+import { getLang, useT } from '../i18n/utils';
+import { site } from '../site';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const apps = await getApps(lang);
+---
+
+<Base>
+  <!-- Hero -->
+  <section class="contenedor grid items-center gap-12 pt-14 pb-20 lg:grid-cols-12 lg:gap-10 lg:pt-24 lg:pb-28">
+    <div class="lg:col-span-5">
+      <h1 class="text-[clamp(2.6rem,6.2vw,4.6rem)] leading-[0.98] font-bold tracking-[-0.03em] text-balance [font-variation-settings:'opsz'_96]">
+        {t('hero.title')}
+      </h1>
+      <p class="mt-6 max-w-[44ch] text-lg text-helecho">{t('hero.lead')}</p>
+      <div class="mt-9 flex flex-wrap gap-3">
+        <a href="#apps" class="rounded-lg bg-calendula px-5 py-3 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
+          {t('hero.ctaApps')}
+        </a>
+        <a href="#contacto" class="rounded-lg border border-corteza px-5 py-3 font-medium transition-colors hover:border-liquen">
+          {t('hero.ctaContact')}
+        </a>
+      </div>
+    </div>
+    <div class="lg:col-span-7">
+      <HeroBrowser apps={apps} />
+    </div>
+  </section>
+
+  <!-- Apps -->
+  <section id="apps" class="scroll-mt-16 border-t border-corteza/60 bg-bosque-hondo/40">
+    <div class="contenedor pt-20">
+      <div class="max-w-2xl">
+        <h2 class="text-[clamp(2rem,4vw,3rem)] leading-tight font-bold tracking-tight">{t('apps.title')}</h2>
+        <p class="mt-3 text-lg text-helecho">{t('apps.lead')}</p>
+      </div>
+      <div class="divide-y divide-corteza/60 pb-8">
+        {apps.map((app) => <AppRow app={app} />)}
+      </div>
+    </div>
+  </section>
+
+  <!-- Sobre mí -->
+  <section id="sobre-mi" class="scroll-mt-16 border-t border-corteza/60">
+    <div class="contenedor grid gap-12 py-20 md:grid-cols-12 lg:py-28">
+      <div class="md:col-span-7">
+        <h2 class="text-[clamp(2rem,4vw,3rem)] leading-tight font-bold tracking-tight">{t('about.title')}</h2>
+        <p class="mt-6 max-w-[58ch] text-xl leading-relaxed text-liquen/90">{t('about.body')}</p>
+      </div>
+      <div class="md:col-span-5 md:pt-3">
+        <h3 class="text-lg font-semibold">{t('about.stack')}</h3>
+        <dl class="mt-5 space-y-5">
+          {site.stack[lang].map((g) => (
+            <div class="grid grid-cols-[7.5rem_1fr] gap-4 border-t border-corteza/60 pt-4">
+              <dt class="text-helecho">{g.group}</dt>
+              <dd class="text-liquen">{g.items.join(', ')}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contacto -->
+  <section id="contacto" class="scroll-mt-16 border-t border-corteza/60 bg-musgo">
+    <div class="contenedor py-20 lg:py-28">
+      <h2 class="text-[clamp(2rem,4vw,3rem)] leading-tight font-bold tracking-tight">{t('contact.title')}</h2>
+      <p class="mt-3 max-w-[50ch] text-lg text-helecho">{t('contact.lead')}</p>
+      <a
+        href={`mailto:${site.email}`}
+        class="mt-10 inline-block text-[clamp(1.6rem,5.5vw,4rem)] leading-none font-bold tracking-[-0.02em] break-all text-calendula underline decoration-calendula/30 decoration-[3px] underline-offset-[10px] transition-colors hover:decoration-calendula sm:break-normal"
+      >
+        {site.email}
+      </a>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,46 @@
+---
+import { getLang, useT, localePath, switchLangPath } from '../i18n/utils';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const other = lang === 'es' ? 'en' : 'es';
+const home = localePath(lang, '/');
+const links = [
+  { href: `${home}#apps`, label: t('nav.apps') },
+  { href: `${home}#sobre-mi`, label: t('nav.about') },
+  { href: `${home}#contacto`, label: t('nav.contact') },
+];
+---
+
+<header class="sticky top-0 z-40 border-b border-corteza/60 bg-bosque/85 backdrop-blur-md">
+  <div class="contenedor flex h-16 items-center justify-between gap-4">
+    <a href={home} class="group flex items-center gap-2.5 text-lg font-bold tracking-tight">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" class="shrink-0">
+        <rect x="1" y="5" width="24" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2" />
+        <rect x="1" y="3" width="11" height="6" rx="2.5" class="fill-calendula transition-transform duration-300 ease-salida group-hover:translate-x-[12px]" />
+      </svg>
+      JettaDev
+    </a>
+
+    <nav aria-label="Principal" class="flex items-center gap-1 sm:gap-2">
+      <ul class="hidden items-center gap-1 sm:flex">
+        {links.map((l) => (
+          <li>
+            <a href={l.href} class="rounded-md px-3 py-2 text-[0.95rem] text-helecho transition-colors hover:text-liquen">
+              {l.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <a
+        href={switchLangPath(Astro.url, other)}
+        hreflang={other}
+        lang={other}
+        aria-label={t('lang.switch')}
+        class="rounded-md border border-corteza px-2.5 py-1.5 text-sm font-semibold text-liquen transition-colors hover:border-brote hover:text-brote"
+      >
+        {other.toUpperCase()}
+      </a>
+    </nav>
+  </div>
+</header>

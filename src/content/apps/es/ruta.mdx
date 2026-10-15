@@ -1,0 +1,31 @@
+---
+title: Ruta
+tagline: Planifica la semana de tu equipo sin hojas de cálculo.
+summary: Tablero de planificación semanal con carga de trabajo por persona, avisos de sobrecarga y vista de progreso.
+cover: ../../../assets/apps/ruta.webp
+coverAlt: Panel de Ruta con métricas de la semana, gráfico de carga y lista de tareas.
+domain: ruta.app
+url: https://example.com
+repo: https://github.com/JettaDev
+stack: [Astro, React, TypeScript, PostgreSQL]
+year: 2026
+status: live
+hue: "#7fe0a6"
+order: 1
+---
+
+## El problema
+
+Los equipos pequeños planifican en hojas de cálculo que nadie actualiza. Ruta reúne en una sola vista qué hace cada persona esta semana y avisa cuando alguien va sobrecargado.
+
+## Qué hace
+
+- Arrastra tareas entre días y personas.
+- Calcula la carga de cada miembro y la marca en ámbar al pasar del 100 %.
+- Muestra el progreso de la semana con un gráfico que se entiende de un vistazo.
+
+## Cómo está hecho
+
+El frontend es una isla de React dentro de Astro; el estado se sincroniza con **PostgreSQL** mediante una API ligera. Las vistas pesadas se renderizan en servidor para que el primer pintado sea inmediato.
+
+> Contenido de ejemplo: sustitúyelo por una de tus apps reales.

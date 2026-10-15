@@ -1,0 +1,78 @@
+---
+import { Image } from 'astro:assets';
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import BrowserFrame from '../components/BrowserFrame.astro';
+import StatusPill from '../components/StatusPill.astro';
+import type { App } from '../lib/apps';
+import { getLang, useT, localePath } from '../i18n/utils';
+
+interface Props {
+  app: App;
+  next?: App;
+}
+const { app, next } = Astro.props;
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const d = app.data;
+const { Content } = await render(app);
+---
+
+<Base title={d.title} description={d.summary} image={d.cover.src}>
+  <article style={`--hue:${d.hue}`}>
+    <header class="contenedor pt-10 pb-12 lg:pt-14">
+      <a href={localePath(lang, '/#apps')} class="inline-flex items-center gap-2 text-sm text-helecho hover:text-liquen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        {t('apps.back')}
+      </a>
+      <h1 class="mt-8 text-[clamp(3rem,9vw,6.5rem)] leading-[0.92] font-bold tracking-[-0.035em] [font-variation-settings:'opsz'_96]">
+        {d.title}
+      </h1>
+      <p class="mt-5 max-w-[40ch] text-[clamp(1.2rem,2vw,1.5rem)] text-liquen/90">{d.tagline}</p>
+
+      <div class="mt-10 flex flex-col gap-8 border-t border-corteza/60 pt-6 md:flex-row md:items-start md:justify-between">
+        <dl class="grid grid-cols-2 gap-x-10 gap-y-4 sm:flex sm:flex-wrap">
+          <div><dt class="text-sm text-helecho">{t('apps.year')}</dt><dd class="mt-1">{d.year}</dd></div>
+          <div><dt class="text-sm text-helecho">{t('apps.status')}</dt><dd class="mt-1"><StatusPill status={d.status} /></dd></div>
+          <div class="col-span-2"><dt class="text-sm text-helecho">{t('apps.stack')}</dt><dd class="mt-1">{d.stack.join(', ')}</dd></div>
+        </dl>
+        <div class="flex flex-wrap gap-3">
+          {d.url && (
+            <a href={d.url} target="_blank" rel="noopener" class="rounded-lg bg-calendula px-5 py-3 font-semibold text-bosque-hondo transition-colors hover:bg-calendula-hondo">
+              {t('apps.live')}
+            </a>
+          )}
+          {d.repo && (
+            <a href={d.repo} target="_blank" rel="noopener" class="rounded-lg border border-corteza px-5 py-3 font-medium transition-colors hover:border-liquen">
+              {t('apps.code')}
+            </a>
+          )}
+        </div>
+      </div>
+    </header>
+
+    <div class="contenedor">
+      <BrowserFrame domain={d.domain} hue={d.hue}>
+        <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 76rem) 72rem, 100vw" loading="eager" class="w-full" />
+      </BrowserFrame>
+    </div>
+
+    <div class="contenedor py-16 lg:py-24">
+      <div class="prosa mx-auto">
+        <Content />
+      </div>
+    </div>
+  </article>
+
+  {next && (
+    <nav class="border-t border-corteza/60 bg-musgo" aria-label={t('apps.next')}>
+      <a href={localePath(lang, `/apps/${next.slug}`)} class="group contenedor flex items-center justify-between gap-6 py-12">
+        <span>
+          <span class="block text-helecho">{t('apps.next')}</span>
+          <span class="mt-1 block text-[clamp(2rem,5vw,3.5rem)] leading-none font-bold tracking-tight">{next.data.title}</span>
+        </span>
+        <svg class="shrink-0 text-calendula transition-transform duration-300 ease-salida group-hover:translate-x-2" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </nav>
+  )}
+</Base>

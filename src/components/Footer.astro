@@ -1,0 +1,18 @@
+---
+import { getLang, useT } from '../i18n/utils';
+import { site } from '../site';
+
+const t = useT(getLang(Astro.url));
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-corteza/60">
+  <div class="contenedor flex flex-col gap-3 py-8 text-sm text-helecho sm:flex-row sm:items-center sm:justify-between">
+    <p>© {year} {t('footer.made')}</p>
+    <ul class="flex gap-5">
+      <li><a class="hover:text-liquen" href={site.github} rel="me noopener" target="_blank">GitHub</a></li>
+      {site.linkedin && <li><a class="hover:text-liquen" href={site.linkedin} rel="me noopener" target="_blank">LinkedIn</a></li>}
+      <li><a class="hover:text-liquen" href={`mailto:${site.email}`}>Email</a></li>
+    </ul>
+  </div>
+</footer>

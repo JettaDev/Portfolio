@@ -1,0 +1,31 @@
+---
+title: Ruta
+tagline: Plan your team’s week without spreadsheets.
+summary: Weekly planning board with per-person workload, overload warnings and a progress view.
+cover: ../../../assets/apps/ruta.webp
+coverAlt: Ruta dashboard showing the week’s metrics, a workload chart and a task list.
+domain: ruta.app
+url: https://example.com
+repo: https://github.com/JettaDev
+stack: [Astro, React, TypeScript, PostgreSQL]
+year: 2026
+status: live
+hue: "#7fe0a6"
+order: 1
+---
+
+## The problem
+
+Small teams plan in spreadsheets nobody keeps up to date. Ruta puts what everyone is doing this week in a single view and warns you when someone is overloaded.
+
+## What it does
+
+- Drag tasks between days and people.
+- Calculates each member’s workload and flags it in amber past 100%.
+- Shows the week’s progress in a chart you can read at a glance.
+
+## How it’s built
+
+The frontend is a React island inside Astro; state syncs with **PostgreSQL** through a lightweight API. Heavy views render on the server so the first paint is instant.
+
+> Sample content: replace it with one of your real apps.

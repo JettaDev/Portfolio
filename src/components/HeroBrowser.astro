@@ -1,0 +1,137 @@
+---
+import { Image } from 'astro:assets';
+import type { App } from '../lib/apps';
+import { getLang, useT, localePath } from '../i18n/utils';
+
+interface Props {
+  apps: App[];
+}
+const { apps } = Astro.props;
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const first = apps[0];
+---
+
+<div class="hero-browser relative" data-hero-browser>
+  <div class="ventana overflow-hidden rounded-ventana border border-corteza bg-bosque-hondo shadow-[0_40px_120px_-40px_rgb(0_0_0/0.85)]">
+    <!-- Pestañas = apps -->
+    <div class="flex items-end gap-1 overflow-x-auto px-3 pt-3 [scrollbar-width:none]" role="tablist" aria-label={t('hero.tabsLabel')}>
+      {apps.map((app, i) => (
+        <button
+          type="button"
+          role="tab"
+          id={`tab-${app.slug}`}
+          aria-controls={`panel-${app.slug}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+          data-domain={app.data.domain}
+          data-hue={app.data.hue}
+          style={`--hue:${app.data.hue}; --i:${i}`}
+          class="pestana group relative flex min-w-0 shrink-0 items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium text-helecho transition-colors hover:text-liquen aria-selected:bg-musgo aria-selected:text-liquen"
+        >
+          <span class="size-2 rounded-full bg-(--hue)" aria-hidden="true"></span>
+          {app.data.title}
+        </button>
+      ))}
+    </div>
+
+    <div class="bg-musgo px-3 py-2.5">
+      <div class="flex items-center gap-2 rounded-md bg-bosque-hondo/70 px-3 py-1.5 text-xs text-helecho">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span data-domain-label>{first?.data.domain}</span>
+      </div>
+    </div>
+
+    <div class="relative aspect-[16/10] bg-musgo">
+      {apps.map((app, i) => (
+        <a
+          href={localePath(lang, `/apps/${app.slug}`)}
+          role="tabpanel"
+          id={`panel-${app.slug}`}
+          aria-labelledby={`tab-${app.slug}`}
+          class="panel absolute inset-0 block"
+          data-active={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+        >
+          <Image
+            src={app.data.cover}
+            alt={app.data.coverAlt}
+            widths={[640, 960, 1280]}
+            sizes="(min-width: 64rem) 44rem, 100vw"
+            loading={i === 0 ? 'eager' : 'lazy'}
+            fetchpriority={i === 0 ? 'high' : 'auto'}
+            class="size-full object-cover object-top"
+          />
+          <span class="pie absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-linear-to-t from-bosque-hondo/95 via-bosque-hondo/60 to-transparent px-5 pt-16 pb-4">
+            <span class="text-[0.95rem] text-liquen">{app.data.tagline}</span>
+            <span class="shrink-0 text-sm font-semibold text-calendula">{t('apps.details')}</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+</div>
+
+<style>
+  .panel {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(1.015);
+    transition: opacity 0.35s var(--ease-salida), transform 0.5s var(--ease-salida), visibility 0s 0.35s;
+  }
+  .panel[data-active='true'] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+  }
+  .pie { transition: opacity 0.25s; }
+  @media (hover: hover) {
+    .panel .pie { opacity: 0.85; }
+    .panel:hover .pie, .panel:focus-visible .pie { opacity: 1; }
+  }
+
+  /* Único momento orquestado de la página: la ventana se abre y aparecen las pestañas */
+  .ventana { animation: abrir 0.9s var(--ease-salida) both 0.15s; }
+  .pestana { animation: pestana 0.5s var(--ease-salida) both; animation-delay: calc(0.55s + var(--i) * 0.09s); }
+  @keyframes abrir {
+    from { opacity: 0; transform: translateY(28px) scale(0.98); }
+  }
+  @keyframes pestana {
+    from { opacity: 0; transform: translateY(8px); }
+  }
+</style>
+
+<script>
+  function initHeroBrowser(root: HTMLElement) {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const label = root.querySelector('[data-domain-label]');
+
+    function select(tab: HTMLButtonElement, focus = false) {
+      for (const t of tabs) {
+        const active = t === tab;
+        t.setAttribute('aria-selected', String(active));
+        t.tabIndex = active ? 0 : -1;
+        const panel = document.getElementById(t.getAttribute('aria-controls')!);
+        if (panel) {
+          panel.dataset.active = String(active);
+          panel.tabIndex = active ? 0 : -1;
+        }
+      }
+      if (label) label.textContent = tab.dataset.domain ?? '';
+      if (focus) tab.focus();
+    }
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        const map: Record<string, number> = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in map)) return;
+        e.preventDefault();
+        select(tabs[(map[e.key] + tabs.length) % tabs.length], true);
+      });
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-hero-browser]').forEach(initHeroBrowser);
+</script>
