@@ -55,7 +55,7 @@ const first = apps[0];
           <Image
             src={app.data.cover}
             alt={app.data.coverAlt}
-            widths={[640, 960, 1280]}
+            widths={[480, 640, 960, 1280]}
             sizes="(min-width: 64rem) 44rem, 100vw"
             loading={i === 0 ? 'eager' : 'lazy'}
             fetchpriority={i === 0 ? 'high' : 'auto'}

@@ -9,6 +9,9 @@ import sitemap from '@astrojs/sitemap';
 export default defineConfig({
   site: 'https://portfolio.igp06.workers.dev',
 
+  // CSS dentro del HTML: una petición menos antes del primer pintado (~13 KB comprimido).
+  build: { inlineStylesheets: 'always' },
+
   i18n: {
     defaultLocale: 'es',
     locales: ['es', 'en'],
