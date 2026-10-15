@@ -1,0 +1,20 @@
+---
+// Los servidores estáticos solo sirven un 404 (este, en español). Si la ruta
+// pedida es de la versión inglesa, se sustituye el documento por /en/404/
+// manteniendo la URL y el código 404.
+import NotFound from '../views/NotFound.astro';
+---
+
+<NotFound lang="es">
+  <script is:inline slot="head">
+    (function () {
+      var p = location.pathname;
+      if (p !== '/en' && p.indexOf('/en/') !== 0) return;
+      document.documentElement.style.visibility = 'hidden';
+      fetch('/en/404/')
+        .then(function (r) { if (!r.ok) throw r; return r.text(); })
+        .then(function (html) { document.open(); document.write(html); document.close(); })
+        .catch(function () { document.documentElement.style.visibility = ''; });
+    })();
+  </script>
+</NotFound>

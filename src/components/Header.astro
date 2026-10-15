@@ -1,5 +1,7 @@
 ---
 import { getLang, useT, localePath, switchLangPath } from '../i18n/utils';
+import { languages, type Lang } from '../i18n/ui';
+import { site } from '../site';
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
@@ -12,7 +14,7 @@ const links = [
 ];
 ---
 
-<header class="sticky top-0 z-40 border-b border-corteza/60 bg-bosque/85 backdrop-blur-md">
+<header class="sticky top-0 z-40 border-b border-corteza/60 bg-bosque/85 backdrop-blur-md" data-header>
   <div class="contenedor flex h-16 items-center justify-between gap-4">
     <a href={home} class="group flex items-center gap-2.5 text-lg font-bold tracking-tight">
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" class="shrink-0">
@@ -22,7 +24,7 @@ const links = [
       JettaDev
     </a>
 
-    <nav aria-label="Principal" class="flex items-center gap-1 sm:gap-2">
+    <nav aria-label={t('nav.label')} class="flex items-center gap-1 sm:gap-2">
       <ul class="hidden items-center gap-1 sm:flex">
         {links.map((l) => (
           <li>
@@ -37,10 +39,121 @@ const links = [
         hreflang={other}
         lang={other}
         aria-label={t('lang.switch')}
-        class="rounded-md border border-corteza px-2.5 py-1.5 text-sm font-semibold text-liquen transition-colors hover:border-brote hover:text-brote"
+        class="hidden rounded-md border border-corteza px-2.5 py-1.5 text-sm font-semibold text-liquen transition-colors hover:border-brote hover:text-brote sm:inline-block"
       >
         {other.toUpperCase()}
       </a>
+
+      <!-- Menú móvil -->
+      <button
+        type="button"
+        class="boton-menu -mr-2 grid size-11 place-items-center rounded-md text-liquen sm:hidden"
+        aria-expanded="false"
+        aria-controls="menu-movil"
+        aria-label={t('nav.menu')}
+        data-label-open={t('nav.menu')}
+        data-label-close={t('nav.close')}
+        data-menu-toggle
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path class="raya raya-1" d="M4 8h16" />
+          <path class="raya raya-2" d="M4 16h16" />
+        </svg>
+      </button>
     </nav>
   </div>
+
 </header>
+
+<div id="menu-movil" class="menu-movil fixed z-30 inset-x-0 top-16 bottom-0 flex flex-col bg-bosque sm:hidden" data-open="false" inert>
+  <ul class="contenedor flex flex-col pt-6">
+    {links.map((l, i) => (
+      <li class="enlace border-b border-corteza/60" style={`--i:${i}`}>
+        <a href={l.href} class="block py-5 text-[2rem] leading-none font-bold tracking-tight" data-menu-link>
+          {l.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <div class="contenedor mt-auto flex flex-col gap-6 pb-10">
+    <div>
+      <p class="text-sm text-helecho">{t('nav.language')}</p>
+      <ul class="mt-2 flex gap-2">
+        {(Object.keys(languages) as Lang[]).map((l) => (
+          <li>
+            <a
+              href={switchLangPath(Astro.url, l)}
+              hreflang={l}
+              lang={l}
+              aria-current={l === lang ? 'true' : undefined}
+              class="block rounded-md border border-corteza px-3.5 py-2 font-medium aria-[current]:border-brote aria-[current]:text-brote"
+            >
+              {languages[l]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <a href={`mailto:${site.email}`} class="text-lg font-semibold break-all text-calendula">{site.email}</a>
+  </div>
+</div>
+
+<style>
+  .raya {
+    transform-origin: 12px 12px;
+    transition: transform 0.35s var(--ease-salida);
+  }
+  [aria-expanded='true'] .raya-1 { transform: translateY(4px) rotate(45deg); }
+  [aria-expanded='true'] .raya-2 { transform: translateY(-4px) rotate(-45deg); }
+
+  .menu-movil {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.25s, transform 0.35s var(--ease-salida), visibility 0s 0.35s;
+  }
+  .menu-movil[data-open='true'] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+  }
+  .menu-movil .enlace {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.45s var(--ease-salida);
+  }
+  .menu-movil[data-open='true'] .enlace {
+    opacity: 1;
+    transform: none;
+    transition-delay: calc(0.05s + var(--i) * 0.05s);
+  }
+</style>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const toggle = header?.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const menu = document.getElementById('menu-movil');
+
+  if (header && toggle && menu) {
+    const setOpen = (open: boolean) => {
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', (open ? toggle.dataset.labelClose : toggle.dataset.labelOpen) ?? '');
+      menu.dataset.open = String(open);
+      menu.inert = !open;
+      document.documentElement.style.overflow = open ? 'hidden' : '';
+    };
+
+    toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+    menu.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menu.dataset.open === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+    // Si se pasa a escritorio con el menú abierto, cerrarlo
+    matchMedia('(min-width: 40rem)').addEventListener('change', (e) => e.matches && setOpen(false));
+  }
+</script>
