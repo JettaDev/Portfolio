@@ -26,7 +26,7 @@ const { Content } = await render(app);
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
         {t('apps.back')}
       </a>
-      <h1 class="mt-8 text-[clamp(3rem,9vw,6.5rem)] leading-[0.92] font-bold tracking-[-0.035em] [font-variation-settings:'opsz'_96]">
+      <h1 style={`view-transition-name:titulo-${app.slug}`} class="vt-titulo mt-8 text-[clamp(3rem,9vw,6.5rem)] leading-[0.92] font-bold tracking-[-0.035em] [font-variation-settings:'opsz'_96]">
         {d.title}
       </h1>
       <p class="mt-5 max-w-[40ch] text-[clamp(1.2rem,2vw,1.5rem)] text-liquen/90">{d.tagline}</p>
@@ -69,7 +69,7 @@ const { Content } = await render(app);
     </header>
 
     <div class="contenedor">
-      <BrowserFrame domain={d.domain} hue={d.hue}>
+      <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`}>
         <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 76rem) 72rem, 100vw" loading="eager" class="w-full" />
       </BrowserFrame>
     </div>
@@ -88,10 +88,20 @@ const { Content } = await render(app);
       <a href={localePath(lang, `/apps/${next.slug}`)} class="group contenedor flex items-center justify-between gap-6 py-12">
         <span>
           <span class="block text-helecho">{t('apps.next')}</span>
-          <span class="mt-1 block text-[clamp(2rem,5vw,3.5rem)] leading-none font-bold tracking-tight">{next.data.title}</span>
+          <span data-vt-siguiente={`titulo-${next.slug}`} class="vt-titulo mt-1 block w-fit text-[clamp(2rem,5vw,3.5rem)] leading-none font-bold tracking-tight">{next.data.title}</span>
         </span>
         <svg class="shrink-0 text-calendula transition-transform duration-300 ease-salida group-hover:translate-x-2" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </nav>
   )}
 </Base>
+
+<script>
+  // El título de «Siguiente app» solo se transforma en el de su página si se pulsa este enlace;
+  // con un nombre fijo también volaría al volver al listado.
+  for (const titulo of document.querySelectorAll<HTMLElement>('[data-vt-siguiente]')) {
+    titulo.closest('a')!.addEventListener('click', () => {
+      titulo.style.viewTransitionName = titulo.dataset.vtSiguiente!;
+    });
+  }
+</script>

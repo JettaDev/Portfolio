@@ -122,6 +122,25 @@ const first = apps[0];
       if (focus) tab.focus();
     }
 
+    // Al abrir una app desde el hero, es esta ventana (y no la de su fila del listado) la que
+    // se transforma en la del detalle.
+    const ventana = root.querySelector<HTMLElement>('.ventana')!;
+    for (const tab of tabs) {
+      const slug = tab.id.replace(/^tab-/, '');
+      document.getElementById(`panel-${slug}`)?.addEventListener('click', () => {
+        for (const name of [`ventana-${slug}`, `titulo-${slug}`]) {
+          document.querySelector<HTMLElement>(`[data-vt="${name}"]`)?.style.setProperty('view-transition-name', 'none');
+        }
+        ventana.style.viewTransitionName = `ventana-${slug}`;
+      });
+    }
+    // Al volver con el historial (bfcache) cada ventana recupera su nombre.
+    addEventListener('pageshow', (e) => {
+      if (!e.persisted) return;
+      ventana.style.viewTransitionName = '';
+      document.querySelectorAll<HTMLElement>('[data-vt]').forEach((el) => el.style.setProperty('view-transition-name', el.dataset.vt!));
+    });
+
     tabs.forEach((tab, i) => {
       tab.addEventListener('click', () => select(tab));
       tab.addEventListener('keydown', (e) => {

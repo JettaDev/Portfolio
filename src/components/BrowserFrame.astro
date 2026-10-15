@@ -4,13 +4,16 @@ interface Props {
   domain: string;
   hue?: string;
   class?: string;
+  /** view-transition-name: la misma ventana en el listado y en el detalle se transforma de una a otra */
+  name?: string;
 }
-const { domain, hue = '#7fe0a6', class: className } = Astro.props;
+const { domain, hue = '#7fe0a6', class: className, name } = Astro.props;
 ---
 
 <div
   class:list={['overflow-hidden rounded-ventana border border-corteza bg-bosque-hondo shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)]', className]}
-  style={`--hue:${hue}`}
+  style={`--hue:${hue}${name ? `; view-transition-name:${name}; view-transition-class:ventana` : ''}`}
+  data-vt={name}
 >
   <div class="flex items-center gap-3 border-b border-corteza/70 px-4 py-2.5">
     <span class="flex gap-1.5" aria-hidden="true">

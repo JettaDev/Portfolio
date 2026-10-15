@@ -54,6 +54,57 @@
   }
 }
 
+/* View transitions entre páginas (listado ↔ detalle): la ventana y el título de cada app
+   llevan el mismo view-transition-name en ambas páginas y se transforman. */
+@view-transition {
+  navigation: auto;
+}
+
+/* La cabecera no participa: se queda quieta mientras cambia el resto. */
+header[data-header] {
+  view-transition-name: cabecera;
+}
+
+::view-transition-group(*) {
+  animation-duration: 0.5s;
+  animation-timing-function: var(--ease-salida);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+}
+
+/* Los títulos cambian de tamaño: se escalan conservando proporción, anclados arriba a la izquierda. */
+.vt-titulo {
+  view-transition-class: titulo;
+}
+::view-transition-new(*.titulo) {
+  height: 100%;
+  width: auto;
+  object-fit: none;
+  object-position: left top;
+}
+
+/* Ventanas y títulos: solo se ve la versión nueva, que crece desde donde estaba la antigua.
+   Sin fundido cruzado no aparecen dos textos superpuestos a mitad de camino. */
+::view-transition-old(*.ventana),
+::view-transition-old(*.titulo) {
+  animation: none;
+  opacity: 0;
+}
+::view-transition-new(*.ventana),
+::view-transition-new(*.titulo) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
 @utility contenedor {
   width: 100%;
   max-width: 76rem;
