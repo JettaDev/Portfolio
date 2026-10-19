@@ -1,6 +1,7 @@
 ---
 // Banco de pruebas de la ciudad: solo existe con `astro dev`, no se publica.
-// Parámetros: ?nivel=alto|medio|bajo, ?ligero, ?reducido, ?encuadre=ancho|alto, ?dpr=2, ?poster
+// Parámetros: ?nivel=alto|medio|bajo, ?ligero, ?reducido, ?encuadre=ancho|alto, ?dpr=2, ?apagon,
+// ?encendida=slug, ?acercar=0.45, ?poster
 // (?poster: sin panel ni movimiento; al acabar deja en window.poster las posiciones de los ventanales).
 import '../../styles/global.css';
 import { getCiudad } from '../../lib/ciudad';
@@ -43,6 +44,8 @@ const datos = await getCiudad('es');
     reducido: poster || params.has('reducido'),
     encuadre: (params.get('encuadre') as Encuadre | null) ?? undefined,
     dpr: params.has('dpr') ? Number(params.get('dpr')) : undefined,
+    apagon: params.has('apagon'),
+    encendida: params.get('encendida') ?? undefined,
     alPrimerFrame: () => {
       estado.primerFrame = performance.now();
       // Posiciones relativas (0–1) de cada ventanal, para los enlaces del póster sin WebGL
@@ -73,5 +76,7 @@ const datos = await getCiudad('es');
     requestAnimationFrame(medir);
   };
   requestAnimationFrame(medir);
+  // ?acercar=0.45&encendida=slug: la cámara a esa fracción del vuelo hacia el ventanal (Open Graph)
+  if (params.has('acercar') && params.get('encendida')) ciudad.situarEn(params.get('encendida')!, Number(params.get('acercar')));
   Object.assign(window, { ciudad, estadoCiudad: estado });
 </script>

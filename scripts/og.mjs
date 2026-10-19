@@ -1,13 +1,14 @@
 // Genera las imágenes Open Graph (1200×630) en public/og/<lang>/:
-//   index.png          la del sitio (portada, Sobre mí, 404…)
-//   <slug>.png         una por app, con su captura dentro de la ventana de navegador
+//   index.png          la del sitio (portada, Sobre mí, 404…): la ciudad de noche
+//   <slug>.png         una por app: la ciudad apagada con solo su ventanal encendido
 //
 //   npm run og
 //
-// Lee títulos, taglines y portadas de src/content/apps y los textos de src/i18n/ui.ts.
+// Los fondos salen de la escena real (npm run poster → src/assets/ciudad/og/); aquí se les pone
+// encima el texto: titulares y taglines de src/content/apps y textos de src/i18n/ui.ts.
 // Usa Chrome (CHROME_PATH, por defecto /usr/bin/google-chrome) con la tipografía del sitio.
 
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -52,6 +53,13 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, 
 /** Texto con las palabras con guion («7-a-side») sin partir. */
 const prose = (s) => esc(s).replace(/\S*\w-\w\S*/g, (w) => `<span style="white-space:nowrap">${w}</span>`);
 
+/** Fondo de 1600×630 alineado a la izquierda: el ventanal queda a la derecha del texto. */
+const fondo = (nombre) => {
+  const archivo = join(root, 'src/assets/ciudad/og', `${nombre}.webp`);
+  if (!existsSync(archivo)) throw new Error(`Falta ${archivo.slice(root.length + 1)}: ejecuta npm run poster`);
+  return `<img class="fondo" src="${pathToFileURL(archivo).href}">`;
+};
+
 const logo = `<svg width="34" height="34" viewBox="0 0 26 26"><rect x="1" y="5" width="24" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="1" y="3" width="11" height="6" rx="2.5" fill="#ffb547"/></svg>`;
 
 function page(body) {
@@ -68,50 +76,33 @@ function page(body) {
   .chips { margin-top: 28px; display: flex; gap: 10px; }
   .chip { background: #183a27; border-radius: 8px; padding: 7px 13px; font-size: 21px; color: rgb(230 238 228 / 0.9); }
   .url { margin-top: 26px; font-size: 22px; color: #93ad9c; }
-  .ventana { position: absolute; left: 600px; top: 112px; width: 760px; border: 2px solid #2f5640; border-radius: 18px;
-    background: #0a1d13; overflow: hidden; box-shadow: 0 40px 120px -30px rgb(0 0 0 / 0.85); }
-  .pestanas { display: flex; gap: 4px; padding: 12px 14px 0; }
-  .pestana { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 12px 12px 0 0; font-size: 19px; font-weight: 500; color: #93ad9c; }
-  .pestana.activa { background: #183a27; color: #e6eee4; }
-  .punto { width: 10px; height: 10px; border-radius: 50%; }
-  .barra { background: #183a27; padding: 11px 14px; }
-  .direccion { display: flex; align-items: center; gap: 10px; background: rgb(10 29 19 / 0.7); border-radius: 8px; padding: 8px 14px; font-size: 17px; color: #93ad9c; }
-  .ventana img { display: block; width: 100%; }
+  .fondo { position: absolute; left: 0; top: 0; width: 1600px; height: 630px; }
   .acento { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; }
   </style></head><body>${body}</body></html>`;
 }
 
-const ventana = (tabs, domain, cover) => `
-  <div class="ventana">
-    <div class="pestanas">${tabs.map((t, i) => `<div class="pestana${i === 0 ? ' activa' : ''}"><span class="punto" style="background:${t.hue}"></span>${esc(t.title)}</div>`).join('')}</div>
-    <div class="barra"><div class="direccion"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>${esc(domain)}</div></div>
-    <img src="${cover}">
-  </div>`;
-
-function appCard(app, all) {
-  // La pestaña activa es la app; las demás quedan detrás, como en la portada del sitio.
-  const tabs = [app, ...all.filter((a) => a.slug !== app.slug)];
+function appCard(app) {
   const size = 96;
   return page(`
+    ${fondo(app.slug)}
     <div class="acento" style="background:${app.hue}"></div>
     <div class="marca">${logo}JettaDev</div>
     <div class="pie">
       <h1 style="font-size:${size}px">${esc(app.title)}</h1>
       <p class="tagline">${prose(app.tagline)}</p>
       <div class="chips">${app.stack.slice(0, 3).map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>
-    </div>
-    ${ventana(tabs, app.domain, app.cover)}`);
+    </div>`);
 }
 
-function siteCard(lang, all) {
+function siteCard(lang) {
   return page(`
+    ${fondo('sitio')}
     <div class="acento" style="background:#ffb547"></div>
     <div class="marca">${logo}JettaDev</div>
     <div class="pie">
       <h1 style="font-size:70px">${esc(text('hero.title', lang))}</h1>
       <p class="url">${esc(SITE)}</p>
-    </div>
-    ${ventana(all, all[0].domain, all[0].cover)}`);
+    </div>`);
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome' });
@@ -136,7 +127,7 @@ async function render(html, out) {
 
 for (const lang of LANGS) {
   const all = apps(lang);
-  await render(siteCard(lang, all), join(root, 'public/og', lang, 'index.png'));
-  for (const app of all) await render(appCard(app, all), join(root, 'public/og', lang, `${app.slug}.png`));
+  await render(siteCard(lang), join(root, 'public/og', lang, 'index.png'));
+  for (const app of all) await render(appCard(app), join(root, 'public/og', lang, `${app.slug}.png`));
 }
 await browser.close();

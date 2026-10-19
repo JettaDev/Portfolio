@@ -101,9 +101,12 @@ export class CamaraCiudad {
     return this.lineaDeVuelo(v, { posicion: this.base.clone(), mira: this.miraEnReposo(), brillo: 0 }).progress(1);
   }
 
-  /** Coloca la cámara pegada al ventanal, sin animación (al volver a la portada sin bfcache). */
-  situar(v: Ventanal): void {
-    this.lineaDesdeReposo(v);
+  /**
+   * Coloca la cámara pegada al ventanal, sin animación (al volver a la portada sin bfcache), o en
+   * un punto intermedio del vuelo (`progreso` < 1, para las imágenes Open Graph).
+   */
+  situar(v: Ventanal, progreso = 1): void {
+    this.lineaDesdeReposo(v).progress(progreso);
     this.camara.lookAt(this.mira);
   }
 

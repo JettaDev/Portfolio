@@ -14,20 +14,22 @@ interface Props {
   image?: string;
   imageAlt?: string;
   noindex?: boolean;
-  /** La cabecera empieza transparente sobre el hero a pantalla completa (portada) */
+  /** La cabecera empieza transparente sobre el hero a pantalla completa (portada y 404) */
   cabeceraSobreHero?: boolean;
+  /** Es la portada de la ciudad: al volver de una ficha, el destello sale cubriendo */
+  portada?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
 ---
 
 <!doctype html>
-<html lang={lang} data-portada={cabeceraSobreHero || undefined}>
+<html lang={lang} data-portada={portada || undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

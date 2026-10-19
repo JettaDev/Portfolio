@@ -41,6 +41,7 @@ export interface Obras {
   objetos: Group[];
   /** La pluma se mueve despacio y la luz de la punta parpadea (nada con movimiento reducido). */
   actualizar(t: number, conMovimiento: boolean): void;
+  apagar(): void;
 }
 
 /** Algo más claro que los edificios: la grúa se lee recortada contra el cielo y el andamio, sobre la fachada. */
@@ -99,12 +100,14 @@ export function crearObras(trazado: Trazado): Obras {
     return obra;
   });
 
+  let apagadas = false;
   return {
     objetos,
     actualizar: (t, conMovimiento) => {
       plumas.forEach((p, i) => (p.rotation.y = conMovimiento ? Math.sin(t * 0.11 + i) * 0.35 : 0));
-      luces.forEach((l) => (l.visible = !conMovimiento || Math.sin(t * Math.PI) > -0.2));
+      luces.forEach((l) => (l.visible = !apagadas && (!conMovimiento || Math.sin(t * Math.PI) > -0.2)));
     },
+    apagar: () => (apagadas = true),
   };
 }
 
@@ -115,6 +118,7 @@ export interface Solar {
   objetivo: Objetivo;
   /** El tablero se ilumina un poco al señalarlo. */
   actualizar(): void;
+  apagar(): void;
 }
 
 export function crearSolar(trazado: Trazado): Solar {
@@ -155,5 +159,6 @@ export function crearSolar(trazado: Trazado): Solar {
     objeto: grupo,
     objetivo,
     actualizar: () => tablero.material.color.copy(apagado).multiplyScalar(1 + objetivo.brillo * 1.5),
+    apagar: () => apagado.set(COLORES.apagada),
   };
 }

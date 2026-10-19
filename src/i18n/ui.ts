@@ -58,6 +58,7 @@ export const ui = {
     'notFound.title': 'Esta página no existe',
     'notFound.lead': 'Puede que el enlace esté mal escrito o que la página se haya movido. Vuelve al inicio o entra en una de las apps.',
     'notFound.home': 'Volver al inicio',
+    'notFound.hint': 'Se ha ido la luz. Solo queda una ventana encendida: la de vuelta a casa.',
     'notFound.tab': 'No encontrada',
   },
   en: {
@@ -115,6 +116,7 @@ export const ui = {
     'notFound.title': 'This page doesn’t exist',
     'notFound.lead': 'The link may be mistyped or the page may have moved. Go back home or open one of the apps.',
     'notFound.home': 'Back to home',
+    'notFound.hint': 'The power’s out. Only one window is still lit: the one back home.',
     'notFound.tab': 'Not found',
   },
 } as const;

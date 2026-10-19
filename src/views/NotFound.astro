@@ -1,7 +1,15 @@
 ---
-import { Image } from 'astro:assets';
+// 404 «apagón»: la misma ciudad de la portada con todas las luces apagadas salvo una ventana
+// que parpadea y lleva al inicio. Es un póster (npm run poster) y la ventana es HTML: la 404 no
+// carga el motor 3D y funciona igual sin WebGL.
+import { Image, getImage } from 'astro:assets';
 import Base from '../layouts/Base.astro';
+import apagonAncho from '../assets/ciudad/poster-apagon-ancho.webp';
+import apagonAlto from '../assets/ciudad/poster-apagon-alto.webp';
+import posiciones from '../assets/ciudad/poster.json';
+import { CAMARA, ENCUADRES, VENTANAL, distanciaCamara, trazarCiudad } from '../ciudad/trazado';
 import { getApps } from '../lib/apps';
+import { getCiudad } from '../lib/ciudad';
 import { useT, localePath } from '../i18n/utils';
 import type { Lang } from '../i18n/ui';
 
@@ -11,61 +19,108 @@ interface Props {
 const { lang } = Astro.props;
 const t = useT(lang);
 const apps = await getApps(lang);
+const inicio = localePath(lang, '/');
+
+const [ancho, alto] = await Promise.all([
+  getImage({ src: apagonAncho, widths: [1500, 2200, 3000], format: 'webp' }),
+  getImage({ src: apagonAlto, widths: [840, 1260, 1680], format: 'webp' }),
+]);
+
+// La ventana que queda encendida es el ventanal de la primera app: su centro sale del póster y
+// su tamaño, de la distancia de la cámara en cada encuadre (en fracción de la altura).
+const ventanas = await getCiudad(lang);
+const trazado = trazarCiudad(ventanas.map(({ slug, status, planta }) => ({ slug, status, planta })));
+const primera = trazado.proyectos[0];
+const tan = Math.tan(((CAMARA.fov / 2) * Math.PI) / 180);
+const tamano = (encuadre: 'ancho' | 'alto') => {
+  const lejos = distanciaCamara(encuadre, trazado.mitadAncho, trazado.frente) - primera.z;
+  return { w: VENTANAL.ancho / (2 * lejos * tan), h: VENTANAL.alto / (2 * lejos * tan) };
+};
+const centro = (encuadre: 'ancho' | 'alto') => posiciones[encuadre].ventanas.find((v) => v.slug === primera?.slug);
+const [ca, cb] = [centro('ancho'), centro('alto')];
+const [ta, tb] = [tamano('ancho'), tamano('alto')];
+const estilo = ca && cb ? `--xa:${ca.x}; --ya:${ca.y}; --wa:${ta.w}; --ha:${ta.h}; --xb:${cb.x}; --yb:${cb.y}; --wb:${tb.w}; --hb:${tb.h}` : undefined;
 ---
 
-<Base title={t('notFound.tab')} noindex>
+<Base title={t('notFound.tab')} noindex cabeceraSobreHero>
   <slot name="head" slot="head" />
-  <section class="contenedor py-10 lg:py-14">
-    <div class="overflow-hidden rounded-ventana bg-bosque-hondo">
-      <!-- Barra del navegador: es interfaz, no contenido -->
-      <div data-ui>
-      <div class="flex items-end gap-1 px-3 pt-3">
-        <span class="flex items-center gap-2 rounded-t-lg bg-musgo px-4 py-2.5 text-sm font-medium">
-          <span class="size-2 rounded-full bg-calendula" aria-hidden="true"></span>
-          {t('notFound.tab')}
-        </span>
-      </div>
-      <div class="bg-musgo px-3 py-2.5">
-        <div class="flex items-center gap-2 rounded-md bg-bosque-hondo/70 px-3 py-1.5 text-sm text-helecho">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
-          <span class="truncate" data-requested-path>404</span>
-        </div>
-      </div>
-      </div>
 
-      <div class="relative px-6 py-14 sm:px-12 lg:px-16 lg:py-20">
-        <span
-          class="pointer-events-none absolute -top-4 right-4 text-[clamp(8rem,26vw,20rem)] leading-none font-bold tracking-[-0.05em] text-musgo select-none [font-variation-settings:'opsz'_96] before:content-['404'] sm:right-10"
-          aria-hidden="true"></span>
+  <section
+    class="apagon relative -mt-16 h-svh min-h-[34rem] overflow-hidden bg-bosque-hondo"
+    style={`--aspecto-ancho:${ENCUADRES.ancho.poster}; --aspecto-alto:${ENCUADRES.alto.poster}`}
+    aria-labelledby="apagon-titulo"
+  >
+    <picture>
+      <source media={`(min-aspect-ratio: ${ENCUADRES.ancho.desde * 5}/5)`} srcset={ancho.srcSet.attribute} sizes={`${ENCUADRES.ancho.poster * 100}svh`} />
+      <img src={alto.src} srcset={alto.srcSet.attribute} sizes={`${ENCUADRES.alto.poster * 100}svh`} width={apagonAlto.width} height={apagonAlto.height} alt="" decoding="async" class="absolute inset-0 size-full object-cover" />
+    </picture>
 
-        <div class="relative" data-reveal>
-          <h1 class="max-w-[13ch] text-[clamp(2.4rem,6vw,4.2rem)] leading-[0.98] font-bold tracking-[-0.03em] text-balance [font-variation-settings:'opsz'_96]">
-            {t('notFound.title')}
-          </h1>
-          <p class="mt-5 max-w-[46ch] text-xl text-liquen">{t('notFound.lead')}</p>
-          <a href={localePath(lang, '/')} class="boton boton-principal mt-8">{t('notFound.home')}</a>
+    <!-- La única luz que queda: repite el botón de abajo, fuera del orden de tabulación -->
+    {estilo && <a href={inicio} tabindex="-1" aria-hidden="true" class="encendida absolute bg-calendula" style={estilo}></a>}
 
-          <ul class="mt-10 grid max-w-3xl gap-6 sm:grid-cols-2">
-            {apps.map((app) => (
-              <li>
-                <a href={localePath(lang, `/apps/${app.slug}`)} class="group block">
-                  <Image src={app.data.cover} alt="" widths={[400, 640, 800]} sizes="(min-width: 40rem) 22rem, 100vw" class="aspect-[16/10] w-full rounded-lg object-cover object-top transition-transform duration-500 ease-salida group-hover:-translate-y-1" />
-                  <span class="mt-3 flex items-center gap-2 text-xl font-semibold" translate="no">
-                    <span class="size-2 rounded-full" style={`background:${app.data.hue}`} aria-hidden="true"></span>
-                    {app.data.title}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-
-        </div>
+    <div class="contenedor pointer-events-none relative flex h-full flex-col justify-between pt-24 pb-8 sm:pt-32 sm:pb-12">
+      <div>
+        <h1 id="apagon-titulo" class="max-w-[13ch] text-[clamp(2.4rem,6vw,4.6rem)] leading-[0.95] font-bold tracking-[-0.04em] text-balance [font-variation-settings:'opsz'_96]">
+          {t('notFound.title')}
+        </h1>
+        <p class="mt-6 max-w-[40ch] text-lg text-pretty text-liquen sm:text-xl">{t('notFound.lead')}</p>
       </div>
+      <div class="pointer-events-auto">
+        <p class="text-liquen">{t('notFound.hint')}</p>
+        <a href={inicio} class="boton boton-secundario mt-3">{t('notFound.home')}</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-bosque-hondo pt-4 pb-24 lg:pb-36">
+    <div class="contenedor">
+      <h2 class="text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]">{t('apps.title')}</h2>
+      <ul class="mt-10 grid max-w-4xl gap-8 sm:grid-cols-2">
+        {apps.map((app) => (
+          <li>
+            <a href={localePath(lang, `/apps/${app.slug}`)} class="group block">
+              <Image src={app.data.cover} alt="" widths={[400, 640, 800]} sizes="(min-width: 40rem) 26rem, 100vw" class="aspect-[16/10] w-full rounded-lg object-cover object-top transition-transform duration-500 ease-salida group-hover:-translate-y-1" />
+              <span class="mt-3 flex items-center gap-2 text-xl font-semibold" translate="no">
+                <span class="size-2 rounded-full" style={`background:${app.data.hue}`} aria-hidden="true"></span>
+                {app.data.title}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   </section>
 </Base>
 
-<script>
-  const label = document.querySelector('[data-requested-path]');
-  if (label) label.textContent = location.host + location.pathname;
-</script>
+<style>
+  .apagon {
+    container-type: size;
+  }
+
+  /* Misma cuenta que object-fit: cover (ver Ciudad.astro), con el tamaño del ventanal */
+  .encendida {
+    left: calc(50% + (var(--xb) - 0.5) * 100cqh * var(--aspecto-alto));
+    top: calc(var(--yb) * 100%);
+    width: calc(var(--wb) * 100cqh);
+    height: calc(var(--hb) * 100cqh);
+    translate: -50% -50%;
+    animation: parpadeo 3.4s steps(1, end) infinite;
+  }
+  @container (min-aspect-ratio: 6 / 5) {
+    .encendida {
+      left: calc(50% + (var(--xa) - 0.5) * 100cqh * var(--aspecto-ancho));
+      top: calc(var(--ya) * 100%);
+      width: calc(var(--wa) * 100cqh);
+      height: calc(var(--ha) * 100cqh);
+    }
+  }
+
+  /* Un fluorescente que no termina de arrancar: casi siempre encendido, con cortes irregulares */
+  @keyframes parpadeo {
+    0%, 17%, 21%, 24%, 58%, 61%, 100% { opacity: 1; }
+    19%, 23%, 60% { opacity: 0.12; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .encendida { animation: none; }
+  }
+</style>

@@ -41,6 +41,8 @@ export interface DatosVentana {
 export interface Huecos {
   malla: InstancedMesh;
   parpadear(dt: number): void;
+  /** Apagón (404): todas las ventanas a oscuras y sin parpadeo. */
+  apagar(): void;
 }
 
 export function crearHuecos(trazado: Trazado): Huecos {
@@ -62,7 +64,9 @@ export function crearHuecos(trazado: Trazado): Huecos {
   // Solo parpadean las de las tres primeras filas: las de atrás no se notan
   const parpadean = huecos.flatMap((h, i) => (h.fila < 3 ? [i] : []));
   let reloj = 0;
+  let apagadas = false;
   const parpadear = (dt: number) => {
+    if (apagadas) return;
     reloj += dt;
     if (reloj < 0.12) return;
     reloj = 0;
@@ -76,7 +80,12 @@ export function crearHuecos(trazado: Trazado): Huecos {
     }
     colores.needsUpdate = true;
   };
-  return { malla, parpadear };
+  const apagar = () => {
+    apagadas = true;
+    huecos.forEach((_, i) => malla.setColorAt(i, apagada));
+    malla.instanceColor!.needsUpdate = true;
+  };
+  return { malla, parpadear, apagar };
 }
 
 // --- Ventanales de las apps ------------------------------------------------------
@@ -146,6 +155,8 @@ export interface Ventanales {
   texturas: Texture[];
   /** Se resuelve cuando han cargado (o fallado) todas las capturas. */
   listo: Promise<void>;
+  /** Apagón: vidrio a oscuras, sin captura, sin halo y con el marco apagado (salvo `excepto`). */
+  apagar(excepto?: string): void;
 }
 
 export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: CanvasTexture): Ventanales {
@@ -154,7 +165,9 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
   const cargador = new TextureLoader();
   const luz = new Color(COLORES.calendula);
   let haloBase = 0.3;
+  const apagada = new Color(COLORES.apagada);
   const cargas: Promise<void>[] = [];
+  const marcos: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
 
   const lista = trazado.proyectos.map((trazo, i): Ventanal => {
     const d = datos[i];
@@ -181,7 +194,8 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
           textura.colorSpace = SRGBColorSpace;
           texturas.push(textura);
           uniforms.captura.value = textura;
-          uniforms.hayCaptura.value = 1;
+          // Un ventanal apagado ya tiene la luz a oscuras: la captura no se ve
+          if (!uniforms.luz.value.equals(apagada)) uniforms.hayCaptura.value = 1;
         })
         // Sin captura, el ventanal es solo luz: no es motivo para no pintar la ciudad
         .catch(() => {}),
@@ -193,6 +207,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     if (luminancia > LUMINANCIA_MARCO) tono.multiplyScalar(LUMINANCIA_MARCO / luminancia);
     const marco = new Mesh(new PlaneGeometry(trazo.ancho + 0.1, trazo.alto + 0.1), new MeshBasicMaterial({ color: tono, toneMapped: false }));
     marco.position.copy(posicion).z -= 0.005;
+    marcos.push(marco);
 
     const brillo = new Mesh(
       new PlaneGeometry(trazo.ancho * 2.6, trazo.alto * 3.4),
@@ -234,6 +249,15 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     sinBloom: (activo) => (haloBase = activo ? 0.5 : 0.3),
     texturas,
     listo: Promise.all(cargas).then(() => {}),
+    apagar: (excepto) => {
+      lista.forEach((v, i) => {
+        if (v.id === excepto) return;
+        v.vidrio.material.uniforms.luz.value.set(COLORES.apagada);
+        v.vidrio.material.uniforms.hayCaptura.value = 0;
+        v.halo.visible = false;
+        marcos[i].material.color.set(COLORES.apagada);
+      });
+    },
   };
 }
 
@@ -274,6 +298,7 @@ export interface Estudio {
   objetivo: Objetivo;
   objetos: Object3D[];
   actualizar(): void;
+  apagar(): void;
 }
 
 export function crearEstudio(trazado: Trazado, halo: CanvasTexture): Estudio {
@@ -304,7 +329,12 @@ export function crearEstudio(trazado: Trazado, halo: CanvasTexture): Estudio {
     objetos: [resplandor, marco, vidrio, toque],
     actualizar: () => {
       uniforms.brillo.value = objetivo.brillo;
-      resplandor.material.opacity = 0.12 + Math.min(objetivo.brillo, 1) * 0.25;
+      resplandor.material.opacity = resplandor.visible ? 0.12 + Math.min(objetivo.brillo, 1) * 0.25 : 0;
+    },
+    apagar: () => {
+      uniforms.luz.value.set(COLORES.apagada);
+      resplandor.visible = false;
+      marco.material.color.set(COLORES.apagada);
     },
   };
 }

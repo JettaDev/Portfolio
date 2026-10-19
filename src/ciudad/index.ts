@@ -26,6 +26,10 @@ export interface OpcionesCiudad {
   encuadre?: Encuadre;
   /** Densidad de píxeles fija (póster). */
   dpr?: number;
+  /** Apagón: la ciudad con todas las luces apagadas (póster de la 404). */
+  apagon?: boolean;
+  /** Con apagón, el único ventanal que sigue encendido (imágenes Open Graph). */
+  encendida?: string;
   /**
    * El puntero entra o sale de algo señalable: un ventanal (su slug), el estudio (`#sobre-mi`)
    * o el solar (`#contacto`).
@@ -53,8 +57,8 @@ export interface Ciudad {
   volarA(slug: string): Promise<void>;
   /** Arranca pegada al ventanal y vuelve al reposo. */
   volverDe(slug: string): Promise<void>;
-  /** Deja la cámara pegada al ventanal, como al final de `volarA`. */
-  situarEn(slug: string): void;
+  /** Deja la cámara pegada al ventanal, como al final de `volarA`, o a una fracción del vuelo. */
+  situarEn(slug: string, progreso?: number): void;
   /** Centro de un ventanal, el estudio o el cartel del solar en píxeles CSS, relativo al canvas. */
   enPantalla(id: string): { x: number; y: number } | null;
   reducido(activo: boolean): void;
@@ -84,6 +88,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const solar = crearSolar(trazado);
   const estudio = crearEstudio(trazado, halo);
   escena.add(edificios, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos);
+  if (opciones.apagon) {
+    [huecos, obras, solar, estudio].forEach((parte) => parte.apagar());
+    ventanales.apagar(opciones.encendida);
+  }
   await ceder();
 
   const camara = new CamaraCiudad(trazado);
@@ -290,11 +298,11 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       }
       return camara.volverDe(v);
     },
-    situarEn: (slug) => {
+    situarEn: (slug, progreso) => {
       const v = ventanal(slug);
       gsap.killTweensOf(v);
       resaltado = null;
-      camara.situar(v);
+      camara.situar(v, progreso);
     },
     enPantalla: (id) => {
       const v = porId.get(id);
