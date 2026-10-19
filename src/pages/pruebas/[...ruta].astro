@@ -1,0 +1,61 @@
+---
+// Banco de pruebas de la ciudad: solo existe con `astro dev`, no se publica.
+import '../../styles/global.css';
+import { getCiudad } from '../../lib/ciudad';
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { ruta: 'ciudad' } }] : [];
+}
+
+const datos = await getCiudad('es');
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Ciudad · pruebas</title>
+  </head>
+  <body class="m-0 h-svh overflow-hidden bg-bosque-hondo">
+    <canvas id="ciudad" class="block h-svh w-full touch-none" aria-hidden="true"></canvas>
+    <output id="medidas" class="fixed top-2 right-2 rounded-md bg-bosque-hondo px-2 py-1 text-sm"></output>
+    <script type="application/json" id="datos-ciudad" set:html={JSON.stringify(datos)} />
+  </body>
+</html>
+
+<script>
+  import { montarCiudad, type DatosVentana } from '../../ciudad';
+
+  const datos: DatosVentana[] = JSON.parse(document.getElementById('datos-ciudad')!.textContent!);
+  const canvas = document.getElementById('ciudad') as HTMLCanvasElement;
+  const medidas = document.getElementById('medidas')!;
+  const params = new URLSearchParams(location.search);
+
+  const estado = { nivel: '', fps: 0, primerFrame: 0, pasando: null as string | null, pulsado: null as string | null };
+  const ciudad = montarCiudad(canvas, datos, {
+    reducido: params.has('reducido'),
+    alPrimerFrame: () => (estado.primerFrame = performance.now()),
+    alPasar: (slug) => (estado.pasando = slug),
+    alPulsar: async (slug) => {
+      estado.pulsado = slug;
+      await ciudad.volarA(slug);
+      await new Promise((r) => setTimeout(r, 400));
+      await ciudad.volverDe(slug);
+    },
+  });
+
+  // FPS de los últimos 60 fotogramas, para el panel y para Playwright
+  const marcas: number[] = [];
+  const medir = (t: number) => {
+    marcas.push(t);
+    if (marcas.length > 61) marcas.shift();
+    if (marcas.length > 1) estado.fps = Math.round((1000 * (marcas.length - 1)) / (t - marcas[0]));
+    estado.nivel = ciudad.nivel;
+    medidas.textContent = `${estado.nivel} · ${estado.fps} fps`;
+    requestAnimationFrame(medir);
+  };
+  requestAnimationFrame(medir);
+  Object.assign(window, { ciudad, estadoCiudad: estado });
+</script>

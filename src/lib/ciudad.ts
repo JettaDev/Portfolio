@@ -4,8 +4,8 @@ import type { Lang } from '../i18n/ui';
 import { localePath } from '../i18n/utils';
 import { getApps } from './apps';
 
-/** Ancho de la captura que la ciudad usa como textura de la ventana */
-const ANCHO_TEXTURA = 256;
+/** Ancho de la captura que la ciudad usa como textura de la ventana: al final del vuelo llena la pantalla */
+const ANCHO_TEXTURA = 512;
 
 /** Datos de una ventana de proyecto: solo valores serializables para pasarlos al motor como JSON */
 export type VentanaApp = {
