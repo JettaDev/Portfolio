@@ -79,6 +79,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     datos.map(({ slug, status, planta }) => ({ slug, status, planta })),
     semilla,
   );
+  await ceder();
   const halo = texturaHalo();
   const { escena, fundir } = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
   const edificios = crearEdificios(trazado);
@@ -117,6 +118,11 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   observadorTamano.observe(canvas);
   await ceder();
   await pintor.precompilar();
+  await ceder();
+  // Un render a 1×1 sube a la GPU geometrías, instancias y texturas: si no, todo eso cae en el
+  // primer fotograma de verdad y lo convierte en una tarea larga
+  pintor.calentar();
+  await ceder();
 
   // --- Ventanales, estudio y solar: resaltar, buscar y tocar ------------------------------
   const porSlug = new Map(ventanales.lista.map((v) => [v.datos.slug, v]));

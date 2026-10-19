@@ -11,8 +11,7 @@ export const ui = {
     'nav.contact': 'Contacto',
     'nav.skip': 'Saltar al contenido',
     'nav.label': 'Principal',
-    'nav.menu': 'Abrir menú',
-    'nav.close': 'Cerrar menú',
+    'nav.menu': 'Menú',
     'nav.language': 'Idioma',
     'hero.title': 'Construyo apps web que se usan a diario.',
     'hero.lead': 'Diseño y desarrollo producto completo: de la idea y la interfaz al despliegue. Estas son algunas de las apps que he lanzado.',
@@ -59,7 +58,7 @@ export const ui = {
     'notFound.lead': 'Puede que el enlace esté mal escrito o que la página se haya movido. Vuelve al inicio o entra en una de las apps.',
     'notFound.home': 'Volver al inicio',
     'notFound.hint': 'Se ha ido la luz. Solo queda una ventana encendida: la de vuelta a casa.',
-    'notFound.tab': 'No encontrada',
+    'notFound.tab': 'Página no encontrada',
   },
   en: {
     'meta.title': 'JettaDev · Web apps',
@@ -69,8 +68,7 @@ export const ui = {
     'nav.contact': 'Contact',
     'nav.skip': 'Skip to content',
     'nav.label': 'Main',
-    'nav.menu': 'Open menu',
-    'nav.close': 'Close menu',
+    'nav.menu': 'Menu',
     'nav.language': 'Language',
     'hero.title': 'I build web apps people use every day.',
     'hero.lead': 'I design and develop complete products: from the idea and the interface to deployment. Here are some of the apps I’ve shipped.',
@@ -117,7 +115,7 @@ export const ui = {
     'notFound.lead': 'The link may be mistyped or the page may have moved. Go back home or open one of the apps.',
     'notFound.home': 'Back to home',
     'notFound.hint': 'The power’s out. Only one window is still lit: the one back home.',
-    'notFound.tab': 'Not found',
+    'notFound.tab': 'Page not found',
   },
 } as const;
 

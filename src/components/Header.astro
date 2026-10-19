@@ -56,8 +56,6 @@ const links = [
         aria-expanded="false"
         aria-controls="menu-movil"
         aria-label={t('nav.menu')}
-        data-label-open={t('nav.menu')}
-        data-label-close={t('nav.close')}
         data-menu-toggle
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -71,6 +69,7 @@ const links = [
 </header>
 
 <div id="menu-movil" class="menu-movil fixed z-30 inset-x-0 top-16 bottom-0 flex flex-col bg-bosque sm:hidden" data-open="false" inert>
+  <nav aria-label={t('nav.menu')}>
   <ul class="contenedor flex flex-col pt-6">
     {links.map((l, i) => (
       <li class="enlace" style={`--i:${i}`}>
@@ -80,6 +79,7 @@ const links = [
       </li>
     ))}
   </ul>
+  </nav>
 
   <div class="contenedor mt-auto flex flex-col gap-6 pb-10">
     <div>
@@ -164,7 +164,6 @@ const links = [
   if (header && toggle && menu) {
     const setOpen = (open: boolean) => {
       toggle.setAttribute('aria-expanded', String(open));
-      toggle.setAttribute('aria-label', (open ? toggle.dataset.labelClose : toggle.dataset.labelOpen) ?? '');
       menu.dataset.open = String(open);
       menu.inert = !open;
       header.toggleAttribute('data-menu-abierto', open);

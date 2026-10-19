@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+      - name: Tipos
+        run: npm run check
+      - name: Pruebas (Vitest)
+        run: npm test
+      - name: Build
+        run: npm run build
+      # El runner no tiene GPU: WebGL por SwiftShader y la ciudad forzada a nivel bajo
+      - name: Pruebas de extremo a extremo
+        run: npm run e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          E2E_GPU: swiftshader
+          E2E_NIVEL: bajo

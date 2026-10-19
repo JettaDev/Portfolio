@@ -119,6 +119,19 @@ export class Pintor {
     }
   }
 
+  /** Pinta la escena una vez en un render de 1×1 (mismo tipo que el intermedio) y lo tira. */
+  calentar(): void {
+    const r = this.renderer;
+    const destino = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
+    const anterior = r.getRenderTarget();
+    r.setRenderTarget(this.composer ? destino : null);
+    if (!this.composer) r.setViewport(0, 0, 1, 1);
+    r.render(this.escena, this.camara);
+    r.setRenderTarget(anterior);
+    if (!this.composer) r.setViewport(0, 0, this.tamano.ancho, this.tamano.alto);
+    destino.dispose();
+  }
+
   pintar(): void {
     if (this.composer) this.composer.render();
     else this.renderer.render(this.escena, this.camara);

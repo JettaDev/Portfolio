@@ -58,7 +58,8 @@ const enLosPosters = (id: string) => {
     />
   </picture>
 
-  <canvas class="lienzo absolute inset-0 block size-full touch-none" aria-hidden="true" data-lienzo></canvas>
+  <!-- touch-pan-y: el toque en un ventanal funciona y el dedo sigue pudiendo bajar por la página -->
+  <canvas class="lienzo absolute inset-0 block size-full touch-pan-y" aria-hidden="true" data-lienzo></canvas>
 
   <!-- Sin canvas, los ventanales del póster llevan a cada app. Repiten la lista de abajo: fuera del orden de tabulación. -->
   <div class="ventanas-poster absolute inset-0" aria-hidden="true">
@@ -100,7 +101,8 @@ const enLosPosters = (id: string) => {
       <p class="mt-6 max-w-[40ch] text-lg text-pretty text-liquen sm:text-xl">{t('hero.lead')}</p>
     </div>
 
-    <nav aria-label={t('ciudad.listLabel')} data-reveal>
+    <!-- Sin data-reveal: es la entrada accesible a las apps y no debe depender de ningún script -->
+    <nav aria-label={t('ciudad.listLabel')}>
       <p class="text-liquen" data-pista data-tactil={t('ciudad.hintTouch')}>{t('ciudad.hint')}</p>
       <ul class="pointer-events-auto mt-3 flex flex-wrap gap-2">
         {ventanas.map((v) => (
@@ -316,6 +318,13 @@ const enLosPosters = (id: string) => {
         await Promise.all([vuelo, cubrir(p.x, p.y)]);
       }
       location.href = destino;
+      // Si la navegación no llega (sin red, bloqueada…), la capa no puede quedarse tapándolo todo
+      const rescate = setTimeout(() => {
+        olvidarSalida();
+        restaurarNombres();
+        volver(slug);
+      }, 5000);
+      addEventListener('pagehide', () => clearTimeout(rescate), { once: true });
     };
 
     // --- Vuelta: el destello se recoge sobre el ventanal y la cámara vuelve al reposo --------
@@ -336,6 +345,8 @@ const enLosPosters = (id: string) => {
       }
       enVuelo = null;
       marcarVuelo(null);
+      // El foco vuelve al enlace de la app de la que se viene (también si se entró por el canvas)
+      enlaces.find((a) => a.dataset.slug === slug)?.focus({ preventScroll: true });
     };
 
     // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el ventanal)
@@ -384,7 +395,13 @@ const enLosPosters = (id: string) => {
         const p = Math.min(1, Math.max(0, -r.top / r.height));
         ciudad?.descender(p);
         // El cartel se apaga con la niebla (con movimiento reducido no hay niebla: se queda)
-        if (cartel && ciudad && !reducido()) cartel.style.opacity = String(1 - Math.min(1, Math.max(0, (p - 0.2) / 0.35)));
+        if (cartel && ciudad && !reducido()) {
+          const opacidad = 1 - Math.min(1, Math.max(0, (p - 0.2) / 0.35));
+          cartel.style.opacity = String(opacidad);
+          // Invisible, tampoco se puede enfocar ni pulsar
+          cartel.inert = opacidad < 0.05;
+          cartel.style.visibility = opacidad < 0.05 ? 'hidden' : '';
+        }
       });
     };
     addEventListener('scroll', alDesplazar, { passive: true });
@@ -402,8 +419,10 @@ const enLosPosters = (id: string) => {
       const paso = () => {
         const p = ciudad && raiz.dataset.estado === 'vivo' ? ciudad.enPantalla('#contacto') : null;
         if (p) {
-          cartel.style.left = `${p.x}px`;
-          cartel.style.top = `${p.y}px`;
+          // Solo translate: mover left/top en cada fotograma obligaría a recalcular el layout
+          cartel.style.left = '0px';
+          cartel.style.top = '0px';
+          cartel.style.translate = `calc(${p.x}px - 50%) calc(${p.y}px - 50%)`;
         }
         if (heroVisible && ciudad) requestAnimationFrame(paso);
         else siguiendo = false;
