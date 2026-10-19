@@ -46,7 +46,8 @@ const datos = await getCiudad('es');
     alPrimerFrame: () => {
       estado.primerFrame = performance.now();
       // Posiciones relativas (0–1) de cada ventanal, para los enlaces del póster sin WebGL
-      const ventanas = datos.map(({ slug }) => {
+      // También el estudio (#sobre-mi) y el cartel del solar (#contacto)
+      const ventanas = [...datos.map(({ slug }) => slug), '#sobre-mi', '#contacto'].map((slug) => {
         const p = ciudad.enPantalla(slug)!;
         return { slug, x: p.x / canvas.clientWidth, y: p.y / canvas.clientHeight };
       });

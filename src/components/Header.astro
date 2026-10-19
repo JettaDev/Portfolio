@@ -146,15 +146,19 @@ const links = [
   const toggle = header?.querySelector<HTMLButtonElement>('[data-menu-toggle]');
   const menu = document.getElementById('menu-movil');
 
-  // Sobre el hero la cabecera es transparente; al dejarlo atrás (o con el menú abierto) recupera el fondo
-  let fueraDelHero = !header?.hasAttribute('data-sobre-hero');
-  const solida = () => header?.toggleAttribute('data-solida', fueraDelHero || header.hasAttribute('data-menu-abierto'));
-  const hero = document.querySelector('[data-ciudad]');
-  if (header?.hasAttribute('data-sobre-hero') && hero) {
-    new IntersectionObserver(([e]) => {
-      fueraDelHero = !e.isIntersecting;
-      solida();
-    }, { rootMargin: '-64px 0px 0px 0px' }).observe(hero);
+  // Sobre el hero la cabecera es transparente solo arriba del todo: en cuanto se baja, los textos
+  // del hero pasarían por debajo del menú. Con el menú abierto también recupera el fondo.
+  let arriba = !!header?.hasAttribute('data-sobre-hero') && scrollY < 4;
+  const solida = () => header?.toggleAttribute('data-solida', !arriba || header.hasAttribute('data-menu-abierto'));
+  if (header?.hasAttribute('data-sobre-hero')) {
+    addEventListener('scroll', () => {
+      const ahora = scrollY < 4;
+      if (ahora !== arriba) {
+        arriba = ahora;
+        solida();
+      }
+    }, { passive: true });
+    solida();
   }
 
   if (header && toggle && menu) {

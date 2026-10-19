@@ -18,7 +18,7 @@ const apps = (n: number): AppEnCiudad[] =>
 const ASPECTOS = { escritorio: 16 / 9, 'tableta horizontal': 4 / 3, 'ventana casi cuadrada': 1.19, movil: 9 / 19.5, 'móvil estrecho': 9 / 21 };
 const CANTIDADES = [1, 2, 3, 6, 10];
 
-const esquinas = (p: VentanaProyecto) =>
+const esquinas = (p: Pick<VentanaProyecto, 'x' | 'y' | 'z' | 'ancho' | 'alto'>) =>
   [-1, 1].flatMap((sx) => [-1, 1].map((sy) => new Vector3(p.x + (sx * p.ancho) / 2, p.y + (sy * p.alto) / 2, p.z)));
 
 function camaraEnReposo(t: Trazado, aspecto: number, dx = 0, dy = 0) {
@@ -105,7 +105,48 @@ describe('trazarCiudad', () => {
     }
   });
 
+  it.each(CANTIDADES)('con %i apps, el solar es un lote vacío de la fila de delante y no es de ninguna app', (n) => {
+    const t = trazarCiudad(apps(n));
+    const lote = t.edificios[t.solar.edificio];
+    expect(lote.fila).toBe(0);
+    expect(lote.vacio).toBe(true);
+    expect(t.proyectos.map((p) => p.edificio)).not.toContain(t.solar.edificio);
+    expect(t.huecos.some((h) => Math.abs(h.x - lote.x) < lote.ancho / 2 && Math.abs(h.z - t.solar.z) < 0.1)).toBe(false);
+  });
+
+  it('el solar está donde iría la próxima app', () => {
+    const conDos = trazarCiudad(apps(2));
+    const conTres = trazarCiudad(apps(3));
+    expect(conTres.proyectos[2].edificio).toBe(conDos.solar.edificio);
+  });
+
+  it('el estudio va en la segunda fila, en un edificio sin app', () => {
+    const t = trazarCiudad(apps(6));
+    expect(t.edificios[t.estudio.edificio].fila).toBe(1);
+    expect(t.proyectos.map((p) => p.edificio)).not.toContain(t.estudio.edificio);
+  });
+
+  it('solo las apps en desarrollo tienen obra', () => {
+    const t = trazarCiudad(apps(6));
+    expect(t.obras.map((o) => o.slug)).toEqual(t.proyectos.filter((p) => p.status === 'wip').map((p) => p.slug));
+  });
+
   for (const [nombre, aspecto] of Object.entries(ASPECTOS)) {
+    it.each(CANTIDADES)(`con %i apps, el estudio y el cartel del solar caben y se ven (${nombre})`, (n) => {
+      const t = trazarCiudad(apps(n));
+      const camara = camaraEnReposo(t, aspecto);
+      const cartel = { ...t.solar.cartel };
+      for (const v of [...esquinas(t.estudio), ...esquinas(cartel)]) {
+        const ndc = v.clone().project(camara);
+        expect(Math.abs(ndc.x)).toBeLessThan(1);
+        expect(Math.abs(ndc.y)).toBeLessThan(1);
+      }
+      const ojo = camara.position;
+      for (const v of esquinas(t.estudio)) {
+        expect(t.edificios.filter((e, i) => i !== t.estudio.edificio && corta(ojo, v, e))).toEqual([]);
+      }
+    });
+
     it.each(CANTIDADES)(`con %i apps, todos los ventanales caben en el encuadre (${nombre})`, (n) => {
       const t = trazarCiudad(apps(n));
       const camara = camaraEnReposo(t, aspecto);

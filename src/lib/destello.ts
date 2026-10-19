@@ -45,7 +45,7 @@ export async function retirar(x: number, y: number, duracion = 650): Promise<voi
   if (!el || !html.hasAttribute('data-destello')) return;
   el.getAnimations().forEach((a) => a.cancel());
   const animacion = reducido()
-    ? el.animate({ opacity: [1, 0] }, { duration: 300, easing: 'ease-in', fill: 'forwards' })
+    ? el.animate({ opacity: [1, 0] }, { duration: 300, easing: 'ease-out', fill: 'forwards' })
     : el.animate({ clipPath: [`circle(${radio(x, y)}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] }, { duration: duracion, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', fill: 'forwards' });
   await animacion.finished;
   delete html.dataset.destello;

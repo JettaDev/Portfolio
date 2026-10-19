@@ -4,13 +4,13 @@
 import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } from 'three';
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
-import { crearEdificios } from './edificios';
+import { crearEdificios, crearObras, crearSolar } from './edificios';
 import { crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
 import { MedidorFps, detectarNivel, nivelInferior, type Nivel, type NivelVivo } from './rendimiento';
 import { SEMILLA } from './semilla';
 import { trazarCiudad, type Encuadre } from './trazado';
-import { crearHuecos, crearVentanales, type DatosVentana, type Ventanal } from './ventanas';
+import { crearEstudio, crearHuecos, crearVentanales, type DatosVentana, type Objetivo } from './ventanas';
 
 export type { DatosVentana } from './ventanas';
 export type { Nivel } from './rendimiento';
@@ -26,10 +26,13 @@ export interface OpcionesCiudad {
   encuadre?: Encuadre;
   /** Densidad de píxeles fija (póster). */
   dpr?: number;
-  /** El puntero entra o sale de un ventanal. */
-  alPasar?: (slug: string | null) => void;
-  /** Clic o toque sobre un ventanal. */
-  alPulsar?: (slug: string) => void;
+  /**
+   * El puntero entra o sale de algo señalable: un ventanal (su slug), el estudio (`#sobre-mi`)
+   * o el solar (`#contacto`).
+   */
+  alPasar?: (id: string | null) => void;
+  /** Clic o toque sobre algo señalable (mismos ids que `alPasar`). */
+  alPulsar?: (id: string) => void;
   /** El primer fotograma con las capturas cargadas ya está en pantalla: se puede fundir el canvas sobre el póster. */
   alPrimerFrame?: () => void;
   /** El medidor de FPS ha bajado la calidad. */
@@ -42,16 +45,18 @@ export interface Ciudad {
   readonly nivel: Nivel;
   /** Se resuelve cuando han cargado las capturas de los ventanales. */
   readonly listo: Promise<void>;
-  /** Ilumina un ventanal (hover o foco en la lista HTML), o ninguno con `null`. */
-  resaltar(slug: string | null): void;
+  /** Ilumina un ventanal, el estudio o el solar (hover o foco en HTML), o nada con `null`. */
+  resaltar(id: string | null): void;
+  /** Descenso a la calle con el scroll (0 arriba del todo, 1 con el hero ya fuera). */
+  descender(p: number): void;
   /** Vuela hasta el ventanal; se resuelve con la cámara pegada a él. */
   volarA(slug: string): Promise<void>;
   /** Arranca pegada al ventanal y vuelve al reposo. */
   volverDe(slug: string): Promise<void>;
   /** Deja la cámara pegada al ventanal, como al final de `volarA`. */
   situarEn(slug: string): void;
-  /** Centro del ventanal en píxeles CSS, relativo al canvas. */
-  enPantalla(slug: string): { x: number; y: number } | null;
+  /** Centro de un ventanal, el estudio o el cartel del solar en píxeles CSS, relativo al canvas. */
+  enPantalla(id: string): { x: number; y: number } | null;
   reducido(activo: boolean): void;
   destruir(): void;
 }
@@ -71,11 +76,14 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     semilla,
   );
   const halo = texturaHalo();
-  const escena = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
+  const { escena, fundir } = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
   const edificios = crearEdificios(trazado);
   const huecos = crearHuecos(trazado);
   const ventanales = crearVentanales(trazado, datos, halo);
-  escena.add(edificios, huecos.malla, ...ventanales.objetos);
+  const obras = crearObras(trazado);
+  const solar = crearSolar(trazado);
+  const estudio = crearEstudio(trazado, halo);
+  escena.add(edificios, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos);
   await ceder();
 
   const camara = new CamaraCiudad(trazado);
@@ -102,11 +110,14 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   await ceder();
   await pintor.precompilar();
 
-  // --- Ventanales: resaltar, buscar y tocar ------------------------------------------
+  // --- Ventanales, estudio y solar: resaltar, buscar y tocar ------------------------------
   const porSlug = new Map(ventanales.lista.map((v) => [v.datos.slug, v]));
-  let resaltado: Ventanal | null = null;
+  const objetivos: Objetivo[] = [...ventanales.lista, estudio.objetivo, solar.objetivo];
+  const porId = new Map(objetivos.map((o) => [o.id, o]));
+  const toques = objetivos.map((o) => o.toque);
+  let resaltado: Objetivo | null = null;
 
-  const resaltar = (v: Ventanal | null) => {
+  const resaltar = (v: Objetivo | null) => {
     if (v === resaltado) return;
     if (resaltado) gsap.to(resaltado, { brillo: 0, duration: 0.4, ease: 'power2.out', overwrite: true });
     resaltado = v;
@@ -116,11 +127,11 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
 
   const rayo = new Raycaster();
   const ndc = new Vector2();
-  const buscar = (e: PointerEvent): Ventanal | null => {
+  const buscar = (e: PointerEvent): Objetivo | null => {
     const r = canvas.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     rayo.setFromCamera(ndc, camara.camara);
-    return (rayo.intersectObjects(ventanales.toques, false)[0]?.object.userData.ventanal as Ventanal) ?? null;
+    return (rayo.intersectObjects(toques, false)[0]?.object.userData.objetivo as Objetivo) ?? null;
   };
 
   const alMover = (e: PointerEvent) => {
@@ -130,7 +141,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     const v = buscar(e);
     if (v !== resaltado) {
       resaltar(v);
-      opciones.alPasar?.(v?.datos.slug ?? null);
+      opciones.alPasar?.(v?.id ?? null);
     }
   };
   const alSalir = () => {
@@ -146,7 +157,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     if (!pulsadoEn || !camara.enReposo || Math.hypot(e.clientX - pulsadoEn.x, e.clientY - pulsadoEn.y) > 10) return;
     pulsadoEn = null;
     const v = buscar(e);
-    if (v) opciones.alPulsar?.(v.datos.slug);
+    if (v) opciones.alPulsar?.(v.id);
   };
   canvas.addEventListener('pointermove', alMover);
   canvas.addEventListener('pointerleave', alSalir);
@@ -160,6 +171,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   let anterior = 0;
   let primerFrame = false;
   let capturas = false;
+  let tiempo = 0;
+  // Descenso con el scroll: el objetivo llega del scroll y aquí se suaviza
+  let bajadaObjetivo = 0;
+  let bajada = 0;
   ventanales.listo.then(() => (capturas = true));
 
   const fotograma = (ahora: number) => {
@@ -178,9 +193,22 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
         return;
       }
     }
-    if (!reducido) huecos.parpadear(dt);
+    if (!reducido) {
+      tiempo += dt;
+      huecos.parpadear(dt);
+    }
+    // Con movimiento reducido no hay descenso: el hero se va con el scroll, sin más
+    const meta = reducido ? 0 : bajadaObjetivo;
+    bajada = Math.abs(meta - bajada) < 0.0005 ? meta : bajada + (meta - bajada) * (1 - Math.exp(-dt * 10));
+    camara.descender(bajada);
+    // La niebla empieza a cerrarse a partir de un cuarto de bajada y lo cubre todo al final
+    const f = Math.min(1, Math.max(0, (bajada - 0.25) / 0.75));
+    fundir(f * f * (3 - 2 * f));
     camara.actualizar(!reducido);
-    const revelado = ventanales.actualizar(camara.camara.position);
+    obras.actualizar(tiempo, !reducido);
+    estudio.actualizar();
+    solar.actualizar();
+    const revelado = ventanales.actualizar(camara.camara.position, tiempo);
     pintor.atenuarBloom(1 - revelado);
     pintor.pintar();
 
@@ -241,7 +269,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       return nivel;
     },
     listo: ventanales.listo,
-    resaltar: (slug) => resaltar(slug ? ventanal(slug) : null),
+    resaltar: (id) => resaltar(id ? (porId.get(id) ?? null) : null),
+    descender: (p) => {
+      bajadaObjetivo = Math.min(1, Math.max(0, p));
+    },
     volarA: (slug) => {
       const v = ventanal(slug);
       resaltado = null;
@@ -265,8 +296,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       resaltado = null;
       camara.situar(v);
     },
-    enPantalla: (slug) => {
-      const v = porSlug.get(slug);
+    enPantalla: (id) => {
+      const v = porId.get(id);
       if (!v) return null;
       const p = v.posicion.clone().project(camara.camara);
       return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight };
@@ -287,7 +318,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       removeEventListener('pagehide', alOcultarPagina);
       removeEventListener('pageshow', alMostrarPagina);
       camara.destruir();
-      ventanales.lista.forEach((v) => gsap.killTweensOf(v));
+      objetivos.forEach((v) => gsap.killTweensOf(v));
 
       // Memoria de la GPU: geometrías, materiales, texturas y renderer
       edificios.dispose();

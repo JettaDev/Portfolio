@@ -1,4 +1,5 @@
-// Cámara: encuadre según el aspecto, parallax con el puntero y vuelo hasta un ventanal.
+// Cámara: encuadre según el aspecto, parallax con el puntero, descenso a la calle con el scroll
+// y vuelo hasta un ventanal.
 
 import { PerspectiveCamera, Vector2, Vector3 } from 'three';
 import { gsap } from 'gsap';
@@ -9,12 +10,17 @@ import type { Ventanal } from './ventanas';
 export const DURACION_VUELO = 1.1;
 /** Distancia a la que se queda la cámara delante del ventanal: lo justo para llenar la pantalla. */
 const CERCA = 1.1;
+/** Al bajar del todo: la cámara a la altura de los ojos, algo más cerca y mirando a la calle. */
+const DESCENSO = { y: 3.6, z: 10, mira: 8 };
 
 export class CamaraCiudad {
   readonly camara = new PerspectiveCamera(CAMARA.fov, 1, 0.1, 1200);
   /** Punto al que mira la cámara (animable). */
   readonly mira = new Vector3(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
+  /** Posición de reposo según el encuadre, y la de ahora con el descenso aplicado. */
+  private readonly reposo = new Vector3();
   private readonly base = new Vector3();
+  private bajada = 0;
   private readonly puntero = new Vector2();
   private vuelo: gsap.core.Timeline | null = null;
 
@@ -29,11 +35,25 @@ export class CamaraCiudad {
     this.camara.aspect = aspecto;
     this.camara.updateProjectionMatrix();
     const encuadre = forzado ?? encuadrePara(aspecto);
-    this.base.set(0, CAMARA.y, distanciaCamara(encuadre, this.trazado.mitadAncho, this.trazado.frente));
+    this.reposo.set(0, CAMARA.y, distanciaCamara(encuadre, this.trazado.mitadAncho, this.trazado.frente));
+    this.descender(this.bajada);
     if (this.enReposo) {
       this.camara.position.copy(this.base);
       this.camara.lookAt(this.mira);
     }
+  }
+
+  /** Descenso a la calle (0 arriba, 1 abajo del todo), suavizado con smoothstep. */
+  descender(d: number): void {
+    this.bajada = d;
+    const e = d * d * (3 - 2 * d);
+    this.base.set(this.reposo.x, this.reposo.y - DESCENSO.y * e, this.reposo.z - DESCENSO.z * e);
+  }
+
+  /** Punto al que mira la cámara en reposo, con el descenso aplicado. */
+  private miraEnReposo(): Vector3 {
+    const e = this.bajada * this.bajada * (3 - 2 * this.bajada);
+    return new Vector3(CAMARA.mira.x, CAMARA.mira.y - DESCENSO.mira * e, CAMARA.mira.z);
   }
 
   /** Posición del puntero en coordenadas normalizadas (-1..1). */
@@ -50,6 +70,7 @@ export class CamaraCiudad {
       c.x += (this.base.x + x - c.x) * 0.05;
       c.y += (this.base.y + y - c.y) * 0.05;
       c.z = this.base.z;
+      this.mira.copy(this.miraEnReposo());
     }
     this.camara.lookAt(this.mira);
   }
@@ -77,8 +98,7 @@ export class CamaraCiudad {
 
   /** Línea de vuelo desde el reposo, parada al final: la cámara queda pegada al ventanal. */
   private lineaDesdeReposo(v: Ventanal): gsap.core.Timeline {
-    const reposo = new Vector3(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
-    return this.lineaDeVuelo(v, { posicion: this.base.clone(), mira: reposo, brillo: 0 }).progress(1);
+    return this.lineaDeVuelo(v, { posicion: this.base.clone(), mira: this.miraEnReposo(), brillo: 0 }).progress(1);
   }
 
   /** Coloca la cámara pegada al ventanal, sin animación (al volver a la portada sin bfcache). */
@@ -105,7 +125,7 @@ export class CamaraCiudad {
   reposar(): void {
     this.vuelo?.progress(0).kill();
     this.vuelo = null;
-    this.mira.set(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
+    this.mira.copy(this.miraEnReposo());
     this.camara.position.copy(this.base);
     this.camara.lookAt(this.mira);
   }

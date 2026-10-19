@@ -52,6 +52,38 @@ export interface Edificio {
   fondo: number;
   alto: number;
   fila: number;
+  /** Lote vacío: el solar «Tu proyecto aquí». No se pinta ni tiene ventanas. */
+  vacio?: boolean;
+}
+
+/** El solar: valla a ras de calle y cartel sobre dos postes, en el lote donde iría la próxima app. */
+export interface Solar {
+  edificio: number;
+  x: number;
+  /** Línea de la valla (donde estaría la fachada). */
+  z: number;
+  ancho: number;
+  cartel: { x: number; y: number; z: number; ancho: number; alto: number };
+}
+
+/** La ventana de JettaDev: un ventanal con lámpara de escritorio, en una torre de la segunda fila. */
+export interface Estudio {
+  x: number;
+  y: number;
+  z: number;
+  ancho: number;
+  alto: number;
+  edificio: number;
+}
+
+/** Obra en marcha (apps en desarrollo): grúa en la azotea y andamio bajo el ventanal. */
+export interface Obra {
+  slug: string;
+  edificio: number;
+  /** Lado de la azotea donde va el mástil (-1 izquierda, 1 derecha). */
+  lado: -1 | 1;
+  /** Plantas que cubre el andamio (de la 0 a la anterior al ventanal). */
+  plantas: number;
 }
 
 export interface Hueco {
@@ -83,6 +115,9 @@ export interface Trazado {
   edificios: Edificio[];
   huecos: Hueco[];
   proyectos: VentanaProyecto[];
+  solar: Solar;
+  estudio: Estudio;
+  obras: Obra[];
   /** Mitad del ancho que ocupan los ventanales, con margen: sirve para encuadrar. */
   mitadAncho: number;
   /** Fachada más adelantada con ventanal (la más cercana a la cámara). */
@@ -239,12 +274,59 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
     };
   }
 
+  // --- Solar «Tu proyecto aquí» --------------------------------------------------
+  // El siguiente lote de la fila de delante, justo donde iría la próxima app.
+  const siguienteLibre = (fila: number) => {
+    for (let ampliacion = 0; ampliacion <= ANCHO_CIUDAD; ampliacion += 5) {
+      const i = candidatos(edificios, fila, LIMITE_X[fila] + ampliacion, usados)[0];
+      if (i !== undefined) return i;
+    }
+    throw new Error(`No queda sitio en la fila ${fila}`);
+  };
+  const indiceSolar = siguienteLibre(0);
+  usados.add(indiceSolar);
+  const lote = edificios[indiceSolar];
+  lote.vacio = true;
+  lote.alto = 0;
+  const solar: Solar = {
+    edificio: indiceSolar,
+    x: lote.x,
+    z: fachada(lote),
+    ancho: lote.ancho,
+    cartel: { x: lote.x, y: 2.5, z: fachada(lote) - 0.9, ancho: Math.min(3.2, lote.ancho - 0.4), alto: 1.4 },
+  };
+
+  // --- Estudio de JettaDev: en la segunda fila, cerca del centro y por encima de los tejados
+  const indiceEstudio = siguienteLibre(1);
+  usados.add(indiceEstudio);
+  const torre = edificios[indiceEstudio];
+  const rejillaTorre = rejilla(torre);
+  const columnaEstudio = Math.max(0, Math.floor((rejillaTorre.columnas - 2) / 2));
+  const xEstudio = rejillaTorre.izquierda + (columnaEstudio + 0.5) * COLUMNA;
+  const zEstudio = fachada(torre) + 0.03;
+  const plantaEstudio = Math.max(1, plantaParaAltura(alturaVisible(edificios, 1, xEstudio, zEstudio) + 0.3 + VENTANAL.alto / 2));
+  torre.alto = Math.max(torre.alto, 1.6 + (plantaEstudio + 2) * PLANTA_ALTO + 0.3);
+  reservados.add(`${indiceEstudio}:${columnaEstudio}:${plantaEstudio}`).add(`${indiceEstudio}:${columnaEstudio + 1}:${plantaEstudio}`);
+  const estudio: Estudio = {
+    x: xEstudio,
+    y: alturaDePlanta(plantaEstudio),
+    z: zEstudio,
+    ancho: VENTANAL.ancho,
+    alto: VENTANAL.alto,
+    edificio: indiceEstudio,
+  };
+
+  // --- Obras: las apps en desarrollo tienen grúa y andamio --------------------------
+  const obras: Obra[] = proyectos
+    .filter((p) => p.status === 'wip')
+    .map((p) => ({ slug: p.slug, edificio: p.edificio, lado: edificios[p.edificio].x < 0 ? -1 : 1, plantas: p.planta }));
+
   // --- Huecos decorativos -------------------------------------------------------
   const huecos: Hueco[] = [];
   const cortes = { edificios: [] as number[], huecos: [] as number[] };
   edificios.forEach((e, i) => {
     const { columnas, plantas, izquierda } = rejilla(e);
-    for (let c = 0; c < columnas; c++) {
+    for (let c = 0; c < (e.vacio ? 0 : columnas); c++) {
       for (let p = 0; p < plantas; p++) {
         if (reservados.has(`${i}:${c}:${p}`)) continue;
         huecos.push({
@@ -264,7 +346,13 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
     }
   });
 
-  const mitadAncho = Math.max(0, ...proyectos.map((p) => Math.abs(p.x) + p.ancho / 2)) + 2.5;
-  const frente = Math.max(0, ...proyectos.map((p) => p.z));
-  return { edificios, huecos, proyectos, mitadAncho, frente, cortes };
+  // El encuadre tiene que abarcar los ventanales, el estudio y el cartel del solar
+  const extremos = [
+    ...proyectos.map((p) => Math.abs(p.x) + p.ancho / 2),
+    Math.abs(estudio.x) + estudio.ancho / 2,
+    Math.abs(solar.cartel.x) + solar.cartel.ancho / 2,
+  ];
+  const mitadAncho = Math.max(...extremos) + 2.5;
+  const frente = Math.max(0, ...proyectos.map((p) => p.z), solar.z);
+  return { edificios, huecos, proyectos, solar, estudio, obras, mitadAncho, frente, cortes };
 }
