@@ -8,11 +8,13 @@ import posterAlto from '../assets/ciudad/poster-alto.webp';
 import posiciones from '../assets/ciudad/poster.json';
 import { ENCUADRES } from '../ciudad/trazado';
 import { getCiudad } from '../lib/ciudad';
-import { getLang, useT } from '../i18n/utils';
+import { getLang, useT, pagePath } from '../i18n/utils';
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
 const ventanas = await getCiudad(lang);
+// Los sitios del barrio que no son apps: el estudio lleva a Sobre mí y el solar, a Contacto
+const sitios = { '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
 
 const [ancho, alto] = await Promise.all([
   getImage({ src: posterAncho, widths: [1500, 2200, 3000], format: 'webp' }),
@@ -38,7 +40,7 @@ const enLosPosters = (id: string) => {
 ---
 
 <section
-  class="ciudad relative -mt-16 h-svh min-h-[34rem] overflow-hidden bg-bosque-hondo"
+  class="ciudad relative -mt-16 h-dvh overflow-hidden bg-bosque-hondo"
   style={`--aspecto-ancho:${ENCUADRES.ancho.poster}; --aspecto-alto:${ENCUADRES.alto.poster}`}
   aria-labelledby="ciudad-titulo"
   data-ciudad
@@ -74,14 +76,14 @@ const enLosPosters = (id: string) => {
       </>
     ))}
     {enLosPosters('#sobre-mi') && (
-      <a href="#sobre-mi" tabindex="-1" class="ventana-poster en-los-dos" style={enLosPosters('#sobre-mi')}>{t('nav.about')}</a>
+      <a href={sitios['#sobre-mi']} tabindex="-1" class="ventana-poster en-los-dos" style={enLosPosters('#sobre-mi')}>{t('nav.about')}</a>
     )}
   </div>
 
   <!-- El solar «Tu proyecto aquí»: el texto del cartel es HTML y lleva a Contacto -->
   {enLosPosters('#contacto') && (
     <a
-      href="#contacto"
+      href={sitios['#contacto']}
       class="cartel en-los-dos absolute rounded-md bg-bosque-hondo px-2.5 py-1 text-sm font-semibold whitespace-nowrap text-liquen transition-[background-color,opacity] duration-300 hover:bg-musgo-claro"
       style={enLosPosters('#contacto')}
       data-cartel
@@ -92,14 +94,11 @@ const enLosPosters = (id: string) => {
 
   <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta data-sobre-mi={t('nav.about')}></span>
 
-  <div class="textos contenedor pointer-events-none relative flex h-full flex-col justify-between pt-24 pb-8 sm:pt-32 sm:pb-12">
-    <!-- Titular y entradilla sin animación de entrada: son lo primero que se pinta (LCP) -->
-    <div>
-      <h1 id="ciudad-titulo" class="max-w-[13em] text-[clamp(2.3rem,6vw,5.25rem)] leading-[0.95] font-bold tracking-[-0.04em] text-balance [font-variation-settings:'opsz'_96]">
-        {t('hero.title')}
-      </h1>
-      <p class="mt-6 max-w-[40ch] text-lg text-pretty text-liquen sm:text-xl">{t('hero.lead')}</p>
-    </div>
+  <div class="textos contenedor pointer-events-none relative flex h-full flex-col justify-between pt-20 pb-6 sm:pt-24 sm:pb-10">
+    <!-- Titular corto y discreto, sin animación de entrada: es lo primero que se pinta (LCP) -->
+    <h1 id="ciudad-titulo" class="max-w-[16ch] text-[clamp(1.35rem,2.4vw,2rem)] leading-[1.1] font-bold tracking-[-0.025em] text-balance">
+      {t('hero.title')}
+    </h1>
 
     <!-- Sin data-reveal: es la entrada accesible a las apps y no debe depender de ningún script -->
     <nav aria-label={t('ciudad.listLabel')}>
@@ -124,6 +123,7 @@ const enLosPosters = (id: string) => {
   </div>
 
   <script type="application/json" data-datos-ciudad set:html={JSON.stringify(ventanas)} />
+  <script type="application/json" data-sitios-ciudad set:html={JSON.stringify(sitios)} />
 </section>
 
 <style>
@@ -282,9 +282,10 @@ const enLosPosters = (id: string) => {
         colocarEtiqueta();
       }
     };
-    // El estudio y el solar llevan a su sección de la portada
+    // El estudio y el solar llevan a su página
+    const sitios: Record<string, string> = JSON.parse(raiz.querySelector('[data-sitios-ciudad]')!.textContent!);
     const alPulsar = (id: string) => {
-      if (id.startsWith('#')) location.hash = id;
+      if (id.startsWith('#')) location.href = sitios[id];
       else entrar(id);
     };
 
@@ -384,28 +385,6 @@ const enLosPosters = (id: string) => {
       return;
     }
 
-    // --- Scroll: la cámara baja a la calle y la niebla funde la ciudad con la sección siguiente --
-    let pendiente = false;
-    const alDesplazar = () => {
-      if (pendiente) return;
-      pendiente = true;
-      requestAnimationFrame(() => {
-        pendiente = false;
-        const r = raiz.getBoundingClientRect();
-        const p = Math.min(1, Math.max(0, -r.top / r.height));
-        ciudad?.descender(p);
-        // El cartel se apaga con la niebla (con movimiento reducido no hay niebla: se queda)
-        if (cartel && ciudad && !reducido()) {
-          const opacidad = 1 - Math.min(1, Math.max(0, (p - 0.2) / 0.35));
-          cartel.style.opacity = String(opacidad);
-          // Invisible, tampoco se puede enfocar ni pulsar
-          cartel.inert = opacidad < 0.05;
-          cartel.style.visibility = opacidad < 0.05 ? 'hidden' : '';
-        }
-      });
-    };
-    addEventListener('scroll', alDesplazar, { passive: true });
-
     // El cartel sigue al solar mientras la ciudad se mueve (parallax, descenso)
     let heroVisible = true;
     new IntersectionObserver(([e]) => {
@@ -455,7 +434,6 @@ const enLosPosters = (id: string) => {
         // Si la vuelta ya ha empezado sin motor (tardaba), la cámara se queda en reposo
         if (vuelveDe && esperandoVuelta) ciudad.situarEn(vuelveDe);
         seguirCartel();
-        alDesplazar();
         movimiento.addEventListener('change', () => ciudad?.reducido(reducido()));
       } catch {
         // Sin motor (red caída, WebGL que falla al crear el contexto…): se queda el póster

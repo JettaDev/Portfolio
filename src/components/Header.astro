@@ -1,5 +1,5 @@
 ---
-import { getLang, useT, localePath, switchLangPath } from '../i18n/utils';
+import { getLang, useT, localePath, pagePath, switchLangPath } from '../i18n/utils';
 import { languages, type Lang } from '../i18n/ui';
 import { site } from '../site';
 
@@ -12,11 +12,12 @@ const lang = getLang(Astro.url);
 const t = useT(lang);
 const other = lang === 'es' ? 'en' : 'es';
 const home = localePath(lang, '/');
+const actual = Astro.url.pathname.replace(/\/?$/, '/');
 const links = [
-  { href: `${home}#apps`, label: t('nav.apps') },
-  { href: `${home}#sobre-mi`, label: t('nav.about') },
-  { href: `${home}#contacto`, label: t('nav.contact') },
-];
+  { href: pagePath(lang, 'apps'), label: t('nav.apps') },
+  { href: pagePath(lang, 'about'), label: t('nav.about') },
+  { href: pagePath(lang, 'contact'), label: t('nav.contact') },
+].map((l) => ({ ...l, actual: actual === l.href ? ('page' as const) : undefined }));
 ---
 
 <header class="sticky top-0 z-40 bg-bosque transition-colors duration-300" data-header data-sobre-hero={sobreHero || undefined}>
@@ -33,7 +34,7 @@ const links = [
       <ul class="hidden items-center gap-1 sm:flex">
         {links.map((l) => (
           <li>
-            <a href={l.href} class="rounded-md px-3 py-2 text-helecho transition-colors hover:text-liquen">
+            <a href={l.href} aria-current={l.actual} class="rounded-md px-3 py-2 text-helecho transition-colors hover:text-liquen aria-[current]:text-liquen">
               {l.label}
             </a>
           </li>
@@ -73,7 +74,7 @@ const links = [
   <ul class="contenedor flex flex-col pt-6">
     {links.map((l, i) => (
       <li class="enlace" style={`--i:${i}`}>
-        <a href={l.href} class="block py-4 text-[2.5rem] leading-none font-bold tracking-tight" data-menu-link>
+        <a href={l.href} aria-current={l.actual} class="block py-4 text-[2.5rem] leading-none font-bold tracking-tight" data-menu-link>
           {l.label}
         </a>
       </li>

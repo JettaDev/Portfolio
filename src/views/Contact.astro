@@ -1,0 +1,26 @@
+---
+// Contacto: el solar «Tu proyecto aquí» de la ciudad lleva aquí.
+import Base from '../layouts/Base.astro';
+import { getLang, useT } from '../i18n/utils';
+import { site } from '../site';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+---
+
+<Base title={t('nav.contact')} description={t('contact.description')}>
+  <section class="flex min-h-[calc(100svh-4rem)] flex-col justify-center bg-musgo py-24">
+    <div class="contenedor">
+      <h1 class="w-fit text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" data-destello-destino>{t('contact.title')}</h1>
+      <div data-reveal>
+        <p class="mt-8 max-w-[44ch] text-xl text-pretty text-liquen">{t('contact.lead')} {t('contact.solar')}</p>
+        <a
+          href={`mailto:${site.email}`}
+          class="mt-12 inline-block text-[clamp(1.6rem,5.5vw,4.5rem)] leading-none font-bold tracking-[-0.03em] break-all text-calendula underline decoration-calendula/30 decoration-[3px] underline-offset-[12px] transition-colors hover:decoration-calendula sm:break-normal"
+        >
+          {site.email}
+        </a>
+      </div>
+    </div>
+  </section>
+</Base>

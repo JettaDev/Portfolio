@@ -18,18 +18,20 @@ interface Props {
   cabeceraSobreHero?: boolean;
   /** Es la portada de la ciudad: al volver de una ficha, el destello sale cubriendo */
   portada?: boolean;
+  /** Una sola pantalla, sin scroll ni pie (la portada) */
+  pantallaCompleta?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
 ---
 
 <!doctype html>
-<html lang={lang} data-portada={portada || undefined}>
+<html lang={lang} data-portada={portada || undefined} class:list={[pantallaCompleta && 'h-dvh overflow-hidden']}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -82,7 +84,7 @@ const ogImage = new URL(image, Astro.site);
     <meta name="twitter:image:alt" content={imageAlt} />
     <slot name="head" />
   </head>
-  <body class="min-h-dvh flex flex-col">
+  <body class:list={['flex flex-col', pantallaCompleta ? 'h-dvh overflow-hidden' : 'min-h-dvh']}>
     <a
       href="#contenido"
       class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-calendula focus:px-4 focus:py-2 focus:font-semibold focus:text-bosque-hondo"
@@ -93,7 +95,7 @@ const ogImage = new URL(image, Astro.site);
     <main id="contenido" class="flex-1">
       <slot />
     </main>
-    <Footer />
+    {!pantallaCompleta && <Footer />}
     <div class="destello" aria-hidden="true" data-destello-capa></div>
     <script>
       // Llegada desde la ciudad: el destello se recoge sobre la ventana de la portada de la ficha

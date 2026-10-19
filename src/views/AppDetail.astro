@@ -7,7 +7,7 @@ import Status from '../components/Status.astro';
 import Gallery from '../components/Gallery.astro';
 import NewTab from '../components/NewTab.astro';
 import type { App } from '../lib/apps';
-import { getLang, useT, localePath } from '../i18n/utils';
+import { getLang, useT, localePath, pagePath } from '../i18n/utils';
 
 interface Props {
   app: App;
@@ -100,7 +100,7 @@ const { Content } = await render(app);
           <svg class="mb-2 shrink-0 text-calendula transition-transform duration-300 ease-salida group-hover:translate-x-2" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
       )}
-      <a href={localePath(lang, '/#apps')} class="boton boton-secundario self-start md:self-end">{t('apps.back')}</a>
+      <a href={pagePath(lang, 'apps')} class="boton boton-secundario self-start md:self-end">{t('apps.back')}</a>
     </div>
   </nav>
 </Base>

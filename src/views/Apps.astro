@@ -1,0 +1,23 @@
+---
+// Catálogo de apps: el escaparate de la ciudad lleva aquí. Cada fila es la ventana de su app.
+import Base from '../layouts/Base.astro';
+import AppRow from '../components/AppRow.astro';
+import { getApps } from '../lib/apps';
+import { getLang, useT } from '../i18n/utils';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const apps = await getApps(lang);
+---
+
+<Base title={t('apps.title')} description={t('apps.description')}>
+  <section class="bg-bosque-hondo pb-24 lg:pb-36">
+    <header class="contenedor pt-12 pb-16 lg:pt-20 lg:pb-24">
+      <h1 class="text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]">{t('apps.title')}</h1>
+      <p class="mt-8 max-w-[44ch] text-xl text-pretty text-liquen">{t('apps.lead')}</p>
+    </header>
+    <div class="contenedor flex flex-col gap-24 lg:gap-36">
+      {apps.map((app, i) => <AppRow app={app} reverse={i % 2 === 1} destino={i === 0} />)}
+    </div>
+  </section>
+</Base>

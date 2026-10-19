@@ -1,0 +1,38 @@
+---
+// Sobre mí: el estudio de la ciudad (la ventana con la lámpara) lleva aquí.
+import Base from '../layouts/Base.astro';
+import { getLang, useT, pagePath } from '../i18n/utils';
+import { site } from '../site';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+---
+
+<Base title={t('about.title')} description={t('about.description')}>
+  <header class="contenedor pt-12 pb-16 lg:pt-20 lg:pb-24">
+    <h1 class="w-fit text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" data-destello-destino>{t('about.title')}</h1>
+    <div data-reveal>
+      <p class="mt-10 max-w-[30ch] text-[clamp(1.4rem,2.4vw,2.1rem)] leading-[1.25] tracking-[-0.01em] text-pretty text-liquen">{t('about.lead')}</p>
+      <p class="mt-6 max-w-[52ch] text-xl text-pretty text-liquen">{t('about.body')}</p>
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a href={pagePath(lang, 'contact')} class="boton boton-principal">{t('about.contact')}</a>
+        <a href={pagePath(lang, 'apps')} class="boton boton-secundario">{t('about.apps')}</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- El stack como lista tipográfica, en un campo de color aparte -->
+  <section class="bg-bosque-hondo py-24 lg:py-36" aria-labelledby="stack-titulo">
+    <div class="contenedor" data-reveal>
+      <h2 id="stack-titulo" class="text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]">{t('about.stack')}</h2>
+      <ul class="mt-12 space-y-5">
+        {site.stack[lang].map((g) => (
+          <li class="max-w-[40ch] text-[clamp(1.4rem,2.4vw,2.1rem)] leading-[1.2] font-semibold tracking-[-0.02em]">
+            <span class="font-normal text-helecho">{g.group}</span>{' '}
+            <span translate="no">{g.items.join(', ')}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
