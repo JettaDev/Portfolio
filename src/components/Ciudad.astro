@@ -166,11 +166,13 @@ if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
 <script>
   import { detectarNivel } from '../ciudad/rendimiento';
   import type { Ciudad, DatosVentana } from '../ciudad';
+  import { centroDe, cubrir, olvidarSalida, recordarSalida, retirar } from '../lib/destello';
 
   const raiz = document.querySelector<HTMLElement>('[data-ciudad]');
   if (raiz) iniciar(raiz);
 
   function iniciar(raiz: HTMLElement) {
+    const html = document.documentElement;
     const lienzo = raiz.querySelector<HTMLCanvasElement>('[data-lienzo]')!;
     const etiqueta = raiz.querySelector<HTMLElement>('[data-etiqueta]')!;
     const pista = raiz.querySelector<HTMLElement>('[data-pista]')!;
@@ -179,15 +181,30 @@ if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
     const titulo = new Map(datos.map((d) => [d.slug, d.title]));
     const href = new Map(datos.map((d) => [d.slug, d.href]));
 
-    if (matchMedia('(pointer: coarse)').matches) pista.textContent = pista.dataset.tactil ?? pista.textContent;
+    // Enlaces del prototipo (/#/slug): a la ficha
+    const antiguo = location.hash.match(/^#\/([\w-]+)$/)?.[1];
+    if (antiguo && href.has(antiguo)) {
+      location.replace(href.get(antiguo)!);
+      return;
+    }
 
-    const nivel = detectarNivel();
-    if (nivel === 'estatico') return; // se queda el póster con sus enlaces
+    if (matchMedia('(pointer: coarse)').matches) pista.textContent = pista.dataset.tactil ?? pista.textContent;
 
     const movimiento = matchMedia('(prefers-reduced-motion: reduce)');
     const reducido = () => movimiento.matches || new URLSearchParams(location.search).has('reducido');
+    const nivel = detectarNivel();
     let ciudad: Ciudad | null = null;
-    let volando: string | null = null;
+    /** App de la que se sale o a la que se vuelve; null con la ciudad en reposo. */
+    let enVuelo: string | null = null;
+
+    const marcarVuelo = (fase: 'ida' | 'vuelta' | null) => {
+      raiz.toggleAttribute('data-volando', !!fase);
+      if (fase) raiz.dataset.vuelo = fase;
+      else delete raiz.dataset.vuelo;
+    };
+    // Las filas del listado recuperan su nombre de view transition
+    const restaurarNombres = () =>
+      document.querySelectorAll<HTMLElement>('[data-vt]').forEach((el) => el.style.setProperty('view-transition-name', el.dataset.vt!));
 
     // --- Etiqueta junto al ventanal con el puntero encima ---------------------------------
     let conEtiqueta: string | null = null;
@@ -197,48 +214,94 @@ if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
       if (p) etiqueta.style.transform = `translate(${p.x}px, ${p.y - 26}px) translate(-50%, -100%)`;
       requestAnimationFrame(colocarEtiqueta);
     };
+    const prefetch = new Set<string>();
+    const precargar = (slug: string) => {
+      const url = href.get(slug);
+      if (!url || prefetch.has(url)) return;
+      prefetch.add(url);
+      document.head.append(Object.assign(document.createElement('link'), { rel: 'prefetch', href: url }));
+    };
     const alPasar = (slug: string | null) => {
       enlaces.forEach((a) => a.toggleAttribute('data-activa', a.dataset.slug === slug));
       conEtiqueta = slug;
       etiqueta.toggleAttribute('data-visible', !!slug);
       if (slug) {
         etiqueta.textContent = titulo.get(slug) ?? '';
+        precargar(slug);
         colocarEtiqueta();
       }
     };
 
-    // --- Entrar en una app: vuelo y navegación real -------------------------------------
+    // --- Ida: vuelo, destello desde el ventanal y navegación real ---------------------------
+    const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const entrar = async (slug: string) => {
-      if (volando || !ciudad) return;
+      if (enVuelo) return;
+      const destino = href.get(slug)!;
       // Con la ciudad fuera de la pantalla (foco desde más abajo) no hay vuelo que ver
-      if (raiz.getBoundingClientRect().bottom <= 0) {
-        location.href = href.get(slug)!;
+      if (!ciudad || raiz.getBoundingClientRect().bottom <= 0) {
+        location.href = destino;
         return;
       }
-      volando = slug;
+      enVuelo = slug;
+      precargar(slug);
       alPasar(null);
-      raiz.toggleAttribute('data-volando', true);
+      marcarVuelo('ida');
       // La fila del listado no debe transformarse en la ficha: la transición sale de la ciudad
       for (const nombre of [`ventana-${slug}`, `titulo-${slug}`]) {
         document.querySelector<HTMLElement>(`[data-vt="${nombre}"]`)?.style.setProperty('view-transition-name', 'none');
       }
-      await ciudad.volarA(slug);
-      location.href = href.get(slug)!;
+      recordarSalida(slug, destino);
+
+      if (reducido()) {
+        await cubrir(innerWidth / 2, innerHeight / 2);
+      } else {
+        // La luz del ventanal llena la pantalla en el último tramo del vuelo
+        const vuelo = ciudad.volarA(slug);
+        await espera(780);
+        const p = ciudad.enPantalla(slug) ?? { x: innerWidth / 2, y: innerHeight / 2 };
+        await Promise.all([vuelo, cubrir(p.x, p.y)]);
+      }
+      location.href = destino;
     };
 
-    // Al volver con Atrás (bfcache), la cámara sigue pegada al ventanal: recorrido inverso
+    // --- Vuelta: el destello se recoge sobre el ventanal y la cámara vuelve al reposo --------
+    const volver = async (slug: string) => {
+      esperandoVuelta = false;
+      enVuelo = slug;
+      marcarVuelo('vuelta');
+      if (ciudad && !reducido()) {
+        const p = ciudad.enPantalla(slug) ?? { x: innerWidth / 2, y: innerHeight / 2 };
+        await retirar(p.x, p.y, 450);
+        await ciudad.volverDe(slug);
+      } else {
+        // Sin vuelo: se recoge sobre el ventanal del póster (o un fundido, con movimiento reducido)
+        if (ciudad) await ciudad.volverDe(slug);
+        const visible = [...raiz.querySelectorAll(`.ventana-poster[href="${href.get(slug)}"]`)].find((a) => a.getClientRects().length);
+        const { x, y } = centroDe(visible ?? null);
+        await retirar(x, y);
+      }
+      enVuelo = null;
+      marcarVuelo(null);
+    };
+
+    // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el ventanal)
     addEventListener('pageshow', (e) => {
-      if (!e.persisted || !volando || !ciudad) return;
-      const slug = volando;
-      raiz.removeAttribute('data-volando');
-      document.querySelectorAll<HTMLElement>('[data-vt]').forEach((el) => el.style.setProperty('view-transition-name', el.dataset.vt!));
-      ciudad.volverDe(slug).then(() => (volando = null));
+      if (!e.persisted || !enVuelo) return;
+      olvidarSalida();
+      restaurarNombres();
+      volver(enVuelo);
     });
+
+    // 2. Carga normal volviendo de una ficha: el <head> ya ha puesto la capa (data-destello="regreso")
+    const regreso = html.dataset.destello === 'regreso' ? html.dataset.regreso : undefined;
+    const vuelveDe = regreso && href.has(regreso) ? regreso : undefined;
+    let esperandoVuelta = !!vuelveDe;
+    if (regreso && !vuelveDe) retirar(innerWidth / 2, innerHeight / 2);
 
     // --- Lista HTML: el foco y el puntero iluminan su ventanal; Enter o clic hacen el vuelo --
     for (const a of enlaces) {
       const slug = a.dataset.slug!;
-      a.addEventListener('pointerenter', () => ciudad?.resaltar(slug));
+      a.addEventListener('pointerenter', () => (ciudad?.resaltar(slug), precargar(slug)));
       a.addEventListener('pointerleave', () => ciudad?.resaltar(null));
       a.addEventListener('focus', () => ciudad?.resaltar(slug));
       a.addEventListener('blur', () => ciudad?.resaltar(null));
@@ -250,14 +313,25 @@ if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
       });
     }
 
+    if (nivel === 'estatico') {
+      // Se queda el póster con sus enlaces
+      if (vuelveDe) volver(vuelveDe);
+      return;
+    }
+
     // --- Carga diferida del motor ---------------------------------------------------
+    let listo: () => void;
+    const primerFrame = new Promise<void>((r) => (listo = r));
     const arrancar = async () => {
       try {
         const { montarCiudad } = await import('../ciudad');
         ciudad = await montarCiudad(lienzo, datos, {
           nivel,
           reducido: reducido(),
-          alPrimerFrame: () => (raiz.dataset.estado = 'vivo'),
+          alPrimerFrame: () => {
+            raiz.dataset.estado = 'vivo';
+            listo();
+          },
           alPasar,
           alPulsar: entrar,
           alFallar: () => {
@@ -266,12 +340,23 @@ if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
             raiz.dataset.estado = 'poster';
           },
         });
+        // Si la vuelta ya ha empezado sin motor (tardaba), la cámara se queda en reposo
+        if (vuelveDe && esperandoVuelta) ciudad.situarEn(vuelveDe);
         movimiento.addEventListener('change', () => ciudad?.reducido(reducido()));
       } catch {
         // Sin motor (red caída, WebGL que falla al crear el contexto…): se queda el póster
         raiz.dataset.estado = 'poster';
+        listo();
       }
     };
+
+    if (vuelveDe) {
+      // Volviendo, la capa tapa la ciudad: el motor arranca ya y, si tarda, se vuelve sin él
+      marcarVuelo('vuelta');
+      arrancar();
+      Promise.race([primerFrame.then(() => espera(320)), espera(4000)]).then(() => volver(vuelveDe));
+      return;
+    }
     const cuandoLibre = () =>
       'requestIdleCallback' in window ? requestIdleCallback(arrancar, { timeout: 2000 }) : setTimeout(arrancar, 200);
     if (document.readyState === 'complete') cuandoLibre();

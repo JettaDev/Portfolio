@@ -112,6 +112,41 @@ header[data-header] {
   }
 }
 
+/* Destello: capa caléndula sólida entre la ciudad y la ficha (src/lib/destello.ts). Va por encima
+   de todo, también de la cabecera durante la view transition (por eso lleva nombre propio). */
+.destello {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-calendula);
+  pointer-events: none;
+  visibility: hidden;
+}
+html[data-destello] .destello {
+  visibility: visible;
+  view-transition-name: destello;
+}
+/* Mientras la capa cubre, nada más se transforma: los grupos que solo existen en la página nueva
+   se pintan encima de todos y asomarían por delante del destello. */
+html[data-destello] .vt-titulo,
+html[data-destello] [data-vt] {
+  view-transition-name: none !important;
+}
+/* Solo cuenta la capa en vivo, que es la que se recoge; si aparece (al volver), entra con un fundido corto */
+::view-transition-old(destello) {
+  animation: none;
+  opacity: 0;
+}
+::view-transition-new(destello) {
+  animation: none;
+}
+::view-transition-new(destello):only-child {
+  animation: 0.25s ease-out both destello-entra;
+}
+@keyframes destello-entra {
+  from { opacity: 0; }
+}
+
 /* Entrada de las partes de cada sección: título, texto e imagen escalonados al aparecer.
    Solo con JS (clase .js en <html>) y sin «reducir movimiento»: sin script, todo se ve. */
 @media (prefers-reduced-motion: no-preference) {

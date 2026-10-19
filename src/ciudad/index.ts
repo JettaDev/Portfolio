@@ -48,6 +48,8 @@ export interface Ciudad {
   volarA(slug: string): Promise<void>;
   /** Arranca pegada al ventanal y vuelve al reposo. */
   volverDe(slug: string): Promise<void>;
+  /** Deja la cámara pegada al ventanal, como al final de `volarA`. */
+  situarEn(slug: string): void;
   /** Centro del ventanal en píxeles CSS, relativo al canvas. */
   enPantalla(slug: string): { x: number; y: number } | null;
   reducido(activo: boolean): void;
@@ -256,6 +258,12 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
         return Promise.resolve();
       }
       return camara.volverDe(v);
+    },
+    situarEn: (slug) => {
+      const v = ventanal(slug);
+      gsap.killTweensOf(v);
+      resaltado = null;
+      camara.situar(v);
     },
     enPantalla: (slug) => {
       const v = porSlug.get(slug);

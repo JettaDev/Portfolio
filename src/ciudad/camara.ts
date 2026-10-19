@@ -75,11 +75,21 @@ export class CamaraCiudad {
     return new Promise((resolver) => linea.eventCallback('onComplete', () => resolver()).play());
   }
 
+  /** Línea de vuelo desde el reposo, parada al final: la cámara queda pegada al ventanal. */
+  private lineaDesdeReposo(v: Ventanal): gsap.core.Timeline {
+    const reposo = new Vector3(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
+    return this.lineaDeVuelo(v, { posicion: this.base.clone(), mira: reposo, brillo: 0 }).progress(1);
+  }
+
+  /** Coloca la cámara pegada al ventanal, sin animación (al volver a la portada sin bfcache). */
+  situar(v: Ventanal): void {
+    this.lineaDesdeReposo(v);
+    this.camara.lookAt(this.mira);
+  }
+
   /** Vuelo de vuelta: arranca pegada al ventanal y hace el recorrido inverso hasta el reposo. */
   volverDe(v: Ventanal): Promise<void> {
-    const reposo = new Vector3(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
-    const linea = this.lineaDeVuelo(v, { posicion: this.base.clone(), mira: reposo, brillo: 0 });
-    linea.progress(1);
+    const linea = this.lineaDesdeReposo(v);
     return new Promise((resolver) =>
       linea
         .eventCallback('onReverseComplete', () => {

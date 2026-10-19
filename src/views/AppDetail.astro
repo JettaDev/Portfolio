@@ -74,7 +74,7 @@ const { Content } = await render(app);
             {t('apps.tryHere')}
           </button>
         )}
-        <div id="portada" class="aspect-[16/10] bg-bosque-hondo" data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
+        <div id="portada" class="aspect-[16/10] bg-bosque-hondo" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
           <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 76rem) 72rem, 100vw" loading="eager" class="size-full object-cover object-top" />
         </div>
       </BrowserFrame>

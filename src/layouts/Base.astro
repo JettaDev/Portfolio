@@ -27,7 +27,7 @@ const ogImage = new URL(image, Astro.site);
 ---
 
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-portada={cabeceraSobreHero || undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,7 +39,30 @@ const ogImage = new URL(image, Astro.site);
     ))}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href={fuente} as="font" type="font/woff2" crossorigin />
-    <script is:inline>document.documentElement.classList.add('js')</script>
+    <script is:inline>
+      // Antes del primer pintado: clase .js y, si se viene de la ciudad o se vuelve a ella, el
+      // destello ya cubriendo la página (ver src/lib/destello.ts).
+      (() => {
+        const html = document.documentElement;
+        html.classList.add('js');
+        try {
+          const s = sessionStorage;
+          const ruta = (p) => p.replace(/(.)\/$/, '$1');
+          addEventListener('pagehide', () => s.setItem('ciudad:anterior', ruta(location.pathname)));
+          const llegada = s.getItem('ciudad:llegada');
+          s.removeItem('ciudad:llegada');
+          if (llegada && llegada === ruta(location.pathname)) html.dataset.destello = 'llegada';
+          if (html.hasAttribute('data-portada')) {
+            const desde = JSON.parse(s.getItem('ciudad:desde') || 'null');
+            s.removeItem('ciudad:desde');
+            if (desde && s.getItem('ciudad:anterior') === desde.href && !location.hash) {
+              html.dataset.destello = 'regreso';
+              html.dataset.regreso = desde.slug;
+            }
+          }
+        } catch {}
+      })();
+    </script>
     <meta name="theme-color" content="#10291c" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
@@ -69,6 +92,15 @@ const ogImage = new URL(image, Astro.site);
       <slot />
     </main>
     <Footer />
+    <div class="destello" aria-hidden="true" data-destello-capa></div>
+    <script>
+      // Llegada desde la ciudad: el destello se recoge sobre la ventana de la portada de la ficha
+      import { centroDe, retirar } from '../lib/destello';
+      if (document.documentElement.dataset.destello === 'llegada') {
+        const { x, y } = centroDe(document.querySelector('[data-destello-destino]'));
+        retirar(x, y);
+      }
+    </script>
     <script>
       // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.
       // Con data-reveal="cada" (textos largos) cada hijo entra por su cuenta al llegar a él.
