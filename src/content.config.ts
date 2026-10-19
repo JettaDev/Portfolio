@@ -35,6 +35,13 @@ const apps = defineCollection({
       /** Color propio de la app (pestaña y detalles) */
       hue: z.string().default('#7fe0a6'),
       order: z.number().default(100),
+      /** Ajustes de la ventana en la ciudad 3D; sin ellos, la colocación es automática */
+      ciudad: z
+        .object({
+          /** Planta de la ventana, contando desde 0 en la calle */
+          planta: z.number().int().min(0).optional(),
+        })
+        .optional(),
       draft: z.boolean().default(false),
     }),
 });
