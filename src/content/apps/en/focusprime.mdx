@@ -1,65 +1,65 @@
 ---
 title: FocusPrime
-tagline: Habits, goals and workouts in one place.
-summary: A personal growth platform to plan activities, track goals and workouts, and see each week’s real progress.
+tagline: Habits and to-dos with streaks, levels and progress that doesn’t lie.
+summary: A gamified habit and to-do app. Today’s items take one tap, and streaks, goals and weekly consistency come from what you actually did.
 cover: ../../../assets/apps/focusprime.png
-coverAlt: FocusPrime progress screen with the week’s completed activities, the level reached and the list of milestones.
+coverAlt: FocusPrime’s progress screen in dark mode with level and experience, overall streak, this week’s completion, the consistency heatmap, a goal and the milestones reached.
 domain: focusprime
 demo: /demo/focusprime/
-stack: [Next.js, React, TypeScript, TanStack Query, Supabase, Cloudflare Workers]
+stack: [React, Hono, Cloudflare D1, TypeScript, TanStack Router, Drizzle, Better Auth]
 year: 2026
-status: beta
+status: wip
 hue: "#62d6a4"
 order: 2
 gallery:
   - src: ../../../assets/apps/focusprime/d-hoy.webp
     device: desktop
     title: "Today"
-    caption: "What’s due today, split into pending and logged. One click to complete it and a toast to undo it."
-    alt: "Today screen with two pending activities, two completed ones and the day’s progress bar."
+    caption: "What’s due today and a ring that fills with each habit’s color. One tap to log it, and a toast to undo."
+    alt: "Today screen with three pending activities, one optional and two already logged, next to the day ring showing 2 of 5 done."
   - src: ../../../assets/apps/focusprime/m-progreso.webp
     device: mobile
-    title: "Honest progress"
-    caption: "The week in a single figure that only counts what was due, plus level and milestones."
-    alt: "Progress screen on mobile: 8 of 13 activities completed and the breakdown by status."
-  - src: ../../../assets/apps/focusprime/d-sesion.webp
+    title: "Progress"
+    caption: "Level, overall streak and completion per habit. Nothing takes points away."
+    alt: "Progress screen on mobile with level and experience, overall streak, activities done and this week’s completion."
+  - src: ../../../assets/apps/focusprime/d-detalle.webp
     device: desktop
-    title: "Live workout"
-    caption: "Sets saved instantly, a rest timer and exercises you can add on the fly."
-    alt: "Workout session in progress with two push-up sets saved and the rest timer."
-  - src: ../../../assets/apps/focusprime/m-calendario.webp
+    title: "Every habit in depth"
+    caption: "Current streak, best streak, this week and the four before, without leaving the list."
+    alt: "Habit list with the “Entreno de fuerza” detail open beside it: a 10-day streak, a best streak of 15 and the grid of recent weeks."
+  - src: ../../../assets/apps/focusprime/m-hoy.webp
     device: mobile
-    title: "Calendar"
-    caption: "Week or month, with each day marked by what got done and the details below."
-    alt: "Weekly calendar on mobile with today selected and its activities."
-  - src: ../../../assets/apps/focusprime/d-plan.webp
+    title: "Built for the phone"
+    caption: "A floating bar with the “+” in the middle keeps everything within thumb’s reach."
+    alt: "Today screen on mobile with the day ring, pending activities and the bottom navigation bar."
+  - src: ../../../assets/apps/focusprime/d-habitos.webp
     device: desktop
-    title: "Goals with a definition of done"
-    caption: "Each goal says when it counts as achieved and which plans work towards it."
-    alt: "Detail of the goal “Finish the TypeScript course” with its success criterion and the linked plan."
-  - src: ../../../assets/apps/focusprime/m-sesion.webp
+    title: "Habits and to-dos"
+    caption: "A color grid with each habit’s streak and, below it, this week’s to-dos."
+    alt: "Habits screen with six habits on colored cards, each with its streak, and two to-dos for this week."
+  - src: ../../../assets/apps/focusprime/m-crear.webp
     device: mobile
-    title: "At the gym, on your phone"
-    caption: "The session is built for thumbs: big buttons and nothing lost when you switch screens."
-    alt: "Workout session on mobile with the rest timer and the saved push-up sets."
+    title: "Create in seconds"
+    caption: "One sheet for habits and to-dos: name, color, icon and days."
+    alt: "“Nuevo hábito” sheet on mobile with the name, color palette, icons and days of the week."
 ---
 
 ## The problem
 
-Habit apps count streaks and punish the day you miss; workout apps know nothing about your goals, and your calendar knows nothing about either. Progress ends up split across three places and none of them tells the truth.
+Habit apps count streaks and punish the day you miss. Others pad the numbers with things that weren’t even due. In the end you can’t tell whether you’re doing well or just ticking boxes.
 
 ## What it does
 
-- **Today**: the day’s activities, ready to mark as done, partial or skipped.
-- **Calendar and recurrence**: activities that repeat, get postponed or edited without breaking the history.
-- **Plans and goals**: each plan hangs from a goal with a date and a success criterion.
-- **Workouts**: routines with exercises, sets and a live session that survives switching screens.
-- **Honest progress**: only what was due counts; rest days and optional items stay apart. Levels and milestones that never take points away.
+- **Today**: what’s due, what’s optional and what’s already logged. Mark items as done, partly done or skipped, and undo at any time.
+- **Habits and to-dos**: habits that repeat on the days you pick and one-off to-dos, each with its own color and icon.
+- **Streaks and detail**: every habit’s current streak, its best one and the last few weeks at a glance.
+- **Honest progress**: XP and levels that never go down, milestones, a year-long consistency heatmap and a completion rate that only counts what was due.
+- **Goals**: targets like “50 workouts by the end of the year” that add up on their own from the linked habits.
 
 ## How it’s built
 
-**Next.js 16** with the App Router and **React 19**, accessible components from React Aria and data through **TanStack Query**. Screens talk to a Zod-typed operations contract with two implementations: the real one on **Supabase** with row-level security, and a simulated one that passes the same contract tests. It deploys to **Cloudflare Workers** with OpenNext.
+This is the second version: the first one (Next.js and Supabase) was rewritten from scratch when the product narrowed to habits and to-dos. It’s now a SPA on **React 19**, **TanStack Router** and **TanStack Query**, with Tailwind and Motion. The API runs on **Hono** and **Drizzle** over **Cloudflare D1**, and it shares Zod contracts and domain logic (recurrence, streaks, XP) with the app. Everything lives in a single **Cloudflare** Worker. Sign-in, with **Better Auth**, uses a one-time code sent by email, with no password. There are API tests on the Workers runtime and Playwright flows with axe.
 
 ## The demo
 
-It uses the simulated implementation: click “Entrar en la demostración” and you’ll get several weeks of sample activity. Changes live in memory and are lost on reload. “Escenarios de prueba” lets you simulate going offline, a service failure, a save conflict or an expired session. The interface is in Spanish.
+It’s the real app, API included, running inside your browser. The same Worker runs in the page on top of an SQLite database compiled to WebAssembly, so everything you do stays in your browser. You start signed in to an account with ten weeks of history. If you sign out, you can create another one with any email: the code shows up on screen, because the demo doesn’t send emails. The interface is in Spanish.

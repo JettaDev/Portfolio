@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/demo/focusprime/favicon.svg" />
+    <title>FocusPrime</title>
+    <script>
+      // Tema elegido antes de pintar, sin destello (F4-03; misma clave que src/app/lib/tema.ts).
+      try {
+        const tema = localStorage.getItem("focusprime.tema")
+        if (tema === "claro" || tema === "oscuro") document.documentElement.dataset.tema = tema
+      } catch {}
+    </script>
+    <script type="module" crossorigin src="/demo/focusprime/assets/index-C9ytzsSU.js"></script>
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/rolldown-runtime-XKyaHtl9.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/error-B73YtRbS.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/cookie-CklYYj3E.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/schemas-C7q5JkpA.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/factory-DSdemtqO.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/limites-UdocNB0n.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/fechas-CVVn5UcO.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/objetivos-f1bZYlft.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/preload-helper-BEVAtJn_.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/sqlite-introspector-DSCAP82F-Crx7Ny14.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/compiled-query-Ds2NVcFT.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/sqlite-adapter-C_LAV4e3.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/string-BCSe1WZp.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/dist-Cc8Z5DuG.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/programaciones-B4KA7J4I.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/rachas-BYU7G2pg.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/progreso-CmUnArWM.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/plantillas-CqpyQjbX.js">
+    <link rel="modulepreload" crossorigin href="/demo/focusprime/assets/estadisticas-BLA46KdC.js">
+  </head>
+  <body>
+    <div id="root">
+      <!-- Arranque (F4-07): se pinta antes del JavaScript y React lo sustituye al montar. -->
+      <div class="flex min-h-dvh items-center justify-center">
+        <p class="cifra text-xl leading-7 font-semibold text-principal">FocusPrime</p>
+      </div>
+    </div>
+  </body>
+</html>

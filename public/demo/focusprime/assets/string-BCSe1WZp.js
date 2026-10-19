@@ -1,0 +1,1 @@
+function e(e){return e.charAt(0).toUpperCase()+e.slice(1)}var t=/[\p{Ll}\d]+|\p{Lu}+(?!\p{Ll})|\p{Lu}[\p{Ll}\d]+|\p{Lo}+/gu,n=/['\u2019]/g;function r(e){return e.replace(n,``).match(t)??[]}function i(e){return r(e).map(e=>e.toLowerCase()).join(`-`)}export{i as n,e as t};

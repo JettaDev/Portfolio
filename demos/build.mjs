@@ -50,48 +50,65 @@ const DEMOS = [
   },
   {
     slug: 'focusprime',
-    folder: 'FocusPrime',
+    folder: 'FocusPrime-V2',
+    // La API (Hono + Better Auth + Drizzle) se ejecuta en el navegador sobre SQLite en WebAssembly:
+    // ver demos/focusprime/overlay/src/demo/.
     patches: [
+      { file: 'index.html', from: 'src="/src/app/main.tsx"', to: 'src="/src/demo/entrada.ts"' },
+      { file: 'index.html', from: '<meta charset="UTF-8" />', to: '<meta charset="UTF-8" />\n    <meta name="robots" content="noindex" />' },
+      { file: 'src/app/main.tsx', from: '  routeTree,\n', to: '  routeTree,\n  basepath: import.meta.env.BASE_URL,\n' },
+      // Sesión por token Bearer: el navegador no deja a la página poner ni leer cookies en peticiones
+      // y respuestas que crea ella misma.
       {
-        file: 'src/components/entrenamiento/sesion.tsx',
-        from: 'window.location.pathname.startsWith("/entrenamientos")',
-        to: 'window.location.pathname.includes("/entrenamientos")',
+        file: 'src/worker/auth.ts',
+        from: 'import { emailOTP } from "better-auth/plugins/email-otp"',
+        to: 'import { emailOTP } from "better-auth/plugins/email-otp"\nimport { bearer } from "better-auth/plugins/bearer"',
       },
+      { file: 'src/worker/auth.ts', from: '    plugins: [\n', to: '    plugins: [\n      bearer(),\n' },
+      // Sin correo: el código queda a mano para entrar sola y para enseñarlo en un aviso.
       {
-        file: 'src/app/layout.tsx',
-        from: '<head>',
-        to: '<head>\n        <meta name="robots" content="noindex" />',
-        optional: true,
+        file: 'src/worker/auth.ts',
+        from: 'console.log(`[OTP de desarrollo] ${type} ${email}: ${otp}`)',
+        to: ';(globalThis as { __codigoDemo?: string }).__codigoDemo = otp',
       },
     ],
-    // Rutas de servidor: con la fuente simulada no se usan y no caben en una exportación estática.
-    remove: ['src/app/api', 'src/app/auth', 'src/proxy.ts'],
+    remove: [],
     files: {
-      'next.config.ts': (base, dir) => `import type { NextConfig } from "next";
+      'vite.demo.config.ts': (base) => `import { fileURLToPath, URL } from "node:url"
+import tailwindcss from "@tailwindcss/vite"
+import { tanstackRouter } from "@tanstack/router-plugin/vite"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
 
-const nextConfig: NextConfig = {
-  output: "export",
-  basePath: "${base}",
-  trailingSlash: true,
-  images: { unoptimized: true },
-  typedRoutes: true,
-  turbopack: {
-    root: ${JSON.stringify(dir)},
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
+export default defineConfig({
+  base: "${base}/",
+  plugins: [
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      routesDirectory: "./src/app/routes",
+      generatedRouteTree: "./src/app/routeTree.gen.ts",
+    }),
+    react(),
+    tailwindcss(),
+  ],
+  resolve: {
+    alias: [
+      { find: "@shared", replacement: fileURLToPath(new URL("./src/shared", import.meta.url)) },
+      { find: "@", replacement: fileURLToPath(new URL("./src/app", import.meta.url)) },
+      { find: /^sql\\.js$/, replacement: ${JSON.stringify(join(root, 'node_modules/sql.js/dist/sql-wasm-browser.js'))} },
+      { find: /^sql\\.js\\/(.*)$/, replacement: ${JSON.stringify(join(root, 'node_modules/sql.js'))} + "/$1" },
+    ],
   },
-};
-
-export default nextConfig;
+  build: { outDir: "dist-demo", emptyOutDir: true },
+})
 `,
     },
-    build: () => ['npx', ['next', 'build']],
-    out: 'out',
-    prune: [],
+    build: () => ['npx', ['vite', 'build', '--config', 'vite.demo.config.ts']],
+    out: 'dist-demo',
+    prune: ['_headers'],
+    // Es una SPA: cada pantalla tiene su .html para que recargar en ella no dé un 404.
+    pages: ['hoy', 'habitos', 'progreso', 'perfil', 'acceso', 'bienvenida'],
   },
 ];
 
@@ -150,6 +167,7 @@ function buildDemo(demo) {
   rmSync(target, { recursive: true, force: true });
   cpSync(join(dir, demo.out), target, { recursive: true });
   for (const path of demo.prune) rmSync(join(target, path), { recursive: true, force: true });
+  for (const page of demo.pages ?? []) cpSync(join(target, 'index.html'), join(target, `${page}.html`));
   console.log(`✓ ${demo.slug} → ${relative(root, target)}/`);
 }
 

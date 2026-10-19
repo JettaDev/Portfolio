@@ -1,65 +1,65 @@
 ---
 title: FocusPrime
-tagline: Hábitos, objetivos y entrenamientos en un solo sitio.
-summary: Plataforma de evolución personal para planificar actividades, seguir objetivos y entrenamientos y ver el progreso real de cada semana.
+tagline: Hábitos y tareas con rachas, niveles y un progreso que no engaña.
+summary: App de hábitos y tareas con gamificación. Lo de hoy se marca de un toque, y las rachas, los objetivos y la constancia de cada semana salen de lo que de verdad has hecho.
 cover: ../../../assets/apps/focusprime.png
-coverAlt: Pantalla de progreso de FocusPrime con las actividades completadas de la semana, el nivel alcanzado y la lista de hitos.
+coverAlt: Pantalla de progreso de FocusPrime en tema oscuro con el nivel y la experiencia, la racha global, el cumplimiento de la semana, el mapa de constancia, un objetivo y los hitos alcanzados.
 domain: focusprime
 demo: /demo/focusprime/
-stack: [Next.js, React, TypeScript, TanStack Query, Supabase, Cloudflare Workers]
+stack: [React, Hono, Cloudflare D1, TypeScript, TanStack Router, Drizzle, Better Auth]
 year: 2026
-status: beta
+status: wip
 hue: "#62d6a4"
 order: 2
 gallery:
   - src: ../../../assets/apps/focusprime/d-hoy.webp
     device: desktop
     title: "Hoy"
-    caption: "Lo que toca hacer hoy, separado entre pendiente y registrado. Un clic para completar y un aviso para deshacer."
-    alt: "Pantalla Hoy con dos actividades pendientes y dos ya completadas, y la barra de progreso del día."
+    caption: "Lo que te toca hoy y un anillo que se llena con el color de cada hábito. Un toque para anotar y un aviso para deshacer."
+    alt: "Pantalla Hoy con tres actividades pendientes, una opcional y dos ya anotadas, junto al anillo del día con 2 de 5 hechas."
   - src: ../../../assets/apps/focusprime/m-progreso.webp
     device: mobile
-    title: "Progreso honesto"
-    caption: "La semana en una cifra que solo cuenta lo que tocaba hacer, más nivel e hitos."
-    alt: "Pantalla de progreso en el móvil: 8 de 13 actividades completadas y el desglose por estado."
-  - src: ../../../assets/apps/focusprime/d-sesion.webp
+    title: "Progreso"
+    caption: "Nivel, racha global y cumplimiento por hábito. Nada resta puntos."
+    alt: "Pantalla de progreso en el móvil con el nivel y la experiencia, la racha global, las actividades hechas y el cumplimiento de la semana."
+  - src: ../../../assets/apps/focusprime/d-detalle.webp
     device: desktop
-    title: "Entrenamiento en directo"
-    caption: "Series guardadas al momento, temporizador de descanso y ejercicios que se añaden sobre la marcha."
-    alt: "Sesión de entrenamiento en curso con dos series de flexiones guardadas y el temporizador de pausa."
-  - src: ../../../assets/apps/focusprime/m-calendario.webp
+    title: "Cada hábito a fondo"
+    caption: "Racha actual, mejor racha, esta semana y las cuatro anteriores, sin salir de la lista."
+    alt: "Lista de hábitos con el detalle de «Entreno de fuerza» abierto al lado: racha de 10, mejor racha de 15 y la cuadrícula de las últimas semanas."
+  - src: ../../../assets/apps/focusprime/m-hoy.webp
     device: mobile
-    title: "Calendario"
-    caption: "Semana o mes, con marcas de lo cumplido en cada día y el detalle debajo."
-    alt: "Calendario semanal en el móvil con el día de hoy seleccionado y sus actividades."
-  - src: ../../../assets/apps/focusprime/d-plan.webp
+    title: "Hecha para el móvil"
+    caption: "Barra flotante con el «+» en el centro: todo queda al alcance del pulgar."
+    alt: "Pantalla Hoy en el móvil con el anillo del día, las actividades pendientes y la barra de navegación inferior."
+  - src: ../../../assets/apps/focusprime/d-habitos.webp
     device: desktop
-    title: "Objetivos con criterio"
-    caption: "Cada objetivo dice cuándo se da por cumplido y qué planes trabajan para él."
-    alt: "Detalle del objetivo «Terminar el curso de TypeScript» con su criterio de cumplimiento y el plan vinculado."
-  - src: ../../../assets/apps/focusprime/m-sesion.webp
+    title: "Hábitos y tareas"
+    caption: "Una rejilla de color con la racha de cada hábito y, debajo, las tareas de la semana."
+    alt: "Pantalla de hábitos con seis hábitos en tarjetas de colores, cada uno con su racha, y dos tareas de esta semana."
+  - src: ../../../assets/apps/focusprime/m-crear.webp
     device: mobile
-    title: "En el gimnasio, con el móvil"
-    caption: "La sesión está pensada para el pulgar: botones grandes y nada que se pierda al cambiar de pantalla."
-    alt: "Sesión de entrenamiento en el móvil con la pausa entre series y las series de flexiones guardadas."
+    title: "Crear en segundos"
+    caption: "Una sola hoja para hábitos y tareas: nombre, color, icono y días."
+    alt: "Hoja «Nuevo hábito» en el móvil con el nombre, la paleta de colores, los iconos y los días de la semana."
 ---
 
 ## El problema
 
-Las apps de hábitos cuentan rachas y castigan el día que fallas; las de entrenamiento no saben nada de tus objetivos, y el calendario no sabe nada de ninguna de las dos. Al final el progreso está repartido en tres sitios y ninguno dice la verdad.
+Las apps de hábitos cuentan rachas y castigan el día que fallas. Otras inflan los números con lo que no tocaba hacer. Al final no sabes si vas bien o si solo estás llenando casillas.
 
 ## Qué hace
 
-- **Hoy**: las actividades del día, listas para marcar como hechas, parciales u omitidas.
-- **Calendario y recurrencias**: actividades que se repiten, se posponen o se editan sin romper el historial.
-- **Planes y objetivos**: cada plan cuelga de un objetivo con fecha y criterio de cumplimiento.
-- **Entrenamientos**: rutinas con ejercicios, series y una sesión en directo que no se pierde si cambias de pantalla.
-- **Progreso honesto**: solo cuenta lo que tocaba hacer; descansos y opcionales quedan aparte. Niveles e hitos que nunca restan puntos.
+- **Hoy**: lo que te toca, lo opcional y lo ya anotado. Se marca como hecho, a medias u omitido, y siempre se puede deshacer.
+- **Hábitos y tareas**: hábitos que se repiten los días que elijas y tareas de un solo día, cada uno con su color y su icono.
+- **Rachas y detalle**: la racha de cada hábito, la mejor que has tenido y las últimas semanas de un vistazo.
+- **Progreso honesto**: XP y niveles que nunca restan, hitos, mapa de constancia de todo el año y un cumplimiento que solo cuenta lo que tocaba.
+- **Objetivos**: metas como «50 entrenos antes de fin de año» que suman solas con los hábitos vinculados.
 
 ## Cómo está hecha
 
-**Next.js 16** con App Router y **React 19**, componentes accesibles de React Aria y datos con **TanStack Query**. Las pantallas hablan con un contrato de operaciones tipado con Zod que tiene dos implementaciones: la real, sobre **Supabase** con seguridad a nivel de fila, y una simulada que cumple las mismas pruebas de contrato. Se despliega en **Cloudflare Workers** con OpenNext.
+Es la segunda versión: la primera (Next.js y Supabase) se reescribió de cero cuando el producto se centró en hábitos y tareas. Ahora es una SPA con **React 19**, **TanStack Router** y **TanStack Query**, con Tailwind y Motion. La API está hecha con **Hono** y **Drizzle** sobre **Cloudflare D1** y comparte con la app los contratos en Zod y la lógica de dominio (recurrencias, rachas, XP). Todo vive en un único Worker de **Cloudflare**. El acceso, con **Better Auth**, funciona con un código por correo y sin contraseña. Tiene pruebas de API sobre el runtime de Workers y recorridos de Playwright con axe.
 
 ## La demo
 
-Usa la implementación simulada: entra con «Entrar en la demostración» y tendrás varias semanas de actividad de ejemplo. Los cambios viven en memoria y se pierden al recargar. Desde «Escenarios de prueba» puedes simular que te quedas sin conexión, un fallo del servicio, un conflicto al guardar o una sesión caducada.
+Es la app real, API incluida, funcionando dentro de tu navegador. El mismo Worker se ejecuta en la página sobre una base de datos SQLite en WebAssembly, así que todo lo que hagas se queda en tu navegador. Entras directamente en una cuenta con diez semanas de historial. Si sales, puedes crear otra con cualquier correo: el código aparece en pantalla, porque en la demo no se envían correos.

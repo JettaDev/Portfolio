@@ -1,0 +1,1 @@
+import{s as e}from"./api-1rKNAcnv.js";var t=`focusprime.tema`;function n(n){let r=document.documentElement;n===`sistema`?delete r.dataset.tema:r.dataset.tema=n,n===`sistema`?e.almacenamiento.borrar(t):e.almacenamiento.guardar(t,n)}export{n as t};
