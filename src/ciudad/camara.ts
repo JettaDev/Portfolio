@@ -2,7 +2,7 @@
 
 import { PerspectiveCamera, Vector2, Vector3 } from 'three';
 import { gsap } from 'gsap';
-import { CAMARA, PARALLAX, distanciaCamara, type Trazado } from './trazado';
+import { CAMARA, PARALLAX, distanciaCamara, encuadrePara, type Encuadre, type Trazado } from './trazado';
 import type { Ventanal } from './ventanas';
 
 /** Duración del vuelo de ida; la vuelta va un poco más rápida. */
@@ -24,10 +24,12 @@ export class CamaraCiudad {
     return this.vuelo === null;
   }
 
-  encuadrar(aspecto: number): void {
+  /** `forzado` sirve para pintar el póster «alto» en un lienzo de 1,2:1. */
+  encuadrar(aspecto: number, forzado?: Encuadre): void {
     this.camara.aspect = aspecto;
     this.camara.updateProjectionMatrix();
-    this.base.set(0, CAMARA.y, distanciaCamara(aspecto, this.trazado.mitadAncho, this.trazado.frente));
+    const encuadre = forzado ?? encuadrePara(aspecto);
+    this.base.set(0, CAMARA.y, distanciaCamara(encuadre, this.trazado.mitadAncho, this.trazado.frente));
     if (this.enReposo) {
       this.camara.position.copy(this.base);
       this.camara.lookAt(this.mira);

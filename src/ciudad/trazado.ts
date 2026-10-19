@@ -107,10 +107,26 @@ export const fachada = (e: Edificio) => e.z + e.fondo / 2;
 const alturaDePlanta = (planta: number) => PRIMERA_PLANTA + planta * PLANTA_ALTO;
 const plantaParaAltura = (y: number) => Math.ceil((y - PRIMERA_PLANTA) / PLANTA_ALTO);
 
-/** Distancia de la cámara para que quepan los ventanales a lo ancho con este aspecto. */
-export function distanciaCamara(aspecto: number, mitadAncho: number, frente = 0): number {
+/**
+ * Dos encuadres fijos, para que el póster coincida con el canvas en cualquier pantalla:
+ * con la distancia fija y el FOV vertical fijo, un aspecto distinto solo enseña más o menos
+ * por los lados, igual que el póster con `object-fit: cover`.
+ * - «ancho» (aspecto ≥ 1,2): póster a 2,4:1.
+ * - «alto» (aspecto < 1,2, móviles y ventanas estrechas): póster a 1,2:1; la distancia se
+ *   calcula para el móvil más estrecho (9:21).
+ */
+export type Encuadre = 'ancho' | 'alto';
+export const ENCUADRES = {
+  ancho: { desde: 1.2, poster: 2.4 },
+  alto: { desde: 9 / 21, poster: 1.2 },
+} as const;
+
+export const encuadrePara = (aspecto: number): Encuadre => (aspecto >= ENCUADRES.ancho.desde ? 'ancho' : 'alto');
+
+/** Distancia de la cámara para que quepan los ventanales a lo ancho con el aspecto más estrecho del encuadre. */
+export function distanciaCamara(encuadre: Encuadre, mitadAncho: number, frente = 0): number {
   const tan = Math.tan(((CAMARA.fov / 2) * Math.PI) / 180);
-  return Math.max(CAMARA.distanciaMinima, mitadAncho / (tan * aspecto) + frente);
+  return Math.max(CAMARA.distanciaMinima, mitadAncho / (tan * ENCUADRES[encuadre].desde) + frente);
 }
 
 /**

@@ -13,7 +13,8 @@
     "demos": "node demos/build.mjs",
     "og": "node scripts/og.mjs",
     "test": "vitest run",
-    "check": "astro check"
+    "check": "astro check",
+    "poster": "node scripts/poster.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.3",
@@ -30,6 +31,7 @@
     "@astrojs/check": "^0.9.11",
     "@types/three": "^0.186.0",
     "playwright-core": "^1.64.0",
+    "sharp": "^0.35.5",
     "sql.js": "1.14.2",
     "typescript": "^6.0.3",
     "vitest": "^5.0.5"

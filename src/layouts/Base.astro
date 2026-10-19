@@ -14,11 +14,13 @@ interface Props {
   image?: string;
   imageAlt?: string;
   noindex?: boolean;
+  /** La cabecera empieza transparente sobre el hero a pantalla completa (portada) */
+  cabeceraSobreHero?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
@@ -62,7 +64,7 @@ const ogImage = new URL(image, Astro.site);
     >
       {t('nav.skip')}
     </a>
-    <Header />
+    <Header sobreHero={cabeceraSobreHero} />
     <main id="contenido" class="flex-1">
       <slot />
     </main>

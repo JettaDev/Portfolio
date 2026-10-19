@@ -1,0 +1,280 @@
+---
+// Hero de la portada: la ciudad de noche, donde cada ventana encendida es una app.
+// El póster (misma escena, misma semilla) se pinta al instante y es el LCP; el motor 3D se
+// descarga después y su canvas se funde encima. Sin WebGL, los ventanales del póster son enlaces.
+import { getImage } from 'astro:assets';
+import posterAncho from '../assets/ciudad/poster-ancho.webp';
+import posterAlto from '../assets/ciudad/poster-alto.webp';
+import posiciones from '../assets/ciudad/poster.json';
+import { ENCUADRES } from '../ciudad/trazado';
+import { getCiudad } from '../lib/ciudad';
+import { getLang, useT } from '../i18n/utils';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const ventanas = await getCiudad(lang);
+
+const [ancho, alto] = await Promise.all([
+  getImage({ src: posterAncho, widths: [1500, 2200, 3000], format: 'webp' }),
+  getImage({ src: posterAlto, widths: [840, 1260, 1680], format: 'webp' }),
+]);
+
+// El póster se genera aparte (npm run poster): avisa si ya no cuadra con las apps
+const enPoster = (encuadre: 'ancho' | 'alto') => new Map(posiciones[encuadre].ventanas.map((v) => [v.slug, v]));
+const posterAnchoPos = enPoster('ancho');
+const posterAltoPos = enPoster('alto');
+const desfasadas = ventanas.filter((v) => !posterAnchoPos.has(v.slug) || !posterAltoPos.has(v.slug));
+if (desfasadas.length || posiciones.ancho.ventanas.length !== ventanas.length) {
+  console.warn(`[ciudad] El póster no cuadra con las apps (${desfasadas.map((v) => v.slug).join(', ') || 'sobran ventanas'}): ejecuta npm run poster`);
+}
+---
+
+<section
+  class="ciudad relative -mt-16 h-svh min-h-[34rem] overflow-hidden bg-bosque-hondo"
+  style={`--aspecto-ancho:${ENCUADRES.ancho.poster}; --aspecto-alto:${ENCUADRES.alto.poster}`}
+  aria-labelledby="ciudad-titulo"
+  data-ciudad
+  data-estado="poster"
+>
+  <picture>
+    <source media={`(min-aspect-ratio: ${ENCUADRES.ancho.desde * 5}/5)`} srcset={ancho.srcSet.attribute} sizes={`${ENCUADRES.ancho.poster * 100}svh`} />
+    <img
+      src={alto.src}
+      srcset={alto.srcSet.attribute}
+      sizes={`${ENCUADRES.alto.poster * 100}svh`}
+      width={posterAlto.width}
+      height={posterAlto.height}
+      alt=""
+      decoding="async"
+      class="absolute inset-0 size-full object-cover"
+    />
+  </picture>
+
+  <canvas class="lienzo absolute inset-0 block size-full touch-none" aria-hidden="true" data-lienzo></canvas>
+
+  <!-- Sin canvas, los ventanales del póster llevan a cada app. Repiten la lista de abajo: fuera del orden de tabulación. -->
+  <div class="ventanas-poster absolute inset-0" aria-hidden="true">
+    {ventanas.map((v) => (
+      <>
+        {posterAnchoPos.has(v.slug) && (
+          <a href={v.href} tabindex="-1" class="ventana-poster en-ancho" style={`--x:${posterAnchoPos.get(v.slug)!.x}; --y:${posterAnchoPos.get(v.slug)!.y}`}>{v.title}</a>
+        )}
+        {posterAltoPos.has(v.slug) && (
+          <a href={v.href} tabindex="-1" class="ventana-poster en-alto" style={`--x:${posterAltoPos.get(v.slug)!.x}; --y:${posterAltoPos.get(v.slug)!.y}`}>{v.title}</a>
+        )}
+      </>
+    ))}
+  </div>
+
+  <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta></span>
+
+  <div class="textos contenedor pointer-events-none relative flex h-full flex-col justify-between pt-24 pb-8 sm:pt-32 sm:pb-12">
+    <!-- Titular y entradilla sin animación de entrada: son lo primero que se pinta (LCP) -->
+    <div>
+      <h1 id="ciudad-titulo" class="max-w-[13em] text-[clamp(2.3rem,6vw,5.25rem)] leading-[0.95] font-bold tracking-[-0.04em] text-balance [font-variation-settings:'opsz'_96]">
+        {t('hero.title')}
+      </h1>
+      <p class="mt-6 max-w-[40ch] text-lg text-pretty text-liquen sm:text-xl">{t('hero.lead')}</p>
+    </div>
+
+    <nav aria-label={t('ciudad.listLabel')} data-reveal>
+      <p class="text-liquen" data-pista data-tactil={t('ciudad.hintTouch')}>{t('ciudad.hint')}</p>
+      <ul class="pointer-events-auto mt-3 flex flex-wrap gap-2">
+        {ventanas.map((v) => (
+          <li>
+            <a
+              href={v.href}
+              class="app flex min-h-11 items-center gap-2 rounded-full bg-bosque-hondo px-4 text-sm font-semibold transition-colors hover:bg-musgo-claro"
+              style={`--hue:${v.hue}`}
+              data-slug={v.slug}
+              translate="no"
+            >
+              <span class="size-2 rounded-full bg-(--hue)" aria-hidden="true"></span>
+              {v.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+
+  <script type="application/json" data-datos-ciudad set:html={JSON.stringify(ventanas)} />
+</section>
+
+<style>
+  .ciudad {
+    container-type: size;
+  }
+
+  .lienzo {
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-salida);
+  }
+  [data-estado='vivo'] .lienzo {
+    opacity: 1;
+  }
+
+  /* Enlaces sobre el póster: misma cuenta que object-fit: cover (el póster se escala a la altura
+     y se recorta por los lados), así que la posición horizontal depende de la altura. */
+  .ventana-poster {
+    position: absolute;
+    top: calc(var(--y) * 100%);
+    width: 3.5rem;
+    height: 2.75rem;
+    translate: -50% -50%;
+    font-size: 0;
+    border-radius: 0.375rem;
+  }
+  .en-alto {
+    left: calc(50% + (var(--x) - 0.5) * 100cqh * var(--aspecto-alto));
+  }
+  .en-ancho {
+    left: calc(50% + (var(--x) - 0.5) * 100cqh * var(--aspecto-ancho));
+    display: none;
+  }
+  @container (min-aspect-ratio: 6 / 5) {
+    .en-ancho { display: block; }
+    .en-alto { display: none; }
+  }
+  [data-estado='vivo'] .ventanas-poster {
+    display: none;
+  }
+
+  /* Nombre de la app junto al ventanal con el puntero encima */
+  .etiqueta {
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .etiqueta[data-visible] {
+    opacity: 1;
+  }
+
+  .app[data-activa] {
+    background: var(--color-musgo-claro);
+  }
+
+  /* Durante el vuelo los textos se apartan: si no, quedarían encima de la ventana que se acerca */
+  .textos {
+    transition: opacity 0.35s var(--ease-salida);
+  }
+  [data-volando] .textos,
+  [data-volando] .etiqueta {
+    opacity: 0;
+  }
+</style>
+
+<script>
+  import { detectarNivel } from '../ciudad/rendimiento';
+  import type { Ciudad, DatosVentana } from '../ciudad';
+
+  const raiz = document.querySelector<HTMLElement>('[data-ciudad]');
+  if (raiz) iniciar(raiz);
+
+  function iniciar(raiz: HTMLElement) {
+    const lienzo = raiz.querySelector<HTMLCanvasElement>('[data-lienzo]')!;
+    const etiqueta = raiz.querySelector<HTMLElement>('[data-etiqueta]')!;
+    const pista = raiz.querySelector<HTMLElement>('[data-pista]')!;
+    const enlaces = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-slug]')];
+    const datos: DatosVentana[] = JSON.parse(raiz.querySelector('[data-datos-ciudad]')!.textContent!);
+    const titulo = new Map(datos.map((d) => [d.slug, d.title]));
+    const href = new Map(datos.map((d) => [d.slug, d.href]));
+
+    if (matchMedia('(pointer: coarse)').matches) pista.textContent = pista.dataset.tactil ?? pista.textContent;
+
+    const nivel = detectarNivel();
+    if (nivel === 'estatico') return; // se queda el póster con sus enlaces
+
+    const movimiento = matchMedia('(prefers-reduced-motion: reduce)');
+    const reducido = () => movimiento.matches || new URLSearchParams(location.search).has('reducido');
+    let ciudad: Ciudad | null = null;
+    let volando: string | null = null;
+
+    // --- Etiqueta junto al ventanal con el puntero encima ---------------------------------
+    let conEtiqueta: string | null = null;
+    const colocarEtiqueta = () => {
+      if (!conEtiqueta || !ciudad) return;
+      const p = ciudad.enPantalla(conEtiqueta);
+      if (p) etiqueta.style.transform = `translate(${p.x}px, ${p.y - 26}px) translate(-50%, -100%)`;
+      requestAnimationFrame(colocarEtiqueta);
+    };
+    const alPasar = (slug: string | null) => {
+      enlaces.forEach((a) => a.toggleAttribute('data-activa', a.dataset.slug === slug));
+      conEtiqueta = slug;
+      etiqueta.toggleAttribute('data-visible', !!slug);
+      if (slug) {
+        etiqueta.textContent = titulo.get(slug) ?? '';
+        colocarEtiqueta();
+      }
+    };
+
+    // --- Entrar en una app: vuelo y navegación real -------------------------------------
+    const entrar = async (slug: string) => {
+      if (volando || !ciudad) return;
+      // Con la ciudad fuera de la pantalla (foco desde más abajo) no hay vuelo que ver
+      if (raiz.getBoundingClientRect().bottom <= 0) {
+        location.href = href.get(slug)!;
+        return;
+      }
+      volando = slug;
+      alPasar(null);
+      raiz.toggleAttribute('data-volando', true);
+      // La fila del listado no debe transformarse en la ficha: la transición sale de la ciudad
+      for (const nombre of [`ventana-${slug}`, `titulo-${slug}`]) {
+        document.querySelector<HTMLElement>(`[data-vt="${nombre}"]`)?.style.setProperty('view-transition-name', 'none');
+      }
+      await ciudad.volarA(slug);
+      location.href = href.get(slug)!;
+    };
+
+    // Al volver con Atrás (bfcache), la cámara sigue pegada al ventanal: recorrido inverso
+    addEventListener('pageshow', (e) => {
+      if (!e.persisted || !volando || !ciudad) return;
+      const slug = volando;
+      raiz.removeAttribute('data-volando');
+      document.querySelectorAll<HTMLElement>('[data-vt]').forEach((el) => el.style.setProperty('view-transition-name', el.dataset.vt!));
+      ciudad.volverDe(slug).then(() => (volando = null));
+    });
+
+    // --- Lista HTML: el foco y el puntero iluminan su ventanal; Enter o clic hacen el vuelo --
+    for (const a of enlaces) {
+      const slug = a.dataset.slug!;
+      a.addEventListener('pointerenter', () => ciudad?.resaltar(slug));
+      a.addEventListener('pointerleave', () => ciudad?.resaltar(null));
+      a.addEventListener('focus', () => ciudad?.resaltar(slug));
+      a.addEventListener('blur', () => ciudad?.resaltar(null));
+      a.addEventListener('click', (e) => {
+        // Con modificadores (pestaña nueva…) o sin ciudad, el enlace hace lo suyo
+        if (!ciudad || raiz.dataset.estado !== 'vivo' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        entrar(slug);
+      });
+    }
+
+    // --- Carga diferida del motor ---------------------------------------------------
+    const arrancar = async () => {
+      try {
+        const { montarCiudad } = await import('../ciudad');
+        ciudad = await montarCiudad(lienzo, datos, {
+          nivel,
+          reducido: reducido(),
+          alPrimerFrame: () => (raiz.dataset.estado = 'vivo'),
+          alPasar,
+          alPulsar: entrar,
+          alFallar: () => {
+            ciudad?.destruir();
+            ciudad = null;
+            raiz.dataset.estado = 'poster';
+          },
+        });
+        movimiento.addEventListener('change', () => ciudad?.reducido(reducido()));
+      } catch {
+        // Sin motor (red caída, WebGL que falla al crear el contexto…): se queda el póster
+        raiz.dataset.estado = 'poster';
+      }
+    };
+    const cuandoLibre = () =>
+      'requestIdleCallback' in window ? requestIdleCallback(arrancar, { timeout: 2000 }) : setTimeout(arrancar, 200);
+    if (document.readyState === 'complete') cuandoLibre();
+    else addEventListener('load', cuandoLibre, { once: true });
+  }
+</script>

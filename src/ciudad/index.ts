@@ -9,23 +9,28 @@ import { crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
 import { MedidorFps, detectarNivel, nivelInferior, type Nivel, type NivelVivo } from './rendimiento';
 import { SEMILLA } from './semilla';
-import { trazarCiudad } from './trazado';
+import { trazarCiudad, type Encuadre } from './trazado';
 import { crearHuecos, crearVentanales, type DatosVentana, type Ventanal } from './ventanas';
 
 export type { DatosVentana } from './ventanas';
 export type { Nivel } from './rendimiento';
+export type { Encuadre } from './trazado';
 
 export interface OpcionesCiudad {
   semilla?: number;
   /** Nivel de calidad; por defecto se detecta. `'estatico'` no monta nada (se queda el póster). */
   nivel?: Nivel;
-  /** Sin parallax ni parpadeo (y, más adelante, sin vuelo). */
+  /** Sin parallax, parpadeo ni vuelo. */
   reducido?: boolean;
+  /** Encuadre fijo; por defecto, según el aspecto del canvas (el póster «alto» lo fuerza). */
+  encuadre?: Encuadre;
+  /** Densidad de píxeles fija (póster). */
+  dpr?: number;
   /** El puntero entra o sale de un ventanal. */
   alPasar?: (slug: string | null) => void;
   /** Clic o toque sobre un ventanal. */
   alPulsar?: (slug: string) => void;
-  /** El primer fotograma ya está pintado: se puede fundir el canvas sobre el póster. */
+  /** El primer fotograma con las capturas cargadas ya está en pantalla: se puede fundir el canvas sobre el póster. */
   alPrimerFrame?: () => void;
   /** El medidor de FPS ha bajado la calidad. */
   alCambiarNivel?: (nivel: Nivel) => void;
@@ -35,6 +40,8 @@ export interface OpcionesCiudad {
 
 export interface Ciudad {
   readonly nivel: Nivel;
+  /** Se resuelve cuando han cargado las capturas de los ventanales. */
+  readonly listo: Promise<void>;
   /** Ilumina un ventanal (hover o foco en la lista HTML), o ninguno con `null`. */
   resaltar(slug: string | null): void;
   /** Vuela hasta el ventanal; se resuelve con la cámara pegada a él. */
@@ -47,7 +54,10 @@ export interface Ciudad {
   destruir(): void;
 }
 
-export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], opciones: OpcionesCiudad = {}): Ciudad {
+/** Devuelve el hilo principal al navegador entre pasos del montaje: ninguno es una tarea larga. */
+const ceder = () => new Promise<void>((r) => setTimeout(r, 0));
+
+export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], opciones: OpcionesCiudad = {}): Promise<Ciudad> {
   let nivel = opciones.nivel ?? detectarNivel();
   if (nivel === 'estatico') throw new Error('Nivel estático: se muestra el póster, sin montar la ciudad');
   let reducido = opciones.reducido ?? false;
@@ -64,9 +74,10 @@ export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], o
   const huecos = crearHuecos(trazado);
   const ventanales = crearVentanales(trazado, datos, halo);
   escena.add(edificios, huecos.malla, ...ventanales.objetos);
+  await ceder();
 
   const camara = new CamaraCiudad(trazado);
-  const pintor = new Pintor(canvas, escena, camara.camara, nivel);
+  const pintor = new Pintor(canvas, escena, camara.camara, nivel, opciones.dpr);
 
   const aplicarNivel = (n: NivelVivo) => {
     const filas = NIVELES[n].filas;
@@ -81,11 +92,13 @@ export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], o
     const ancho = Math.max(1, canvas.clientWidth);
     const alto = Math.max(1, canvas.clientHeight);
     pintor.redimensionar(ancho, alto);
-    camara.encuadrar(ancho / alto);
+    camara.encuadrar(ancho / alto, opciones.encuadre);
   };
   redimensionar();
   const observadorTamano = new ResizeObserver(redimensionar);
   observadorTamano.observe(canvas);
+  await ceder();
+  await pintor.precompilar();
 
   // --- Ventanales: resaltar, buscar y tocar ------------------------------------------
   const porSlug = new Map(ventanales.lista.map((v) => [v.datos.slug, v]));
@@ -140,19 +153,27 @@ export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], o
 
   // --- Bucle, pausa y medición ----------------------------------------------------------
   const medidor = new MedidorFps();
+  // Mientras se compilan los shaders del nivel nuevo no se pinta: el canvas conserva el último fotograma
+  let compilando = false;
   let anterior = 0;
   let primerFrame = false;
+  let capturas = false;
+  ventanales.listo.then(() => (capturas = true));
 
   const fotograma = (ahora: number) => {
     const real = anterior ? (ahora - anterior) / 1000 : 0;
     anterior = ahora;
     const dt = Math.min(real, 0.1);
 
+    if (compilando) return;
     if (camara.enReposo && real > 0 && nivel !== 'bajo') {
       if (medidor.registrar(real) === 'lento') {
         nivel = nivelInferior(nivel as NivelVivo);
         aplicarNivel(nivel as NivelVivo);
+        compilando = true;
+        pintor.precompilar().finally(() => (compilando = false));
         opciones.alCambiarNivel?.(nivel);
+        return;
       }
     }
     if (!reducido) huecos.parpadear(dt);
@@ -161,7 +182,7 @@ export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], o
     pintor.atenuarBloom(1 - revelado);
     pintor.pintar();
 
-    if (!primerFrame) {
+    if (!primerFrame && capturas) {
       primerFrame = true;
       // Un fotograma más para que el navegador lo haya presentado antes de avisar
       requestAnimationFrame(() => opciones.alPrimerFrame?.());
@@ -217,6 +238,7 @@ export function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentana[], o
     get nivel() {
       return nivel;
     },
+    listo: ventanales.listo,
     resaltar: (slug) => resaltar(slug ? ventanal(slug) : null),
     volarA: (slug) => {
       const v = ventanal(slug);

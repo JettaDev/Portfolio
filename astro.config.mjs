@@ -20,6 +20,8 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    // El motor de la ciudad (three + gsap) es un único chunk diferido de ~640 KB sin comprimir (~170 KB gzip).
+    build: { chunkSizeWarningLimit: 700 },
   },
 
   integrations: [

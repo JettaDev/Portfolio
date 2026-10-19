@@ -3,6 +3,11 @@ import { getLang, useT, localePath, switchLangPath } from '../i18n/utils';
 import { languages, type Lang } from '../i18n/ui';
 import { site } from '../site';
 
+interface Props {
+  /** Transparente mientras está sobre el hero de la portada */
+  sobreHero?: boolean;
+}
+const { sobreHero = false } = Astro.props;
 const lang = getLang(Astro.url);
 const t = useT(lang);
 const other = lang === 'es' ? 'en' : 'es';
@@ -14,7 +19,7 @@ const links = [
 ];
 ---
 
-<header class="sticky top-0 z-40 bg-bosque" data-header>
+<header class="sticky top-0 z-40 bg-bosque transition-colors duration-300" data-header data-sobre-hero={sobreHero || undefined}>
   <div class="contenedor flex h-16 items-center justify-between gap-4">
     <a href={home} class="group flex items-center gap-2.5 text-lg font-bold tracking-tight" translate="no">
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" class="shrink-0">
@@ -100,6 +105,11 @@ const links = [
 </div>
 
 <style>
+  /* Solo con JS: sin script no se sabría cuándo se ha dejado atrás el hero */
+  :global(.js) header[data-sobre-hero]:not([data-solida]) {
+    background-color: transparent;
+  }
+
   .raya {
     transform-origin: 12px 12px;
     transition: transform 0.35s var(--ease-salida);
@@ -136,12 +146,25 @@ const links = [
   const toggle = header?.querySelector<HTMLButtonElement>('[data-menu-toggle]');
   const menu = document.getElementById('menu-movil');
 
+  // Sobre el hero la cabecera es transparente; al dejarlo atrás (o con el menú abierto) recupera el fondo
+  let fueraDelHero = !header?.hasAttribute('data-sobre-hero');
+  const solida = () => header?.toggleAttribute('data-solida', fueraDelHero || header.hasAttribute('data-menu-abierto'));
+  const hero = document.querySelector('[data-ciudad]');
+  if (header?.hasAttribute('data-sobre-hero') && hero) {
+    new IntersectionObserver(([e]) => {
+      fueraDelHero = !e.isIntersecting;
+      solida();
+    }, { rootMargin: '-64px 0px 0px 0px' }).observe(hero);
+  }
+
   if (header && toggle && menu) {
     const setOpen = (open: boolean) => {
       toggle.setAttribute('aria-expanded', String(open));
       toggle.setAttribute('aria-label', (open ? toggle.dataset.labelClose : toggle.dataset.labelOpen) ?? '');
       menu.dataset.open = String(open);
       menu.inert = !open;
+      header.toggleAttribute('data-menu-abierto', open);
+      solida();
       // El menú tapa la página: lo de detrás no debe recibir el foco ni leerse mientras está abierto.
       document.querySelectorAll<HTMLElement>('body > :not(header):not(#menu-movil):not(script)').forEach((el) => (el.inert = open));
       document.documentElement.style.overflow = open ? 'hidden' : '';

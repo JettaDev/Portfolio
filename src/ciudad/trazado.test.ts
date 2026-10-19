@@ -4,6 +4,7 @@ import {
   CAMARA,
   PARALLAX,
   distanciaCamara,
+  encuadrePara,
   trazarCiudad,
   type AppEnCiudad,
   type Edificio,
@@ -14,7 +15,7 @@ import {
 const apps = (n: number): AppEnCiudad[] =>
   Array.from({ length: n }, (_, i) => ({ slug: `app-${i}`, status: (['live', 'beta', 'wip'] as const)[i % 3] }));
 
-const ASPECTOS = { escritorio: 16 / 9, movil: 9 / 19.5 };
+const ASPECTOS = { escritorio: 16 / 9, 'tableta horizontal': 4 / 3, 'ventana casi cuadrada': 1.19, movil: 9 / 19.5, 'móvil estrecho': 9 / 21 };
 const CANTIDADES = [1, 2, 3, 6, 10];
 
 const esquinas = (p: VentanaProyecto) =>
@@ -22,7 +23,7 @@ const esquinas = (p: VentanaProyecto) =>
 
 function camaraEnReposo(t: Trazado, aspecto: number, dx = 0, dy = 0) {
   const camara = new PerspectiveCamera(CAMARA.fov, aspecto, 0.1, 1200);
-  camara.position.set(dx, CAMARA.y + dy, distanciaCamara(aspecto, t.mitadAncho, t.frente));
+  camara.position.set(dx, CAMARA.y + dy, distanciaCamara(encuadrePara(aspecto), t.mitadAncho, t.frente));
   camara.lookAt(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
   camara.updateMatrixWorld();
   return camara;

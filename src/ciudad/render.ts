@@ -1,6 +1,6 @@
 // Render: WebGLRenderer, postproceso con bloom y niveles de calidad.
 
-import { HalfFloatType, Vector2, WebGLRenderer, WebGLRenderTarget, type PerspectiveCamera, type Scene } from 'three';
+import { HalfFloatType, Mesh, PlaneGeometry, Scene, Vector2, WebGLRenderer, WebGLRenderTarget, type Material, type PerspectiveCamera } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -50,6 +50,8 @@ export class Pintor {
     private readonly escena: Scene,
     private readonly camara: PerspectiveCamera,
     nivel: NivelVivo,
+    /** Densidad de píxeles fija (póster); si no, la del nivel. */
+    private readonly dprFijo?: number,
   ) {
     // Sin antialias en el lienzo: con bloom se pinta en un render intermedio, que lleva su propio MSAA
     this.renderer = new WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -63,7 +65,7 @@ export class Pintor {
   ajustar(nivel: NivelVivo): void {
     this.calidad = NIVELES[nivel];
     this.soltarComposer();
-    const dpr = Math.min(window.devicePixelRatio || 1, this.calidad.dpr);
+    const dpr = this.dprFijo ?? Math.min(window.devicePixelRatio || 1, this.calidad.dpr);
     this.renderer.setPixelRatio(dpr);
 
     if (this.calidad.bloom > 0) {
@@ -88,6 +90,33 @@ export class Pintor {
   /** Atenúa el bloom (0–1): cerca de un ventanal la captura llena la pantalla y no debe deslumbrar. */
   atenuarBloom(factor: number): void {
     if (this.bloom) this.bloom.strength = BLOOM.fuerza * factor;
+  }
+
+  /**
+   * Compila los shaders sin bloquear el hilo principal (KHR_parallel_shader_compile): si no,
+   * el primer fotograma es una tarea larga. Se compila la variante que se usará: la escena va
+   * al render intermedio cuando hay bloom, igual que los pases del bloom.
+   */
+  async precompilar(): Promise<void> {
+    const r = this.renderer;
+    if (!this.composer || !this.bloom) {
+      await r.compileAsync(this.escena, this.camara);
+      return;
+    }
+    const b = this.bloom;
+    const materiales: Material[] = [b.materialHighPassFilter, ...b.separableBlurMaterials, b.compositeMaterial, b.blendMaterial];
+    const pases = new Scene();
+    const plano = new PlaneGeometry(2, 2);
+    materiales.forEach((m) => pases.add(new Mesh(plano, m)));
+    const anterior = r.getRenderTarget();
+    r.setRenderTarget(this.composer.renderTarget1);
+    try {
+      await r.compileAsync(this.escena, this.camara);
+      await r.compileAsync(pases, this.camara);
+    } finally {
+      r.setRenderTarget(anterior);
+      plano.dispose();
+    }
   }
 
   pintar(): void {

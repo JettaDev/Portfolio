@@ -1,5 +1,7 @@
 ---
 // Banco de pruebas de la ciudad: solo existe con `astro dev`, no se publica.
+// Parámetros: ?nivel=alto|medio|bajo, ?ligero, ?reducido, ?encuadre=ancho|alto, ?dpr=2, ?poster
+// (?poster: sin panel ni movimiento; al acabar deja en window.poster las posiciones de los ventanales).
 import '../../styles/global.css';
 import { getCiudad } from '../../lib/ciudad';
 
@@ -26,17 +28,30 @@ const datos = await getCiudad('es');
 </html>
 
 <script>
-  import { montarCiudad, type DatosVentana } from '../../ciudad';
+  import { montarCiudad, type DatosVentana, type Encuadre, type Nivel } from '../../ciudad';
 
   const datos: DatosVentana[] = JSON.parse(document.getElementById('datos-ciudad')!.textContent!);
   const canvas = document.getElementById('ciudad') as HTMLCanvasElement;
   const medidas = document.getElementById('medidas')!;
   const params = new URLSearchParams(location.search);
 
+  const poster = params.has('poster');
+  if (poster) medidas.hidden = true;
   const estado = { nivel: '', fps: 0, primerFrame: 0, pasando: null as string | null, pulsado: null as string | null };
-  const ciudad = montarCiudad(canvas, datos, {
-    reducido: params.has('reducido'),
-    alPrimerFrame: () => (estado.primerFrame = performance.now()),
+  const ciudad = await montarCiudad(canvas, datos, {
+    nivel: (params.get('nivel') as Nivel | null) ?? undefined,
+    reducido: poster || params.has('reducido'),
+    encuadre: (params.get('encuadre') as Encuadre | null) ?? undefined,
+    dpr: params.has('dpr') ? Number(params.get('dpr')) : undefined,
+    alPrimerFrame: () => {
+      estado.primerFrame = performance.now();
+      // Posiciones relativas (0–1) de cada ventanal, para los enlaces del póster sin WebGL
+      const ventanas = datos.map(({ slug }) => {
+        const p = ciudad.enPantalla(slug)!;
+        return { slug, x: p.x / canvas.clientWidth, y: p.y / canvas.clientHeight };
+      });
+      Object.assign(window, { poster: { ventanas } });
+    },
     alPasar: (slug) => (estado.pasando = slug),
     alPulsar: async (slug) => {
       estado.pulsado = slug;

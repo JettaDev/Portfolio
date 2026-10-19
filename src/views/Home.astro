@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import HeroBrowser from '../components/HeroBrowser.astro';
+import Ciudad from '../components/Ciudad.astro';
 import AppRow from '../components/AppRow.astro';
 import { getApps } from '../lib/apps';
 import { getLang, useT } from '../i18n/utils';
@@ -11,25 +11,8 @@ const t = useT(lang);
 const apps = await getApps(lang);
 ---
 
-<Base>
-  <!-- Hero: el titular a todo el ancho y la ventana del navegador, grande, debajo -->
-  <section class="contenedor pt-10 pb-24 lg:pt-14 lg:pb-36">
-    <div data-reveal>
-      <h1 data-fijo class="max-w-[13em] text-[clamp(2.3rem,7vw,6.25rem)] leading-[0.95] font-bold tracking-[-0.04em] text-balance [font-variation-settings:'opsz'_96]">
-        {t('hero.title')}
-      </h1>
-      <div class="mt-8 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-        <p class="max-w-[46ch] text-xl text-pretty text-liquen">{t('hero.lead')}</p>
-        <div class="flex flex-wrap gap-3">
-          <a href="#apps" class="boton boton-principal">{t('hero.ctaApps')}</a>
-          <a href="#contacto" class="boton boton-secundario">{t('hero.ctaContact')}</a>
-        </div>
-      </div>
-    </div>
-    <div class="mt-10 lg:mt-12">
-      <HeroBrowser apps={apps} />
-    </div>
-  </section>
+<Base cabeceraSobreHero>
+  <Ciudad />
 
   <!-- Apps -->
   <section id="apps" class="bg-bosque-hondo py-24 lg:py-36">

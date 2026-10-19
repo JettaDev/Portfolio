@@ -133,6 +133,8 @@ export interface Ventanales {
   /** Sin bloom, el halo tiene que compensar la luz que falta. */
   sinBloom(activo: boolean): void;
   texturas: Texture[];
+  /** Se resuelve cuando han cargado (o fallado) todas las capturas. */
+  listo: Promise<void>;
 }
 
 export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: CanvasTexture): Ventanales {
@@ -141,6 +143,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
   const cargador = new TextureLoader();
   const luz = new Color(COLORES.calendula);
   let haloBase = 0.3;
+  const cargas: Promise<void>[] = [];
 
   const lista = trazado.proyectos.map((trazo, i): Ventanal => {
     const d = datos[i];
@@ -153,12 +156,18 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     uniforms.captura = { value: null };
     const vidrio = new Mesh(new PlaneGeometry(trazo.ancho, trazo.alto), new ShaderMaterial({ uniforms, vertexShader, fragmentShader, fog: true }));
     vidrio.position.copy(posicion);
-    cargador.load(d.cover.src, (textura) => {
-      textura.colorSpace = SRGBColorSpace;
-      texturas.push(textura);
-      uniforms.captura.value = textura;
-      uniforms.hayCaptura.value = 1;
-    });
+    cargas.push(
+      cargador
+        .loadAsync(d.cover.src)
+        .then((textura) => {
+          textura.colorSpace = SRGBColorSpace;
+          texturas.push(textura);
+          uniforms.captura.value = textura;
+          uniforms.hayCaptura.value = 1;
+        })
+        // Sin captura, el ventanal es solo luz: no es motivo para no pintar la ciudad
+        .catch(() => {}),
+    );
 
     // Marco fino del color de la app, por debajo del umbral del bloom
     const tono = new Color(d.hue);
@@ -205,5 +214,6 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     actualizar,
     sinBloom: (activo) => (haloBase = activo ? 0.5 : 0.3),
     texturas,
+    listo: Promise.all(cargas).then(() => {}),
   };
 }
