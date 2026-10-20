@@ -46,8 +46,6 @@ interface Circulo {
   curva: (t: number) => number;
   /** Centro del círculo en cada fotograma: puede seguir a algo que se mueve. */
   centro: () => Punto;
-  /** Tamaño mínimo (px) al que se recoge: el del objetivo en pantalla, si se conoce. */
-  minimo?: () => number;
 }
 
 /** Anima el círculo de la capa fotograma a fotograma (con WAAPI no se puede seguir a un punto que se mueve). */
@@ -58,7 +56,7 @@ function animar(el: HTMLElement, c: Circulo): Promise<void> {
       const t = Math.min(1, (ahora - t0) / c.duracion);
       const p = c.centro();
       const f = c.desde + (c.hasta - c.desde) * c.curva(t);
-      const r = Math.max(f * radio(p), c.minimo ? c.minimo() * (1 - t) : 0);
+      const r = f * radio(p);
       el.style.clipPath = `circle(${r.toFixed(1)}px at ${p.x.toFixed(1)}px ${p.y.toFixed(1)}px)`;
       if (t < 1) requestAnimationFrame(paso);
       else resolver();
@@ -87,17 +85,14 @@ export async function cubrir(centro: Punto | (() => Punto), duracion = 380): Pro
   el.style.clipPath = '';
 }
 
-/**
- * Recoge la capa sobre `centro` (fijo o que se mueve) y la quita. `minimo` da el tamaño del
- * objetivo en pantalla: el círculo no se encoge por debajo de él hasta el final.
- */
-export async function retirar(centro: Punto | (() => Punto), duracion = 650, minimo?: () => number): Promise<void> {
+/** Recoge la capa sobre `centro` (fijo o que se mueve) y la quita. */
+export async function retirar(centro: Punto | (() => Punto), duracion = 650): Promise<void> {
   const el = capa();
   if (!el || !html.hasAttribute('data-destello')) return;
   el.getAnimations().forEach((a) => a.cancel());
   const donde = typeof centro === 'function' ? centro : () => centro;
   if (reducido()) await el.animate({ opacity: [1, 0] }, { duration: 300, easing: 'ease-out', fill: 'forwards' }).finished;
-  else await animar(el, { desde: 1, hasta: 0, duracion, curva: curvas.salida, centro: donde, minimo });
+  else await animar(el, { desde: 1, hasta: 0, duracion, curva: curvas.salida, centro: donde });
   delete html.dataset.destello;
   delete html.dataset.regreso;
   el.getAnimations().forEach((a) => a.cancel());

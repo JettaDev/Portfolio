@@ -59,8 +59,6 @@ export interface Ciudad {
   situarEn(id: string, progreso?: number): void;
   /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
   enPantalla(id: string, punto?: 'centro' | 'rotulo'): { x: number; y: number } | null;
-  /** Tamaño en pantalla de un objetivo (alto, en píxeles CSS): el destello se recoge hasta él. */
-  altoEnPantalla(id: string): number | null;
   reducido(activo: boolean): void;
   destruir(): void;
 }
@@ -307,12 +305,6 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       if (!o) return null;
       const p = (punto === 'rotulo' && o.rotulo ? o.rotulo : o.posicion).clone().project(camara.camara);
       return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight };
-    },
-    altoEnPantalla: (id) => {
-      const o = porId.get(id);
-      if (!o) return null;
-      const d = Math.max(0.01, camara.camara.position.distanceTo(o.posicion));
-      return (o.tamano.alto / (2 * d * Math.tan(((camara.camara.fov / 2) * Math.PI) / 180))) * canvas.clientHeight;
     },
     reducido: (activo) => {
       reducido = activo;
