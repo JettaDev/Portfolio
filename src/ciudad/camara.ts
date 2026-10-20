@@ -11,7 +11,9 @@ export const DURACION_VUELO = 1.1;
 /** La vuelta sale rápida desde el objetivo y frena al llegar al reposo. */
 export const DURACION_VUELTA = 1.05;
 /** Acercamiento antes de que la ventana salga de la fachada. */
-export const DURACION_ACERCAMIENTO = 0.9;
+export const DURACION_ACERCAMIENTO = 1.25;
+/** Vuelta al reposo desde el acercamiento (con Atrás): sin prisa, frenando suave. */
+export const DURACION_ALEJAMIENTO = 1.45;
 const TAN = Math.tan(((CAMARA.fov / 2) * Math.PI) / 180);
 
 /** Distancia a la que se queda la cámara delante de un objetivo: lo justo para que llene la pantalla de alto. */
@@ -159,11 +161,11 @@ export class CamaraCiudad {
     const tanH = TAN * this.camara.aspect;
     const d = Math.max(o.tamano.ancho / 2 / (fraccion * tanH), o.tamano.alto / 2 / (0.55 * tanV));
     const p = o.posicion;
-    const viaje = { duration: DURACION_ACERCAMIENTO, ease: 'power3.inOut' };
+    // Curvas suaves: arranca y llega sin tirones; la mirada se gira antes de que la cámara avance
     const linea = gsap
       .timeline({ paused: true })
-      .to(this.camara.position, { x: p.x, y: p.y, z: p.z + d, ...viaje }, 0)
-      .to(this.mira, { x: p.x, y: p.y, z: p.z, ...viaje }, 0)
+      .to(this.camara.position, { x: p.x, y: p.y, z: p.z + d, duration: DURACION_ACERCAMIENTO, ease: 'power2.inOut' }, 0)
+      .to(this.mira, { x: p.x, y: p.y, z: p.z, duration: DURACION_ACERCAMIENTO * 0.85, ease: 'sine.inOut' }, 0)
       .to(o, { brillo: 0.35, duration: 0.6, ease: 'power2.out' }, 0);
     this.vuelo = linea;
     return new Promise((resolver) => linea.eventCallback('onComplete', () => resolver()).play());
@@ -191,12 +193,13 @@ export class CamaraCiudad {
       this.camara.position.copy(desde.posicion);
       this.mira.copy(desde.mira);
     }
-    const viaje = { duration: DURACION_VUELTA, ease: 'power2.out' };
+    // Desde el acercamiento (Atrás) la vuelta es tranquila; pegada al objetivo, sale ya en marcha
+    const viaje = desdeDondeEste ? { duration: DURACION_ALEJAMIENTO, ease: 'power2.inOut' } : { duration: DURACION_VUELTA, ease: 'power2.out' };
     const linea = gsap
       .timeline({ paused: true })
       .to(this.camara.position, { ...this.reposoActual, ...viaje }, 0)
       // La mirada se suelta del objetivo un poco más tarde: al principio aún se ve de frente
-      .to(this.mira, { ...this.miraEnReposo, duration: DURACION_VUELTA, ease: 'power3.inOut' }, 0)
+      .to(this.mira, { ...this.miraEnReposo, duration: viaje.duration, ease: desdeDondeEste ? 'sine.inOut' : 'power3.inOut' }, 0)
       .fromTo(o, { brillo: desdeDondeEste ? o.brillo : desde.brillo }, { brillo: 0, duration: 0.8, ease: 'power2.out' }, 0);
     this.vuelo = linea;
     return new Promise((resolver) =>

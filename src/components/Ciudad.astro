@@ -251,9 +251,9 @@ const rotulos = [
     width: 0;
     height: 0;
     z-index: 30;
-    box-shadow: 0 0 0 200vmax color-mix(in oklab, var(--color-bosque-hondo) 82%, transparent);
+    box-shadow: 0 0 0 200vmax color-mix(in oklab, var(--color-bosque-hondo) 72%, transparent);
     opacity: 0;
-    transition: opacity 0.6s var(--ease-salida);
+    transition: opacity 1.1s ease-in-out;
   }
   .velo[data-activo] {
     opacity: 1;
@@ -261,7 +261,7 @@ const rotulos = [
 
   /* Durante el vuelo los textos se apartan: si no, quedarían encima de lo que se acerca */
   .textos {
-    transition: opacity 0.35s var(--ease-salida);
+    transition: opacity 0.6s ease-in-out;
   }
   [data-volando] .textos,
   [data-volando] .etiqueta,
@@ -385,10 +385,15 @@ const rotulos = [
     const sacarVentana = (id: string, r: Rect, captura: HTMLImageElement | null): Ventana => {
       const app = datos.find((d) => d.slug === id) as (DatosVentana & { domain?: string }) | undefined;
       if (app) {
-        const v = crearVentana(plantillaVentana, r, (cuerpo) => captura && cuerpo.append(captura));
+        // Todo lo que cambia su tamaño (el dominio de la barra) va antes de medirla
+        const v = crearVentana(plantillaVentana, r, (cuerpo) => {
+          if (captura) cuerpo.append(captura);
+          const ventana = cuerpo.closest<HTMLElement>('[data-vt], [style*="--hue"]');
+          ventana?.style.setProperty('--hue', app.hue);
+          const dominio = ventana?.querySelector<HTMLElement>('[data-dominio]');
+          if (dominio) dominio.dataset.dominio = app.domain ?? '';
+        });
         v.el.style.setProperty('--hue', app.hue);
-        const dominio = v.el.querySelector<HTMLElement>('[data-dominio]');
-        if (dominio) dominio.dataset.dominio = app.domain ?? '';
         return v;
       }
       // El escaparate, el estudio o el solar: sale el trozo de ciudad pulsado
@@ -422,7 +427,7 @@ const rotulos = [
         ventana.el.style.viewTransitionName = 'salida';
         // La página se pide mientras la ventana se despega: la espera queda dentro de la animación
         const salida = ventana.salir();
-        await new Promise((ok) => setTimeout(ok, 200));
+        await new Promise((ok) => setTimeout(ok, 320));
         location.href = destino;
         await salida;
       } else location.href = destino;
@@ -435,18 +440,35 @@ const rotulos = [
     };
 
     // --- Vuelta: la ventana de la página regresa a su hueco y la cámara se aleja -------------
+    /** La view transition con la que se ha vuelto a la portada (Atrás): se espera a que acabe. */
+    let transicion: Promise<unknown> | null = null;
+    addEventListener('pagereveal', (e) => {
+      const vt = (e as Event & { viewTransition?: { finished: Promise<unknown> } }).viewTransition;
+      transicion = vt ? vt.finished.catch(() => {}) : null;
+    });
     const volver = async (id: string) => {
       enVuelo = id;
       marcarVuelo('vuelta');
-      await finTransicion();
-      if (ventana) {
-        ventana.el.style.viewTransitionName = '';
-        const r = enVentana(id);
-        if (r && ciudad && !reducido()) await ventana.entrar(r);
-        ventana.quitar();
-        ventana = null;
-      }
+      // Justo cuando la ventana de la página se posa en la ciudad, encoge hasta su hueco
+      await new Promise(requestAnimationFrame);
+      if (transicion) await Promise.race([transicion, new Promise((r) => setTimeout(r, 1200))]);
+      else await finTransicion();
+      transicion = null;
+      delete html.dataset.vuelta;
+      ciudad?.congelar(false);
+      // Encadenado: la ciudad se aclara mientras la ventana pierde marco y barra y se funde en su
+      // hueco; luego la cámara se aleja
       velo.aclarar();
+      let retirada: Promise<void> = Promise.resolve();
+      if (ventana) {
+        const v = ventana;
+        ventana = null;
+        v.el.style.viewTransitionName = '';
+        const r = enVentana(id);
+        retirada = (r && ciudad && !reducido() ? v.entrar(r) : Promise.resolve()).then(() => v.quitar());
+      }
+      // La cámara se aleja cuando la ventana ya está en su hueco: si no, se verían las dos
+      await retirada;
       if (ciudad) await ciudad.volverDe(id, true);
       enVuelo = null;
       marcarVuelo(null);
@@ -458,6 +480,9 @@ const rotulos = [
     // 1. Atrás con bfcache: la página vuelve tal cual se dejó (la ventana fuera, la cámara cerca)
     addEventListener('pageshow', (e) => {
       if (!e.persisted || !enVuelo) return;
+      // La cámara está quieta: mientras la ventana vuela de vuelta no hace falta pintar la ciudad
+      ciudad?.congelar(true);
+      html.dataset.vuelta = '';
       olvidarSalida();
       volver(enVuelo);
     });

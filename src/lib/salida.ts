@@ -89,7 +89,8 @@ export interface Ventana {
   quitar(): void;
 }
 
-const ESPERA = { despegue: 420, regreso: 380 };
+/** Duraciones (ms): sin prisa, para que todo se vea dulce. */
+export const DURACION = { despegue: 700, regreso: 440 };
 
 /**
  * Coloca la ventana de modo que su contenido (la captura o el recorte) cubra exactamente `r`, el
@@ -126,8 +127,8 @@ export function crearVentana(plantilla: HTMLElement, r: Rect, rellenar: (cuerpo:
   el.style.transformOrigin = '0 0';
   const quieta = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   // Al despegarse sube un poco y crece desde su centro: se separa de la fachada
-  const crece = 1.06;
-  const fuera = `translate(${(x - (final.width * (crece - 1)) / 2).toFixed(1)}px, ${(y - 10 - (final.height * (crece - 1)) / 2).toFixed(1)}px) scale(${crece})`;
+  const crece = 1.035;
+  const fuera = `translate(${(x - (final.width * (crece - 1)) / 2).toFixed(1)}px, ${(y - 6 - (final.height * (crece - 1)) / 2).toFixed(1)}px) scale(${crece})`;
 
   return {
     el,
@@ -136,12 +137,14 @@ export function crearVentana(plantilla: HTMLElement, r: Rect, rellenar: (cuerpo:
         el.style.clipPath = entera;
         return;
       }
+      // Primero aparece sobre la ventana de la fachada (sin salto de color) y luego se abre el marco
       await el.animate(
         [
-          { clipPath: soloHueco, transform: quieta },
-          { clipPath: entera, transform: fuera },
+          { clipPath: soloHueco, transform: quieta, opacity: 0, easing: 'ease-out' },
+          { clipPath: soloHueco, transform: quieta, opacity: 1, offset: 0.3, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' },
+          { clipPath: entera, transform: fuera, opacity: 1 },
         ],
-        { duration: ESPERA.despegue, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
+        { duration: DURACION.despegue, fill: 'forwards' },
       ).finished;
     },
     entrar: async (destino) => {
@@ -154,11 +157,11 @@ export function crearVentana(plantilla: HTMLElement, r: Rect, rellenar: (cuerpo:
       el.getAnimations().forEach((a) => a.cancel());
       await el.animate(
         [
-          { clipPath: entera, transform: fuera, opacity: 1 },
-          { clipPath: soloHueco, transform: enHueco, opacity: 1, offset: 0.8 },
+          { clipPath: entera, transform: fuera, opacity: 1, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+          { clipPath: soloHueco, transform: enHueco, opacity: 1, offset: 0.7, easing: 'ease-in-out' },
           { clipPath: soloHueco, transform: enHueco, opacity: 0 },
         ],
-        { duration: ESPERA.regreso, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' },
+        { duration: DURACION.regreso, fill: 'forwards' },
       ).finished;
     },
     quitar: () => el.remove(),

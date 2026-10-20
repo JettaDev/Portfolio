@@ -81,6 +81,8 @@ export interface Ciudad {
   /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
   enPantalla(id: string, punto?: 'centro' | 'rotulo'): { x: number; y: number } | null;
   reducido(activo: boolean): void;
+  /** Deja de pintar (la imagen se queda quieta) o vuelve a hacerlo: al volver con Atrás, mientras dura la view transition. */
+  congelar(activo: boolean): void;
   /** Cambia el tiempo (se funde en unos segundos). */
   clima(c: Clima): void;
   readonly lloviendo: boolean;
@@ -355,8 +357,9 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   // Solo se pinta con el canvas en pantalla y la pestaña visible
   let enPantalla = true;
   let paginaActiva = !document.hidden;
+  let congelada = false;
   const actualizarBucle = () => {
-    const activo = enPantalla && paginaActiva;
+    const activo = enPantalla && paginaActiva && !congelada;
     anterior = 0;
     pintor.renderer.setAnimationLoop(activo ? fotograma : null);
   };
@@ -472,6 +475,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     },
     reducido: (activo) => {
       reducido = activo;
+    },
+    congelar: (activo) => {
+      congelada = activo;
+      actualizarBucle();
     },
     clima: (c) => ambiente.clima(c),
     get lloviendo() {

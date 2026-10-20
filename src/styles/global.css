@@ -81,7 +81,8 @@ header[data-header] {
 }
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.3s;
+  animation-duration: 0.6s;
+  animation-timing-function: ease-in-out;
 }
 
 /* Los títulos cambian de tamaño: se escalan conservando proporción, anclados arriba a la izquierda. */
@@ -128,29 +129,39 @@ html[data-llegada] [data-vt]:not([data-ventana-destino]) {
   view-transition-name: none !important;
 }
 ::view-transition-group(salida) {
-  animation-duration: 0.62s;
-  animation-timing-function: cubic-bezier(0.25, 0.9, 0.25, 1);
+  animation-duration: 0.9s;
+  /* Sale despacio, viaja y se posa con suavidad */
+  animation-timing-function: cubic-bezier(0.45, 0, 0.1, 1);
   z-index: 50;
 }
 /* La ventana de la ciudad y la de la página son la misma. La vieja (con su captura) aguanta casi
    todo el viaje: la nueva es en vivo y su imagen puede tardar un poco en llegar */
 ::view-transition-old(salida) {
-  animation: 0.62s linear both salida-aguanta;
+  animation: 0.9s ease-in-out both salida-aguanta;
 }
 ::view-transition-new(salida) {
-  animation: 0.3s ease-out both salida-dentro;
+  animation: 0.55s 0.1s ease-in-out both salida-dentro;
 }
 @keyframes salida-aguanta {
   0%,
-  65% { opacity: 1; }
+  55% { opacity: 1; }
   100% { opacity: 0; }
+}
+/* De vuelta a la ciudad la ventana viaja algo más deprisa y se posa justo al acabar: en ese
+   momento empieza a encoger hasta su hueco, sin pausa entre una cosa y otra */
+html:is([data-vuelta], [data-regreso])::view-transition-group(salida) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.35, 1);
+}
+html:is([data-vuelta], [data-regreso])::view-transition-old(salida) {
+  animation-duration: 0.7s;
 }
 /* La ciudad (oscurecida) se va y la página aparece detrás de la ventana mientras viaja */
 html[data-llegada]::view-transition-old(root) {
-  animation: 0.3s ease-out both salida-fuera;
+  animation: 0.7s ease-in-out both salida-fuera;
 }
 html[data-llegada]::view-transition-new(root) {
-  animation: 0.42s 0.12s ease-out both salida-dentro;
+  animation: 0.8s 0.15s ease-in-out both salida-dentro;
 }
 @keyframes salida-fuera {
   to { opacity: 0; }
