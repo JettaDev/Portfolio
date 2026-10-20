@@ -3,7 +3,7 @@
 
 import { PerspectiveCamera, Vector2, Vector3 } from 'three';
 import { gsap } from 'gsap';
-import { CAMARA, PARALLAX, distanciaCamara, encuadrePara, type Encuadre, type Trazado } from './trazado';
+import { CALLE, CAMARA, PARALLAX, distanciaCamara, encuadrePara, type Encuadre, type Trazado } from './trazado';
 import type { Objetivo } from './ventanas';
 
 /** Duración del vuelo de ida. */
@@ -29,6 +29,9 @@ export class CamaraCiudad {
   private readonly reposo = new Vector3();
   private readonly puntero = new Vector2();
   private vuelo: gsap.core.Timeline | null = null;
+  /** Recorrido de la calle de lado a lado (arrastrar o rueda), con inercia. */
+  private paseo = { x: 0, velocidad: 0, limite: 12 };
+  private parallaxX = 0;
 
   constructor(private readonly trazado: Trazado) {}
 
@@ -42,14 +45,48 @@ export class CamaraCiudad {
     this.camara.updateProjectionMatrix();
     const encuadre = forzado ?? encuadrePara(aspecto);
     this.reposo.set(0, CAMARA.y, distanciaCamara(encuadre, this.trazado.mitadAncho, this.trazado.frente));
+    // Hasta dónde se puede recorrer la calle: en vertical se ve menos, así que se llega más lejos
+    this.paseo.limite = encuadre === 'ancho' ? 14 : 16;
+    this.paseo.x = Math.max(-this.paseo.limite, Math.min(this.paseo.limite, this.paseo.x));
     if (this.enReposo) {
-      this.camara.position.copy(this.reposo);
+      this.camara.position.copy(this.reposoActual);
+      this.mira.copy(this.miraEnReposo);
       this.camara.lookAt(this.mira);
     }
   }
 
+  /** Punto al que mira en reposo: se desplaza con la calle (la cámara se mueve, no gira). */
   private get miraEnReposo(): Vector3 {
-    return new Vector3(CAMARA.mira.x, CAMARA.mira.y, CAMARA.mira.z);
+    return new Vector3(CAMARA.mira.x + this.paseo.x, CAMARA.mira.y, CAMARA.mira.z);
+  }
+
+  /** Posición de reposo con el recorrido de la calle. */
+  private get reposoActual(): Vector3 {
+    return this.reposo.clone().setX(this.reposo.x + this.paseo.x);
+  }
+
+  /** Recorre la calle `dx` unidades (arrastre o rueda). Al soltar, sigue con la inercia. */
+  desplazar(dx: number, dt = 1 / 60): void {
+    if (!this.enReposo) return;
+    const { limite } = this.paseo;
+    this.paseo.x = Math.max(-limite, Math.min(limite, this.paseo.x + dx));
+    this.paseo.velocidad = dt > 0 ? dx / dt : 0;
+  }
+
+  /** Suelta el arrastre: la calle sigue un poco con la inercia. */
+  soltar(): void {
+    this.paseo.velocidad = Math.max(-40, Math.min(40, this.paseo.velocidad));
+  }
+
+  /** Para la inercia en seco (al empezar un arrastre). */
+  frenar(): void {
+    this.paseo.velocidad = 0;
+  }
+
+  /** Cuánto de la fachada (en unidades) ocupa un píxel de pantalla de alto `alto`. */
+  unidadesPorPixel(alto: number): number {
+    const d = this.reposo.z - CALLE.fachada;
+    return (2 * d * Math.tan(((CAMARA.fov / 2) * Math.PI) / 180)) / Math.max(1, alto);
   }
 
   /** Posición del puntero en coordenadas normalizadas (-1..1). */
@@ -57,13 +94,22 @@ export class CamaraCiudad {
     this.puntero.set(x, y);
   }
 
-  actualizar(conParallax: boolean): void {
+  actualizar(conParallax: boolean, dt = 0, arrastrando = false): void {
     if (this.enReposo) {
+      // Inercia del recorrido: frena en medio segundo y se para en los límites
+      if (!arrastrando && this.paseo.velocidad !== 0) {
+        const { limite } = this.paseo;
+        this.paseo.x = Math.max(-limite, Math.min(limite, this.paseo.x + this.paseo.velocidad * dt));
+        this.paseo.velocidad *= Math.exp(-dt * 5);
+        if (Math.abs(this.paseo.velocidad) < 0.05 || Math.abs(this.paseo.x) === limite) this.paseo.velocidad = 0;
+      }
       // La cámara sigue al puntero con retardo
       const x = conParallax ? this.puntero.x * PARALLAX.x : 0;
       const y = conParallax ? -this.puntero.y * PARALLAX.y : 0;
       const c = this.camara.position;
-      c.x += (this.reposo.x + x - c.x) * 0.05;
+      // El parallax va con retardo; el recorrido de la calle, pegado al dedo
+      this.parallaxX += (x - this.parallaxX) * 0.05;
+      c.x = this.reposo.x + this.paseo.x + this.parallaxX;
       c.y += (this.reposo.y + y - c.y) * 0.05;
       c.z = this.reposo.z;
       this.mira.copy(this.miraEnReposo);
@@ -123,7 +169,7 @@ export class CamaraCiudad {
     const viaje = { duration: DURACION_VUELTA, ease: 'power2.out' };
     const linea = gsap
       .timeline({ paused: true })
-      .to(this.camara.position, { ...this.reposo, ...viaje }, 0)
+      .to(this.camara.position, { ...this.reposoActual, ...viaje }, 0)
       // La mirada se suelta del objetivo un poco más tarde: al principio aún se ve de frente
       .to(this.mira, { ...this.miraEnReposo, duration: DURACION_VUELTA, ease: 'power3.inOut' }, 0)
       .fromTo(o, { brillo: desde.brillo }, { brillo: 0, duration: 0.8, ease: 'power2.out' }, 0);
@@ -132,6 +178,7 @@ export class CamaraCiudad {
       linea
         .eventCallback('onComplete', () => {
           this.vuelo = null;
+          this.parallaxX = 0;
           resolver();
         })
         .play(),
@@ -143,7 +190,7 @@ export class CamaraCiudad {
     this.vuelo?.kill();
     this.vuelo = null;
     this.mira.copy(this.miraEnReposo);
-    this.camara.position.copy(this.reposo);
+    this.camara.position.copy(this.reposoActual);
     this.camara.lookAt(this.mira);
   }
 

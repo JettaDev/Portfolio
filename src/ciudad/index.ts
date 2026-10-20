@@ -7,6 +7,7 @@ import { CamaraCiudad } from './camara';
 import { crearDetalles, trazarDetalles } from './detalles';
 import { crearVida, elegirHuecosVivos } from './vida';
 import { crearAmbiente, type Clima } from './ambiente';
+import { crearGato } from './gato';
 import { crearCalle, crearEdificios, crearObras, crearSolar } from './edificios';
 import { COLORES, crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
@@ -46,6 +47,8 @@ export interface OpcionesCiudad {
   alPasar?: (id: string | null) => void;
   /** Clic o toque sobre algo señalable (mismos ids que `alPasar`). */
   alPulsar?: (id: string) => void;
+  /** Se ha descubierto un detalle escondido: el gato (`#gato`) o la luna, que cambia el tiempo (`#luna`). */
+  alCuriosidad?: (id: '#gato' | '#luna') => void;
   /** El primer fotograma con las capturas cargadas ya está en pantalla: se puede fundir el canvas sobre el póster. */
   alPrimerFrame?: () => void;
   /** El medidor de FPS ha bajado la calidad. */
@@ -106,7 +109,9 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   // Los neones de los bajos se escriben con la fuente de la página
   await document.fonts?.load('700 40px "Bricolage Grotesque Variable"').catch(() => {});
   const detalles = crearDetalles(trazarDetalles(trazado, semilla), halo);
+  await ceder();
   const vida = crearVida(trazado, semilla, huecos, vivos, halo, { pocos: nivel === 'bajo' });
+  await ceder();
   // Lo que se refleja en la calzada mojada: farolas, ventanales y el escaparate
   const reflejos = [
     ...trazado.calle.farolas.map((x) => ({ x, color: COLORES.farola, fuerza: 1 })),
@@ -116,10 +121,11 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const ambiente = crearAmbiente(escena, trazado, halo, reflejos, { gotas: { alto: 1400, medio: 700, bajo: 300 }[nivel] });
   ambiente.clima(opciones.clima ?? 'despejado');
   if (opciones.hora !== undefined) ambiente.hora(opciones.hora);
-  escena.add(detalles.objeto, vida.objeto, ambiente.objeto);
+  const gato = crearGato(trazado);
+  escena.add(detalles.objeto, vida.objeto, ambiente.objeto, gato.objeto);
   escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
   if (opciones.apagon) {
-    [calle, huecos, obras, solar, estudio, escaparate, detalles, vida].forEach((parte) => parte.apagar());
+    [calle, huecos, obras, solar, estudio, escaparate, detalles, vida, gato].forEach((parte) => parte.apagar());
     ventanales.apagar(opciones.encendida);
   }
   await ceder();
@@ -178,7 +184,48 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     return (rayo.intersectObjects(toques, false)[0]?.object.userData.objetivo as Objetivo) ?? null;
   };
 
+  // Arrastrar (ratón o dedo) recorre la calle de lado a lado
+  let arrastre: { id: number; x: number; t: number; movido: boolean } | null = null;
+  // Detalles escondidos: la luna, el gato, las farolas y las ventanas decorativas
+  const luna = escena.getObjectByName('luna');
+  type Curiosidad = { tipo: 'luna' } | { tipo: 'gato' } | { tipo: 'farola'; k: number } | { tipo: 'hueco'; i: number };
+  const buscarCuriosidad = (e: PointerEvent): Curiosidad | null => {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    rayo.setFromCamera(ndc, camara.camara);
+    const [tocado] = rayo.intersectObjects([gato.toque, calle.toques, ...(luna ? [luna] : []), huecos.malla], true);
+    if (!tocado) return null;
+    if (tocado.object === gato.toque) return { tipo: 'gato' };
+    if (tocado.object === calle.toques) return { tipo: 'farola', k: tocado.instanceId ?? 0 };
+    if (tocado.object === huecos.malla) return { tipo: 'hueco', i: tocado.instanceId ?? 0 };
+    return { tipo: 'luna' };
+  };
+  const descubrir = (c: Curiosidad) => {
+    if (c.tipo === 'luna') {
+      // La luna cambia el tiempo: si llovía escampa, y si no, empieza a llover
+      ambiente.clima(ambiente.lloviendo ? 'despejado' : 'lluvia');
+      opciones.alCuriosidad?.('#luna');
+    } else if (c.tipo === 'gato') {
+      gato.saltar();
+      opciones.alCuriosidad?.('#gato');
+    } else if (c.tipo === 'farola') calle.parpadear(c.k);
+    else huecos.destacar(c.i);
+  };
+
   const alMover = (e: PointerEvent) => {
+    if (arrastre?.id === e.pointerId && camara.enReposo) {
+      const dx = e.clientX - arrastre.x;
+      if (Math.abs(dx) > 0 || arrastre.movido) {
+        const ahora = performance.now();
+        camara.desplazar(-dx * camara.unidadesPorPixel(canvas.clientHeight), Math.max(0.001, (ahora - arrastre.t) / 1000));
+        arrastre.x = e.clientX;
+        arrastre.t = ahora;
+        if (Math.abs(e.clientX - (pulsadoEn?.x ?? e.clientX)) > 10) {
+          arrastre.movido = true;
+          canvas.style.cursor = 'grabbing';
+        }
+      }
+    }
     if (e.pointerType !== 'mouse' || !camara.enReposo) return; // en táctil no hay hover
     const r = canvas.getBoundingClientRect();
     camara.apuntar(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
@@ -186,6 +233,12 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     if (v !== resaltado) {
       resaltar(v);
       opciones.alPasar?.(v?.id ?? null);
+    }
+    if (!v && !arrastre?.movido) {
+      // Sin nada señalable debajo: las ventanas reaccionan y los detalles escondidos ponen la mano
+      const c = buscarCuriosidad(e);
+      if (c?.tipo === 'hueco') huecos.destacar(c.i);
+      canvas.style.cursor = c && c.tipo !== 'hueco' ? 'pointer' : '';
     }
   };
   const alSalir = () => {
@@ -196,17 +249,44 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   };
   // Clic o toque: solo si el puntero apenas se ha movido (no es un arrastre)
   let pulsadoEn: { x: number; y: number } | null = null;
-  const alPulsar = (e: PointerEvent) => (pulsadoEn = { x: e.clientX, y: e.clientY });
+  const alPulsar = (e: PointerEvent) => {
+    pulsadoEn = { x: e.clientX, y: e.clientY };
+    if (!e.isPrimary || !camara.enReposo) return;
+    camara.frenar();
+    arrastre = { id: e.pointerId, x: e.clientX, t: performance.now(), movido: false };
+  };
+  const terminarArrastre = (e: PointerEvent) => {
+    if (arrastre?.id !== e.pointerId) return;
+    if (arrastre.movido) {
+      camara.soltar();
+      canvas.style.cursor = resaltado ? 'pointer' : '';
+    }
+    arrastre = null;
+  };
   const alSoltar = (e: PointerEvent) => {
+    terminarArrastre(e);
     if (!pulsadoEn || !camara.enReposo || Math.hypot(e.clientX - pulsadoEn.x, e.clientY - pulsadoEn.y) > 10) return;
     pulsadoEn = null;
     const v = buscar(e);
     if (v) opciones.alPulsar?.(v.id);
+    else {
+      const c = buscarCuriosidad(e);
+      if (c) descubrir(c);
+    }
   };
   canvas.addEventListener('pointermove', alMover);
   canvas.addEventListener('pointerleave', alSalir);
   canvas.addEventListener('pointerdown', alPulsar);
   canvas.addEventListener('pointerup', alSoltar);
+  canvas.addEventListener('pointercancel', terminarArrastre);
+  // La rueda (o el gesto de dos dedos del trackpad) también recorre la calle
+  const alRodar = (e: WheelEvent) => {
+    if (!camara.enReposo) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    camara.desplazar(delta * camara.unidadesPorPixel(canvas.clientHeight) * 0.6, 1 / 30);
+    camara.soltar();
+  };
+  canvas.addEventListener('wheel', alRodar, { passive: true });
 
   // --- Bucle, pausa y medición ----------------------------------------------------------
   const medidor = new MedidorFps();
@@ -238,7 +318,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       tiempo += dt;
       huecos.parpadear(dt);
     }
-    camara.actualizar(!reducido);
+    huecos.actualizar(dt);
+    calle.actualizar(dt);
+    gato.actualizar(tiempo, dt, !reducido);
+    camara.actualizar(!reducido, dt, !!arrastre?.movido);
     obras.actualizar(tiempo, !reducido);
     detalles.actualizar(tiempo, !reducido);
     vida.actualizar(tiempo, dt, !reducido);
@@ -353,6 +436,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       canvas.removeEventListener('pointerleave', alSalir);
       canvas.removeEventListener('pointerdown', alPulsar);
       canvas.removeEventListener('pointerup', alSoltar);
+      canvas.removeEventListener('pointercancel', terminarArrastre);
+      canvas.removeEventListener('wheel', alRodar);
       canvas.removeEventListener('webglcontextlost', alPerderContexto);
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
       removeEventListener('pagehide', alOcultarPagina);

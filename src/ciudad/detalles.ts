@@ -195,26 +195,23 @@ export function crearDetalles(d: Detalles, halo: CanvasTexture): MallasDetalles 
   );
 
   // Bajos comerciales: escaparate con luz tenue (por debajo del umbral del bloom), marco, toldo
-  // inclinado y, en algunos, un neón pequeño encima
-  const vidrios: Mesh[] = [];
+  // inclinado y, en algunos, un neón pequeño encima. Todo instanciado: pocas llamadas de dibujo
   const neones: Mesh[] = [];
-  const brillos: Mesh[] = [];
   const toldo = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 0.38);
+  const tumbado = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
+  const plano = new PlaneGeometry(1, 1);
+  const vidrios = instancias(plano, new MeshBasicMaterial({ toneMapped: false }), d.comercios.map((c) => ({ x: c.x, y: 0.95, z: c.z + 0.04, ancho: c.ancho, alto: 1.25, fondo: 1 })));
+  d.comercios.forEach((c, k) => vidrios.setColorAt(k, new Color(LUZ_COMERCIO[c.luz]).multiplyScalar(0.3)));
+  const marcos = instancias(caja, oscuro, d.comercios.map((c) => ({ x: c.x, y: 0.2, z: c.z + 0.02, ancho: c.ancho + 0.2, alto: 1.5, fondo: 0.05 })));
+  // La luz del escaparate en la acera
+  const brillos = instancias(
+    plano,
+    new MeshBasicMaterial({ map: halo, color: '#f0e2c4', transparent: true, opacity: 0.13, depthWrite: false, blending: AdditiveBlending }),
+    d.comercios.map((c) => ({ x: c.x, y: 0.13, z: c.z + 0.9, ancho: c.ancho * 1.2, alto: 1.6, fondo: 1, giro: tumbado })),
+  );
+  grupo.add(marcos, vidrios, brillos);
   const toldos: (Caja & { giro: Quaternion; color: string })[] = [];
   for (const c of d.comercios) {
-    const vidrio = new Mesh(new PlaneGeometry(c.ancho, 1.25), new MeshBasicMaterial({ color: new Color(LUZ_COMERCIO[c.luz]).multiplyScalar(0.3), toneMapped: false }));
-    vidrio.position.set(c.x, 0.95, c.z + 0.04);
-    const marco = new Mesh(caja, oscuro);
-    marco.scale.set(c.ancho + 0.2, 1.5, 0.05);
-    marco.position.set(c.x, 0.2, c.z + 0.02);
-    grupo.add(marco, vidrio);
-    vidrios.push(vidrio);
-    // Luz del escaparate en la acera
-    const charco = new Mesh(new PlaneGeometry(c.ancho * 1.2, 1.6), new MeshBasicMaterial({ map: halo, color: LUZ_COMERCIO[c.luz], transparent: true, opacity: 0.13, depthWrite: false, blending: AdditiveBlending }));
-    charco.rotation.x = -Math.PI / 2;
-    charco.position.set(c.x, 0.13, c.z + 0.9);
-    grupo.add(charco);
-    brillos.push(charco);
     if (c.toldo >= 0) toldos.push({ x: c.x, y: 1.72, z: c.z + 0.05, ancho: c.ancho + 0.1, alto: 0.05, fondo: 0.9, giro: toldo, color: TOLDOS[c.toldo] });
     if (c.neon) {
       const { textura, aspecto } = texturaNeon(c.neon.texto);
@@ -228,10 +225,17 @@ export function crearDetalles(d: Detalles, halo: CanvasTexture): MallasDetalles 
       neones.push(neon);
     }
   }
-  for (const [k, color] of TOLDOS.entries()) {
-    const propios = toldos.filter((x) => x.color === TOLDOS[k]);
-    if (propios.length) grupo.add(instancias(new BoxGeometry(1, 1, 1).translate(0, 0, 0.5), new MeshLambertMaterial({ color }), propios));
+  // Un juego de toldos por color (con color por instancia haría falta otro shader)
+  const geometriaToldo = new BoxGeometry(1, 1, 1).translate(0, 0, 0.5);
+  for (const color of TOLDOS) {
+    const propios = toldos.filter((x) => x.color === color);
+    if (propios.length) grupo.add(instancias(geometriaToldo, new MeshLambertMaterial({ color }), propios));
   }
+  // Nada de esto se mueve: sus matrices no se recalculan en cada fotograma
+  grupo.traverse((o) => {
+    o.updateMatrix();
+    o.matrixAutoUpdate = false;
+  });
 
   let apagada = false;
   return {
@@ -247,8 +251,9 @@ export function crearDetalles(d: Detalles, halo: CanvasTexture): MallasDetalles 
       apagada = true;
       lucesAntena.visible = false;
       neones.forEach((n) => (n.visible = false));
-      brillos.forEach((b) => (b.visible = false));
-      vidrios.forEach((v) => (v.material as MeshBasicMaterial).color.set(COLORES.apagada));
+      brillos.visible = false;
+      d.comercios.forEach((_, k) => vidrios.setColorAt(k, new Color(COLORES.apagada)));
+      if (vidrios.instanceColor) vidrios.instanceColor.needsUpdate = true;
     },
   };
 }

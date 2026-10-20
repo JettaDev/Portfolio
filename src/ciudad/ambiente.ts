@@ -107,24 +107,28 @@ export function crearAmbiente(escena: Scene, t: Trazado, halo: CanvasTexture, re
   const { calle } = t;
 
   // --- Lluvia: trazos que caen en una caja delante de la cámara --------------------------
+  // Se construye la primera vez que llueve: si no, su shader no se compila al cargar
   const CAJA = { x: 45, y: 34, zMin: -6, zMax: 30 };
   const largo = 0.55;
-  const posiciones = new Float32Array(gotas * 6);
-  const velocidades = new Float32Array(gotas);
-  for (let k = 0; k < gotas; k++) {
-    const x = (Math.random() * 2 - 1) * CAJA.x;
-    const y = Math.random() * CAJA.y;
-    const z = CAJA.zMin + Math.random() * (CAJA.zMax - CAJA.zMin);
-    posiciones.set([x, y, z, x - 0.08, y - largo, z], k * 6);
-    velocidades[k] = 20 + Math.random() * 8;
-  }
-  const geometria = new BufferGeometry();
-  geometria.setAttribute('position', new BufferAttribute(posiciones, 3));
-  const materialLluvia = new LineBasicMaterial({ color: '#a9c4b6', transparent: true, opacity: 0, depthWrite: false });
-  const lluvia = new LineSegments(geometria, materialLluvia);
-  lluvia.frustumCulled = false;
-  lluvia.visible = false;
-  grupo.add(lluvia);
+  let lluvia: { lineas: LineSegments; posiciones: Float32Array; velocidades: Float32Array; material: LineBasicMaterial } | null = null;
+  const crearLluvia = () => {
+    const posiciones = new Float32Array(gotas * 6);
+    const velocidades = new Float32Array(gotas);
+    for (let k = 0; k < gotas; k++) {
+      const x = (Math.random() * 2 - 1) * CAJA.x;
+      const y = Math.random() * CAJA.y;
+      const z = CAJA.zMin + Math.random() * (CAJA.zMax - CAJA.zMin);
+      posiciones.set([x, y, z, x - 0.08, y - largo, z], k * 6);
+      velocidades[k] = 20 + Math.random() * 8;
+    }
+    const geometria = new BufferGeometry();
+    geometria.setAttribute('position', new BufferAttribute(posiciones, 3));
+    const material = new LineBasicMaterial({ color: '#a9c4b6', transparent: true, opacity: 0, depthWrite: false });
+    const lineas = new LineSegments(geometria, material);
+    lineas.frustumCulled = false;
+    grupo.add(lineas);
+    return { lineas, posiciones, velocidades, material };
+  };
 
   // --- Calzada mojada: reflejos alargados de las luces hacia la cámara -------------------
   const charcos: MeshBasicMaterial[] = [];
@@ -134,7 +138,7 @@ export function crearAmbiente(escena: Scene, t: Trazado, halo: CanvasTexture, re
     const reflejo = new Mesh(new PlaneGeometry(0.7, calle.fin - calle.bordillo + 2), material);
     reflejo.rotation.x = -Math.PI / 2;
     reflejo.position.set(r.x, 0.012, zReflejo);
-    reflejo.userData.fuerza = r.fuerza;
+    material.userData.fuerza = r.fuerza;
     grupo.add(reflejo);
     charcos.push(material);
   }
@@ -188,9 +192,14 @@ export function crearAmbiente(escena: Scene, t: Trazado, halo: CanvasTexture, re
       }
 
       // Lluvia que cae (con movimiento reducido no cae, pero la calle sigue mojada)
-      lluvia.visible = conMovimiento && lluviaActual > 0.01;
-      materialLluvia.opacity = 0.32 * lluviaActual;
-      if (lluvia.visible) {
+      const cae = conMovimiento && lluviaActual > 0.01;
+      if (cae && !lluvia) lluvia = crearLluvia();
+      if (lluvia) {
+        lluvia.lineas.visible = cae;
+        lluvia.material.opacity = 0.32 * lluviaActual;
+      }
+      if (cae && lluvia) {
+        const { posiciones, velocidades } = lluvia;
         for (let g = 0; g < gotas; g++) {
           const i = g * 6;
           const bajada = velocidades[g] * dt;
@@ -204,9 +213,9 @@ export function crearAmbiente(escena: Scene, t: Trazado, halo: CanvasTexture, re
             posiciones.set([x, CAJA.y, z, x - 0.08, CAJA.y - largo, z], i);
           }
         }
-        geometria.attributes.position.needsUpdate = true;
+        lluvia.lineas.geometry.attributes.position.needsUpdate = true;
       }
-      charcos.forEach((m, j) => (m.opacity = lluviaActual * 0.22 * (grupo.children[j + 1].userData.fuerza as number)));
+      charcos.forEach((m) => (m.opacity = lluviaActual * 0.22 * (m.userData.fuerza as number)));
       brilloCalle.opacity = lluviaActual * 0.025;
     },
   };

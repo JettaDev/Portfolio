@@ -43,6 +43,11 @@ export interface Calle {
   objeto: Group;
   /** Las farolas se apagan con la ciudad (404). */
   apagar(): void;
+  /** Zonas de toque de las farolas (invisibles, algo más grandes que la cabeza y el poste). */
+  toques: InstancedMesh;
+  /** Una farola parpadea un momento, como si fallara (al tocarla). */
+  parpadear(k: number): void;
+  actualizar(dt: number): void;
 }
 
 /** Largo de la calle: llega más allá de lo que se ve por los lados. */
@@ -87,12 +92,51 @@ export function crearCalle(trazado: Trazado, halo: CanvasTexture): Calle {
     colocar(cabezas, i, x, CALLE.bordillo + CALLE.farola - 0.16, z + 0.55, 0.22, 0.09, 0.36);
     charcos.setMatrixAt(i, m.compose(new Vector3(x, CALLE.bordillo + 0.005, z - 0.2), enSuelo, new Vector3(1, 1, 1)));
   });
-  for (const malla of [postes, brazos, cabezas, charcos]) malla.computeBoundingSphere();
-  grupo.add(postes, brazos, cabezas, charcos);
+  // Para tocarlas: una caja invisible del poste a la cabeza
+  const toques = new InstancedMesh(geometria, new MeshBasicMaterial({ colorWrite: false, depthWrite: false }), n);
+  calle.farolas.forEach((x, i) => colocar(toques, i, x, 0, z + 0.25, 0.9, CALLE.bordillo + CALLE.farola + 0.3, 1.2));
+  // Cada cabeza con su color (para que una sola parpadee); el charco se apaga con ella
+  const encendida = new Color(1, 1, 1);
+  const negro = new Color(0.08, 0.08, 0.08);
+  calle.farolas.forEach((_, i) => cabezas.setColorAt(i, encendida));
+  const matrizCharco = calle.farolas.map((_, i) => {
+    const mm = new Matrix4();
+    charcos.getMatrixAt(i, mm);
+    return mm;
+  });
+  const sinCharco = new Matrix4().makeScale(0, 0, 0);
+  for (const malla of [postes, brazos, cabezas, charcos, toques]) malla.computeBoundingSphere();
+  grupo.add(postes, brazos, cabezas, charcos, toques);
 
+  /** Farolas que parpadean, con el tiempo que les queda. */
+  const fallando = new Map<number, number>();
+  let apagadas = false;
+  // La cabeza cambia de color (mismo shader que los huecos) y el charco desaparece
+  const pintar = (i: number, on: boolean) => {
+    cabezas.setColorAt(i, on ? encendida : negro);
+    cabezas.instanceColor!.needsUpdate = true;
+    charcos.setMatrixAt(i, on ? matrizCharco[i] : sinCharco);
+    charcos.instanceMatrix.needsUpdate = true;
+  };
   return {
     objeto: grupo,
+    toques,
+    parpadear: (k) => !apagadas && fallando.set(k, 1.4),
+    actualizar: (dt) => {
+      for (const [i, resto] of fallando) {
+        const queda = resto - dt;
+        if (queda <= 0) {
+          fallando.delete(i);
+          pintar(i, true);
+        } else {
+          fallando.set(i, queda);
+          // Tartamudea: se apaga y se enciende a saltos, más espaciados al final
+          pintar(i, Math.sin(queda * (18 + queda * 20)) > -0.2);
+        }
+      }
+    },
     apagar: () => {
+      apagadas = true;
       luz.color.set(COLORES.apagada);
       charcos.visible = false;
     },

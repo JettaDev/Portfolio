@@ -9,14 +9,18 @@ import {
   CanvasTexture,
   Color,
   Group,
+  InstancedMesh,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
   PlaneGeometry,
+  Quaternion,
   SRGBColorSpace,
-  Sprite,
-  SpriteMaterial,
+  Vector3,
 } from 'three';
+
+const ARRIBA = new Vector3(0, 1, 0);
 import { COLORES } from './escena';
 import { ruido } from './semilla';
 import { HUECO, type Trazado } from './trazado';
@@ -58,7 +62,8 @@ export interface Vida {
 }
 
 interface Coche {
-  grupo: Group;
+  x: number;
+  visible: boolean;
   carril: 0 | 1;
   velocidad: number;
   /** Segundos que faltan para volver a salir (fuera de la calle). */
@@ -75,47 +80,54 @@ export function crearVida(t: Trazado, semilla: number, huecos: Huecos, elegidos:
   const r = (...n: number[]) => ruido(semilla ^ 0x71da, ...n);
 
   // --- Coches ------------------------------------------------------------------------
+  // Todos los coches comparten mallas instanciadas (una por pieza): pocas llamadas de dibujo.
+  // Sin luz propia (colores planos, como las ventanas): de noche se leen por los faros
   const { calle } = t;
   const carriles = [calle.bordillo + 2.1, calle.fin - 1.9];
-  const luzFaro = new MeshBasicMaterial({ color: new Color('#f4f1e1').multiplyScalar(1.4), toneMapped: false });
-  const luzPiloto = new MeshBasicMaterial({ color: new Color('#c8553d').multiplyScalar(0.9), toneMapped: false });
-  const cristal = new MeshLambertMaterial({ color: '#1a2a26', emissive: '#16241f', emissiveIntensity: 0.6 });
-  const rueda = new MeshLambertMaterial({ color: '#050907' });
-  const haz = new MeshBasicMaterial({ map: halo, color: '#f4f1e1', transparent: true, opacity: 0.2, depthWrite: false, blending: AdditiveBlending });
-  const coches: Coche[] = Array.from({ length: pocos ? 2 : 4 }, (_, k) => {
-    const g = new Group();
-    const pieza = (material: MeshLambertMaterial | MeshBasicMaterial, x: number, y: number, z: number, a: number, h: number, f: number) => {
-      const p = new Mesh(caja, material);
-      p.scale.set(a, h, f);
-      p.position.set(x, y, z);
-      g.add(p);
-    };
-    // Mirando a +x; el carril de atrás va al revés (se gira el grupo)
-    // Algo de brillo propio: a la luz de las farolas la carrocería se lee contra el asfalto
-    const pintura = PINTURA[k % PINTURA.length];
-    pieza(new MeshLambertMaterial({ color: pintura, emissive: pintura, emissiveIntensity: 0.35 }), 0, 0.5, 0, 3.6, 0.6, 1.6);
-    pieza(cristal, -0.25, 1.02, 0, 1.9, 0.48, 1.42);
-    for (const x of [-1.15, 1.15]) for (const z of [-0.78, 0.78]) pieza(rueda, x, 0.28, z, 0.56, 0.56, 0.18);
-    for (const z of [-0.55, 0.55]) {
-      pieza(luzFaro, 1.81, 0.58, z, 0.04, 0.14, 0.26);
-      pieza(luzPiloto, -1.81, 0.6, z, 0.04, 0.12, 0.24);
-    }
-    // La luz de los faros en el asfalto, alargada hacia delante
-    const suelo = new Mesh(new PlaneGeometry(6, 2.6), haz);
-    suelo.rotation.x = -Math.PI / 2;
-    suelo.position.set(4.6, 0.02, 0);
-    g.add(suelo);
+  const n = pocos ? 2 : 4;
+  const tumbado = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
+  /** Piezas de un coche mirando a +x: malla, posición, tamaño y si va tumbada (la luz en el suelo). */
+  const piezas: { malla: InstancedMesh; local: Matrix4[] }[] = [];
+  const pieza = (material: MeshBasicMaterial, cajas: [number, number, number, number, number, number][], geometria: BoxGeometry | PlaneGeometry = caja, enSuelo = false) => {
+    const malla = new InstancedMesh(geometria, material, n * cajas.length);
+    malla.frustumCulled = false;
+    const local = cajas.map(([x, y, z, a, h, f]) => new Matrix4().compose(new Vector3(x, y, z), enSuelo ? tumbado : new Quaternion(), new Vector3(a, h, f)));
+    piezas.push({ malla, local });
+    grupo.add(malla);
+    return malla;
+  };
+  const carrocerias = pieza(new MeshBasicMaterial({ toneMapped: false }), [[0, 0.5, 0, 3.6, 0.6, 1.6]]);
+  for (let k = 0; k < n; k++) carrocerias.setColorAt(k, new Color(PINTURA[k % PINTURA.length]).multiplyScalar(0.3));
+  pieza(new MeshBasicMaterial({ color: '#16241f' }), [[-0.25, 1.02, 0, 1.9, 0.48, 1.42]]);
+  pieza(
+    new MeshBasicMaterial({ color: '#050907' }),
+    [-1.15, 1.15].flatMap((x) => [-0.78, 0.78].map((z): [number, number, number, number, number, number] => [x, 0.28, z, 0.56, 0.56, 0.18])),
+  );
+  const luces = pieza(new MeshBasicMaterial({ toneMapped: false }), [-0.55, 0.55].flatMap((z): [number, number, number, number, number, number][] => [[1.81, 0.58, z, 0.04, 0.14, 0.26], [-1.81, 0.6, z, 0.04, 0.12, 0.24]]));
+  const faro = new Color('#f4f1e1').multiplyScalar(1.4);
+  const piloto = new Color('#c8553d').multiplyScalar(0.9);
+  for (let k = 0; k < n; k++) [faro, piloto, faro, piloto].forEach((c, j) => luces.setColorAt(k * 4 + j, c));
+  // La luz de los faros en el asfalto, alargada hacia delante
+  pieza(new MeshBasicMaterial({ map: halo, color: '#f4f1e1', transparent: true, opacity: 0.2, depthWrite: false, blending: AdditiveBlending }), [[4.6, 0.02, 0, 6, 2.6, 1]], new PlaneGeometry(1, 1), true);
+
+  const coches: Coche[] = Array.from({ length: n }, (_, k) => {
     const carril = (k % 2) as 0 | 1;
-    g.position.z = carriles[carril];
-    g.rotation.y = carril === 1 ? Math.PI : 0;
-    g.visible = false;
-    grupo.add(g);
-    return { grupo: g, carril, velocidad: 0, espera: 1 + k * 3.5 + r(k) * 3 };
+    return { x: 0, carril, velocidad: 0, visible: false, espera: 1 + k * 3.5 + r(k) * 3 };
   });
+  const oculto = new Matrix4().makeScale(0, 0, 0);
+  const matriz = new Matrix4();
+  const colocarCoche = (c: Coche, k: number) => {
+    const base = new Matrix4().compose(new Vector3(c.x, 0, carriles[c.carril]), new Quaternion().setFromAxisAngle(ARRIBA, c.carril === 1 ? Math.PI : 0), new Vector3(1, 1, 1));
+    for (const { malla, local } of piezas) {
+      local.forEach((l, j) => malla.setMatrixAt(k * local.length + j, c.visible ? matriz.multiplyMatrices(base, l) : oculto));
+      malla.instanceMatrix.needsUpdate = true;
+    }
+  };
+  coches.forEach(colocarCoche);
   const salir = (c: Coche, k: number, vuelta: number) => {
     c.velocidad = 7 + ruido(semilla, k, vuelta) * 5;
-    c.grupo.position.x = c.carril === 0 ? -FIN_CALLE : FIN_CALLE;
-    c.grupo.visible = true;
+    c.x = c.carril === 0 ? -FIN_CALLE : FIN_CALLE;
+    c.visible = true;
   };
   let vueltas = 0;
 
@@ -139,26 +151,29 @@ export function crearVida(t: Trazado, semilla: number, huecos: Huecos, elegidos:
     .filter(({ e, i }) => !e.vacio && e.fila >= 2 && e.fila <= 3 && Math.abs(e.x) < 30 && t.proyectos.every((p) => p.edificio !== i) && r(i, 5) < 0.18)
     .slice(0, pocos ? 0 : 4);
   const ladrillo = new MeshLambertMaterial({ color: '#1d3326' });
-  const humo = new SpriteMaterial({ map: halo, color: '#8fa79a', transparent: true, opacity: 0.1, depthWrite: false, fog: true });
-  const bocanadas = chimeneas.flatMap(({ e, i }) => {
+  // Planos de cara a la cámara con el halo (mismo material que el resto de luces: sin shader nuevo)
+  const plano = new PlaneGeometry(1, 1);
+  const focos = chimeneas.map(({ e, i }) => {
     const x = e.x + (r(i, 6) - 0.5) * (e.ancho - 1.4);
     const z = e.z + (r(i, 7) - 0.5) * (e.fondo - 1.4);
     const ch = new Mesh(caja, ladrillo);
     ch.scale.set(0.45, 1.3, 0.45);
     ch.position.set(x, e.alto + 0.65, z);
     grupo.add(ch);
-    return Array.from({ length: 6 }, (_, k) => {
-      const s = new Sprite(humo.clone());
-      s.position.set(x, e.alto + 1.4, z);
-      grupo.add(s);
-      return { s, x, y: e.alto + 1.4, z, fase: k / 6 };
-    });
+    return { x, y: e.alto + 1.4, z };
   });
+  const PUFOS = 6;
+  // El humo crece al subir y se deshace encogiendo (un solo material para todas las bocanadas)
+  const humo = new InstancedMesh(plano, new MeshBasicMaterial({ map: halo, color: '#8fa79a', transparent: true, opacity: 0.09, depthWrite: false }), Math.max(1, focos.length * PUFOS));
+  humo.count = focos.length * PUFOS;
+  humo.frustumCulled = false;
+  grupo.add(humo);
+  const bocanadas = focos.flatMap((f) => Array.from({ length: PUFOS }, (_, k) => ({ ...f, fase: k / PUFOS })));
 
   // --- Avión ----------------------------------------------------------------------------
   const avion = new Group();
   const luzAvion = (color: string, x: number) => {
-    const l = new Sprite(new SpriteMaterial({ map: halo, color: new Color(color).multiplyScalar(1.6), transparent: true, depthWrite: false, fog: false, blending: AdditiveBlending, toneMapped: false }));
+    const l = new Mesh(plano, new MeshBasicMaterial({ map: halo, color: new Color(color).multiplyScalar(1.6), transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false }));
     l.scale.setScalar(2.4);
     l.position.x = x;
     avion.add(l);
@@ -179,19 +194,23 @@ export function crearVida(t: Trazado, semilla: number, huecos: Huecos, elegidos:
       // Coches: salen de un lado, cruzan y desaparecen por el otro; luego esperan un rato
       coches.forEach((c, k) => {
         if (!conMovimiento) {
-          c.grupo.visible = false;
+          if (c.visible) {
+            c.visible = false;
+            colocarCoche(c, k);
+          }
           return;
         }
-        if (!c.grupo.visible) {
+        if (!c.visible) {
           c.espera -= dt;
           if (c.espera <= 0) salir(c, k, vueltas++);
-          return;
+          else return;
         }
-        c.grupo.position.x += (c.carril === 0 ? 1 : -1) * c.velocidad * dt;
-        if (Math.abs(c.grupo.position.x) > FIN_CALLE) {
-          c.grupo.visible = false;
+        c.x += (c.carril === 0 ? 1 : -1) * c.velocidad * dt;
+        if (Math.abs(c.x) > FIN_CALLE) {
+          c.visible = false;
           c.espera = 2 + ruido(semilla, k, vueltas, 3) * 9;
         }
+        colocarCoche(c, k);
       });
 
       // Siluetas: alguien que cruza la habitación despacio, de lado a lado
@@ -206,15 +225,16 @@ export function crearVida(t: Trazado, semilla: number, huecos: Huecos, elegidos:
         huecos.tenir(tv.i, tele.copy(tv.base).lerp(new Color('#e6eee4'), ruido(semilla, tv.i, cambio, 1) * 0.5).multiplyScalar(v));
       });
 
-      // Humo: cada bocanada sube, crece y se desvanece, y vuelve a empezar
-      bocanadas.forEach((b) => {
-        b.s.visible = conMovimiento;
-        if (!conMovimiento) return;
-        const f = (tiempo * 0.12 + b.fase) % 1;
-        b.s.position.set(b.x + f * 1.6, b.y + f * 4, b.z);
-        b.s.scale.setScalar(0.8 + f * 2.6);
-        (b.s.material as SpriteMaterial).opacity = 0.13 * Math.sin(f * Math.PI);
-      });
+      // Humo: cada bocanada sube, crece y se deshace, y vuelve a empezar
+      humo.visible = conMovimiento && bocanadas.length > 0;
+      if (humo.visible) {
+        bocanadas.forEach((b, k) => {
+          const f = (tiempo * 0.12 + b.fase) % 1;
+          const lado = (0.8 + f * 2.6) * Math.sin(f * Math.PI);
+          humo.setMatrixAt(k, matriz.compose(new Vector3(b.x + f * 1.6, b.y + f * 4, b.z), new Quaternion(), new Vector3(lado, lado, 1)));
+        });
+        humo.instanceMatrix.needsUpdate = true;
+      }
 
       // Avión: cruza muy alto de izquierda a derecha, con su destello
       if (!conMovimiento) {

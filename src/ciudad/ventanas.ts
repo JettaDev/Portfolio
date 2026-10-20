@@ -47,6 +47,10 @@ export interface Huecos {
   apagar(): void;
   /** Cambia el color de un hueco (la luz de una tele). */
   tenir(i: number, color: Color): void;
+  /** Al pasar el ratón: si estaba apagada se enciende (cálida) y si estaba encendida se apaga, un rato. */
+  destacar(i: number): void;
+  /** Devuelve a su luz las ventanas destacadas cuando pasa su rato. */
+  actualizar(dt: number): void;
 }
 
 /** `fijas`: huecos que no parpadean (los que tienen una silueta o una tele delante). */
@@ -68,6 +72,9 @@ export function crearHuecos(trazado: Trazado, fijas: ReadonlySet<number> = new S
 
   // Solo parpadean las de las tres primeras filas: las de atrás no se notan
   const parpadean = huecos.flatMap((h, i) => (h.fila < 3 && !fijas.has(i) ? [i] : []));
+  /** Ventanas destacadas al pasar el ratón, con el tiempo que les queda. */
+  const destacadas = new Map<number, number>();
+  const calida = new Color('#f0d7a8').multiplyScalar(0.2);
   let reloj = 0;
   let apagadas = false;
   const parpadear = (dt: number) => {
@@ -79,6 +86,7 @@ export function crearHuecos(trazado: Trazado, fijas: ReadonlySet<number> = new S
     // Una o dos cada vez: se nota sin distraer
     for (let n = 0; n < 2; n++) {
       const i = parpadean[Math.floor(Math.random() * parpadean.length)];
+      if (destacadas.has(i)) continue;
       estado[i] ^= 1;
       malla.setColorAt(i, estado[i] ? encendida[i] : apagada);
       colores.addUpdateRange(i * 3, 3);
@@ -97,7 +105,26 @@ export function crearHuecos(trazado: Trazado, fijas: ReadonlySet<number> = new S
     malla.instanceColor!.addUpdateRange(i * 3, 3);
     malla.instanceColor!.needsUpdate = true;
   };
-  return { malla, parpadear, apagar, tenir };
+  const pintar = (i: number, color: Color) => {
+    malla.setColorAt(i, color);
+    malla.instanceColor!.addUpdateRange(i * 3, 3);
+    malla.instanceColor!.needsUpdate = true;
+  };
+  const destacar = (i: number) => {
+    if (apagadas || fijas.has(i)) return;
+    if (!destacadas.has(i)) pintar(i, estado[i] ? apagada : calida);
+    destacadas.set(i, 2.5);
+  };
+  const actualizar = (dt: number) => {
+    for (const [i, resto] of destacadas) {
+      if (resto - dt > 0) destacadas.set(i, resto - dt);
+      else {
+        destacadas.delete(i);
+        if (!apagadas) pintar(i, estado[i] ? encendida[i] : apagada);
+      }
+    }
+  };
+  return { malla, parpadear, apagar, tenir, destacar, actualizar };
 }
 
 // --- Ventanales de las apps ------------------------------------------------------

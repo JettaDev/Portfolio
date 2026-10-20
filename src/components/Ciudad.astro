@@ -100,7 +100,7 @@ const rotulos = [
     </a>
   ))}
 
-  <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta data-sobre-mi={t('nav.about')}></span>
+  <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta data-sobre-mi={t('nav.about')} data-miau={t('ciudad.miau')}></span>
 
   <div class="textos contenedor pointer-events-none relative flex h-full flex-col justify-between pt-20 pb-6 sm:pt-24 sm:pb-10">
     <!-- Titular corto y discreto, sin animación de entrada: es lo primero que se pinta (LCP) -->
@@ -454,6 +454,19 @@ const rotulos = [
           },
           alPasar,
           alPulsar: entrar,
+          alCuriosidad: (id) => {
+            if (id !== '#gato') return;
+            // El gato contesta un momento con su etiqueta
+            conEtiqueta = '#gato';
+            etiqueta.textContent = etiqueta.dataset.miau ?? '';
+            etiqueta.toggleAttribute('data-visible', true);
+            colocarEtiqueta();
+            setTimeout(() => {
+              if (conEtiqueta !== '#gato') return;
+              conEtiqueta = null;
+              etiqueta.removeAttribute('data-visible');
+            }, 1400);
+          },
           alFallar: () => {
             ciudad?.destruir();
             ciudad = null;
