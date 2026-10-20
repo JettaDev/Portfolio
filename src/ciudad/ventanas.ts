@@ -45,9 +45,12 @@ export interface Huecos {
   parpadear(dt: number): void;
   /** Apagón (404): todas las ventanas a oscuras y sin parpadeo. */
   apagar(): void;
+  /** Cambia el color de un hueco (la luz de una tele). */
+  tenir(i: number, color: Color): void;
 }
 
-export function crearHuecos(trazado: Trazado): Huecos {
+/** `fijas`: huecos que no parpadean (los que tienen una silueta o una tele delante). */
+export function crearHuecos(trazado: Trazado, fijas: ReadonlySet<number> = new Set()): Huecos {
   if (LUCES_FRIAS.length !== TONOS) throw new Error('Faltan tonos de luz fría');
   const { huecos } = trazado;
   const malla = new InstancedMesh(new PlaneGeometry(HUECO.ancho, HUECO.alto), new MeshBasicMaterial({ toneMapped: false }), huecos.length);
@@ -64,7 +67,7 @@ export function crearHuecos(trazado: Trazado): Huecos {
   malla.computeBoundingSphere();
 
   // Solo parpadean las de las tres primeras filas: las de atrás no se notan
-  const parpadean = huecos.flatMap((h, i) => (h.fila < 3 ? [i] : []));
+  const parpadean = huecos.flatMap((h, i) => (h.fila < 3 && !fijas.has(i) ? [i] : []));
   let reloj = 0;
   let apagadas = false;
   const parpadear = (dt: number) => {
@@ -87,7 +90,14 @@ export function crearHuecos(trazado: Trazado): Huecos {
     huecos.forEach((_, i) => malla.setColorAt(i, apagada));
     malla.instanceColor!.needsUpdate = true;
   };
-  return { malla, parpadear, apagar };
+  /** Cambia el color de un hueco (la luz de una tele). */
+  const tenir = (i: number, color: Color) => {
+    if (apagadas) return;
+    malla.setColorAt(i, color);
+    malla.instanceColor!.addUpdateRange(i * 3, 3);
+    malla.instanceColor!.needsUpdate = true;
+  };
+  return { malla, parpadear, apagar, tenir };
 }
 
 // --- Ventanales de las apps ------------------------------------------------------

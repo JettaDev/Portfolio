@@ -437,10 +437,17 @@ const rotulos = [
     const primerFrame = new Promise<void>((r) => (listo = r));
     const arrancar = async () => {
       try {
-        const { montarCiudad } = await import('../ciudad');
+        const { montarCiudad, climaDelDia } = await import('../ciudad');
+        // El tiempo y la hora del visitante (?clima=lluvia|despejado y ?hora=0–24 para probar)
+        const params = new URLSearchParams(location.search);
+        const climaPedido = params.get('clima');
+        const ahora = new Date();
+        const horaPedida = Number(params.get('hora'));
         ciudad = await montarCiudad(lienzo, datos, {
           nivel,
           reducido: reducido(),
+          clima: climaPedido === 'lluvia' || climaPedido === 'despejado' ? climaPedido : climaDelDia(ahora),
+          hora: params.has('hora') && Number.isFinite(horaPedida) ? horaPedida : ahora.getHours() + ahora.getMinutes() / 60,
           alPrimerFrame: () => {
             raiz.dataset.estado = 'vivo';
             listo();

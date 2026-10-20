@@ -75,6 +75,8 @@ function cupula(): Mesh {
       uniforms: {
         arriba: { value: new Color(COLORES.cielo) },
         abajo: { value: new Color(COLORES.horizonte) },
+        /** Hasta dónde sube el color del horizonte (al atardecer, más arriba). */
+        banda: { value: 0.3 },
       },
       vertexShader: /* glsl */ `
         varying float vAltura;
@@ -85,9 +87,10 @@ function cupula(): Mesh {
       fragmentShader: /* glsl */ `
         uniform vec3 arriba;
         uniform vec3 abajo;
+        uniform float banda;
         varying float vAltura;
         void main() {
-          gl_FragColor = vec4(mix(abajo, arriba, smoothstep(-0.02, 0.3, vAltura)), 1.0);
+          gl_FragColor = vec4(mix(abajo, arriba, smoothstep(-0.02, banda, vAltura)), 1.0);
           #include <colorspace_fragment>
         }`,
     }),
@@ -140,6 +143,10 @@ export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrell
   const cielo = cupula();
   const puntos = estrellas(pocasEstrellas ? 500 : 1500, azar);
   const astro = luna(halo);
+  // Con nombre: el ambiente (hora y clima) los retoca
+  cielo.name = 'cielo';
+  puntos.name = 'estrellas';
+  astro.name = 'luna';
   escena.add(cielo, puntos, astro);
 
   // Luz de luna fría y ambiente muy bajo: solo dan volumen a las fachadas

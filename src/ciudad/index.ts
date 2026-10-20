@@ -5,8 +5,10 @@ import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } fro
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
 import { crearDetalles, trazarDetalles } from './detalles';
+import { crearVida, elegirHuecosVivos } from './vida';
+import { crearAmbiente, type Clima } from './ambiente';
 import { crearCalle, crearEdificios, crearObras, crearSolar } from './edificios';
-import { crearEscena, texturaHalo } from './escena';
+import { COLORES, crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
 import { MedidorFps, detectarNivel, nivelInferior, type Nivel, type NivelVivo } from './rendimiento';
 import { SEMILLA } from './semilla';
@@ -16,6 +18,8 @@ import { crearEscaparate, crearEstudio, crearHuecos, crearVentanales, type Datos
 export type { DatosVentana } from './ventanas';
 export type { Nivel } from './rendimiento';
 export type { Encuadre } from './trazado';
+export type { Clima } from './ambiente';
+export { climaDelDia } from './ambiente';
 
 export interface OpcionesCiudad {
   semilla?: number;
@@ -27,6 +31,10 @@ export interface OpcionesCiudad {
   encuadre?: Encuadre;
   /** Densidad de píxeles fija (póster). */
   dpr?: number;
+  /** Tiempo: lluvia o despejado (por defecto, despejado, como el póster). */
+  clima?: Clima;
+  /** Hora local (0–24) para el tono del cielo; sin ella, de noche (como el póster). */
+  hora?: number;
   /** Apagón: la ciudad con todas las luces apagadas (póster de la 404). */
   apagon?: boolean;
   /** Con apagón, el único ventanal que sigue encendido (imágenes Open Graph). */
@@ -61,6 +69,9 @@ export interface Ciudad {
   /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
   enPantalla(id: string, punto?: 'centro' | 'rotulo'): { x: number; y: number } | null;
   reducido(activo: boolean): void;
+  /** Cambia el tiempo (se funde en unos segundos). */
+  clima(c: Clima): void;
+  readonly lloviendo: boolean;
   destruir(): void;
 }
 
@@ -84,7 +95,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const edificios = crearEdificios(trazado);
   const calle = crearCalle(trazado, halo);
   await ceder();
-  const huecos = crearHuecos(trazado);
+  const vivos = elegirHuecosVivos(trazado, semilla);
+  const huecos = crearHuecos(trazado, new Set([...vivos.siluetas, ...vivos.teles]));
   await ceder();
   const ventanales = crearVentanales(trazado, datos, halo);
   const obras = crearObras(trazado);
@@ -94,10 +106,20 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   // Los neones de los bajos se escriben con la fuente de la página
   await document.fonts?.load('700 40px "Bricolage Grotesque Variable"').catch(() => {});
   const detalles = crearDetalles(trazarDetalles(trazado, semilla), halo);
-  escena.add(detalles.objeto);
+  const vida = crearVida(trazado, semilla, huecos, vivos, halo, { pocos: nivel === 'bajo' });
+  // Lo que se refleja en la calzada mojada: farolas, ventanales y el escaparate
+  const reflejos = [
+    ...trazado.calle.farolas.map((x) => ({ x, color: COLORES.farola, fuerza: 1 })),
+    ...trazado.proyectos.map((p) => ({ x: p.x, color: COLORES.calendula, fuerza: 0.55 })),
+    { x: trazado.escaparate.x, color: '#f0d7a8', fuerza: 0.5 },
+  ];
+  const ambiente = crearAmbiente(escena, trazado, halo, reflejos, { gotas: { alto: 1400, medio: 700, bajo: 300 }[nivel] });
+  ambiente.clima(opciones.clima ?? 'despejado');
+  if (opciones.hora !== undefined) ambiente.hora(opciones.hora);
+  escena.add(detalles.objeto, vida.objeto, ambiente.objeto);
   escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
   if (opciones.apagon) {
-    [calle, huecos, obras, solar, estudio, escaparate, detalles].forEach((parte) => parte.apagar());
+    [calle, huecos, obras, solar, estudio, escaparate, detalles, vida].forEach((parte) => parte.apagar());
     ventanales.apagar(opciones.encendida);
   }
   await ceder();
@@ -219,6 +241,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     camara.actualizar(!reducido);
     obras.actualizar(tiempo, !reducido);
     detalles.actualizar(tiempo, !reducido);
+    vida.actualizar(tiempo, dt, !reducido);
+    ambiente.actualizar(dt, !reducido);
     estudio.actualizar();
     solar.actualizar();
     escaparate.actualizar();
@@ -316,6 +340,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     },
     reducido: (activo) => {
       reducido = activo;
+    },
+    clima: (c) => ambiente.clima(c),
+    get lloviendo() {
+      return ambiente.lloviendo;
     },
     destruir: () => {
       pintor.renderer.setAnimationLoop(null);
