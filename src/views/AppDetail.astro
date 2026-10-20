@@ -64,13 +64,14 @@ const fachadaSiguiente = next && fachada(next.slug);
 
     <!-- La portada es el último fotograma del vuelo: la fachada del edificio de noche y, donde
          estaba el ventanal, la ventana del navegador con su marco en el color de la app.
-         Dentro, la captura o la demo funcionando. -->
-    <div class="relative overflow-hidden bg-bosque-hondo pt-10 pb-16 sm:pt-14 sm:pb-24 lg:pt-16 lg:pb-28">
+         Dentro, la captura o la demo funcionando: con «Probar aquí» la ventana crece hasta llenar
+         la pantalla bajo la cabecera. -->
+    <div class="group/portada relative overflow-hidden bg-bosque-hondo pt-10 pb-16 data-abierta:py-4 sm:pt-14 sm:pb-24 sm:data-abierta:py-4 lg:pt-16 lg:pb-28 lg:data-abierta:py-4" data-banda-portada>
       {fachadaApp && (
         <Image src={fachadaApp} alt="" widths={[800, 1280, 1920]} sizes="100vw" loading="eager" class="absolute inset-0 size-full object-cover" />
       )}
-      <div class="contenedor relative">
-        <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`} marco class="mx-auto max-w-[56rem]">
+      <div class="contenedor relative group-data-abierta/portada:max-w-none">
+        <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`} marco class="mx-auto max-w-[56rem] group-data-abierta/portada:max-w-none">
           {d.demo && (
             <button
               slot="acciones"
@@ -86,7 +87,7 @@ const fachadaSiguiente = next && fachada(next.slug);
               {t('apps.tryHere')}
             </button>
           )}
-          <div id="portada" class="aspect-[16/10] bg-bosque-hondo" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
+          <div id="portada" class="aspect-[16/10] bg-bosque-hondo group-data-abierta/portada:aspect-auto group-data-abierta/portada:h-[calc(100dvh-11rem)]" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
             <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 58rem) 55rem, 100vw" loading="eager" class="size-full object-cover object-top" />
           </div>
         </BrowserFrame>
@@ -135,16 +136,36 @@ const fachadaSiguiente = next && fachada(next.slug);
     });
   }
 
-  // «Probar aquí»: la ventana de la portada carga la demo real en un iframe, sin salir de la página.
+  // «Probar aquí»: la ventana de la portada crece hasta llenar la pantalla y carga la demo real en
+  // un iframe, sin salir de la página. Crece con la captura (view transition de la misma página,
+  // con su nombre de ventana) y la demo entra al acabar; al cerrar, vuelve la captura y encoge.
   const toggle = document.querySelector<HTMLButtonElement>('[data-demo-toggle]');
   const portada = document.getElementById('portada');
-  if (toggle && portada) {
+  const banda = document.querySelector<HTMLElement>('[data-banda-portada]');
+  if (toggle && portada && banda) {
     const captura = portada.innerHTML;
-    toggle.addEventListener('click', () => {
+    const transicion = (cambio: () => void) =>
+      'startViewTransition' in document && !matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? document.startViewTransition(cambio).finished.catch(() => {})
+        : Promise.resolve(cambio());
+
+    let ocupado = false;
+    toggle.addEventListener('click', async () => {
+      if (ocupado) return;
+      ocupado = true;
       const abierta = toggle.getAttribute('aria-pressed') === 'true';
+      toggle.setAttribute('aria-pressed', String(!abierta));
+      toggle.textContent = (abierta ? toggle.dataset.labelOpen : toggle.dataset.labelClose) ?? '';
       if (abierta) {
-        portada.innerHTML = captura;
+        await transicion(() => {
+          portada.innerHTML = captura;
+          banda.toggleAttribute('data-abierta', false);
+        });
       } else {
+        await transicion(() => {
+          banda.toggleAttribute('data-abierta', true);
+          banda.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
         const iframe = document.createElement('iframe');
         iframe.src = toggle.dataset.demo!;
         iframe.title = portada.dataset.demoTitle!;
@@ -152,8 +173,7 @@ const fachadaSiguiente = next && fachada(next.slug);
         portada.replaceChildren(iframe);
         iframe.focus();
       }
-      toggle.setAttribute('aria-pressed', String(!abierta));
-      toggle.textContent = (abierta ? toggle.dataset.labelOpen : toggle.dataset.labelClose) ?? '';
+      ocupado = false;
     });
   }
 </script>
