@@ -20,7 +20,6 @@ export const paginas = {
   apps: { es: '/apps/', en: '/apps/' },
   about: { es: '/sobre-mi/', en: '/about/' },
   contact: { es: '/contacto/', en: '/contact/' },
-  juego: { es: '/explora/', en: '/explore/' },
 } as const satisfies Record<string, Record<Lang, string>>;
 export type Pagina = keyof typeof paginas;
 

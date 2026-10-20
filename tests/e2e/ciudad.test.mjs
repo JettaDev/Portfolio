@@ -181,38 +181,6 @@ describe('páginas de la ciudad', () => {
   });
 });
 
-describe('la ciudad como juego', () => {
-  test('de la portada al juego volando, se juega y con Q se vuelve a la portada', async () => {
-    const { ctx, page, errores } = await pagina();
-    await page.goto(url('/'), { waitUntil: 'load' });
-    await viva(page);
-    await page.click('.explorar');
-    await page.waitForURL('**/explora/**');
-    await page.waitForSelector('[data-juego][data-estado="jugando"]', { timeout: 30_000 });
-    assert.ok(await enReposo(page), 'el destello se recoge al llegar');
-    assert.equal(await page.isVisible('[data-ayuda]'), true, 'sale el mensaje de cómo se juega');
-    await page.click('[data-entendido]');
-    assert.equal(await page.isVisible('[data-ayuda]'), false);
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(400);
-    await page.keyboard.up('KeyW');
-    await page.keyboard.press('KeyQ');
-    await page.waitForURL((u) => sinBarra(u.pathname) === '', { timeout: 10_000 });
-    assert.ok(await enReposo(page), 'la portada vuelve al reposo');
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('explorar')), true, 'el foco vuelve a «Explorar la ciudad»');
-    assert.deepEqual(errores, []);
-    await ctx.close();
-  });
-
-  test('en inglés tiene su ruta traducida', async () => {
-    const { ctx, page } = await pagina();
-    await page.goto(url('/en/explore/'), { waitUntil: 'load' });
-    assert.equal(await page.textContent('h1'), 'JettaDev’s city');
-    assert.equal(await page.getAttribute('[data-salir]', 'href'), '/en/');
-    await ctx.close();
-  });
-});
-
 describe('movimiento reducido', () => {
   test('sin vuelo: navega enseguida y vuelve al reposo', async () => {
     const { ctx, page } = await pagina({ ...ESCRITORIO, reducedMotion: 'reduce' });

@@ -1,7 +1,7 @@
 // Motor de «La ciudad»: monta la escena en un canvas y la controla.
 // Se carga diferido desde la portada; no depende de Astro.
 
-import { Mesh, Raycaster, Vector2, Vector3, type BufferGeometry, type Material } from 'three';
+import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } from 'three';
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
 import { crearCalle, crearEdificios, crearObras, crearSolar } from './edificios';
@@ -129,10 +129,6 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   // --- Ventanales, escaparate, estudio y solar: resaltar, buscar y tocar ----------------------
   const objetivos: Objetivo[] = [...ventanales.lista, escaparate.objetivo, estudio.objetivo, solar.objetivo];
   const porId = new Map(objetivos.map((o) => [o.id, o]));
-  // La calle: a pie de acera delante de la tienda, a la altura de los ojos. No se señala ni se
-  // pulsa en el canvas (no tiene toque): es adonde vuela la cámara para entrar en el juego
-  const aPieDeCalle: Objetivo = { id: '#calle', posicion: new Vector3(0, 2.2, trazado.calle.fachada), tamano: { ancho: 4, alto: 3.4 }, brillo: 0, toque: new Mesh() };
-  porId.set(aPieDeCalle.id, aPieDeCalle);
   /** 0 lejos, 1 con la cámara a su distancia de llegada (misma cuenta que la captura de los ventanales). */
   const cercania = (o: Objetivo) => Math.min(1, Math.max(0, (14 - camara.camara.position.distanceTo(o.posicion)) / 11.5));
   const toques = objetivos.map((o) => o.toque);

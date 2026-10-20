@@ -20,13 +20,11 @@ interface Props {
   portada?: boolean;
   /** Una sola pantalla, sin scroll ni pie (la portada) */
   pantallaCompleta?: boolean;
-  /** Sin cabecera (el juego tiene su propia interfaz) */
-  sinCabecera?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false, sinCabecera = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
@@ -126,7 +124,7 @@ const ogImage = new URL(image, Astro.site);
     >
       {t('nav.skip')}
     </a>
-    {!sinCabecera && <Header sobreHero={cabeceraSobreHero} />}
+    <Header sobreHero={cabeceraSobreHero} />
     <main id="contenido" class="flex-1">
       <slot />
     </main>
@@ -136,8 +134,7 @@ const ogImage = new URL(image, Astro.site);
       // Llegada desde la ciudad: el destello se recoge sobre la ventana de la página (la portada de
       // la ficha, la primera app del catálogo, el titular de Sobre mí o de Contacto)
       import { centroDe, retirar } from '../lib/destello';
-      // (salvo si la página lo recoge ella misma cuando está lista: el juego)
-      if (document.documentElement.dataset.destello === 'llegada' && !document.querySelector('[data-destello-espera]')) retirar(centroDe(document.querySelector('[data-destello-destino]')));
+      if (document.documentElement.dataset.destello === 'llegada') retirar(centroDe(document.querySelector('[data-destello-destino]')));
     </script>
     <script>
       // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.
