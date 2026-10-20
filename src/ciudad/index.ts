@@ -4,6 +4,7 @@
 import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } from 'three';
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
+import { crearDetalles, trazarDetalles } from './detalles';
 import { crearCalle, crearEdificios, crearObras, crearSolar } from './edificios';
 import { crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
@@ -90,9 +91,13 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const solar = crearSolar(trazado, halo);
   const estudio = crearEstudio(trazado, halo);
   const escaparate = crearEscaparate(trazado, datos, ventanales.capturas, halo);
+  // Los neones de los bajos se escriben con la fuente de la página
+  await document.fonts?.load('700 40px "Bricolage Grotesque Variable"').catch(() => {});
+  const detalles = crearDetalles(trazarDetalles(trazado, semilla), halo);
+  escena.add(detalles.objeto);
   escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
   if (opciones.apagon) {
-    [calle, huecos, obras, solar, estudio, escaparate].forEach((parte) => parte.apagar());
+    [calle, huecos, obras, solar, estudio, escaparate, detalles].forEach((parte) => parte.apagar());
     ventanales.apagar(opciones.encendida);
   }
   await ceder();
@@ -213,6 +218,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     }
     camara.actualizar(!reducido);
     obras.actualizar(tiempo, !reducido);
+    detalles.actualizar(tiempo, !reducido);
     estudio.actualizar();
     solar.actualizar();
     escaparate.actualizar();

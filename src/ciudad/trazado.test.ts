@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { trazarDetalles } from './detalles';
+import { SEMILLA } from './semilla';
 import { PerspectiveCamera, Vector3 } from 'three';
 import {
   CALLE,
@@ -228,5 +230,45 @@ describe('trazarCiudad', () => {
     const tres = t.cortes.huecos[2];
     expect(t.huecos.slice(0, tres).every((h) => h.fila < 3)).toBe(true);
     expect(t.huecos.slice(tres).every((h) => h.fila >= 3)).toBe(true);
+  });
+});
+
+describe('detalles de los edificios', () => {
+  const apps = [
+    { slug: 'a', status: 'live' as const },
+    { slug: 'b', status: 'wip' as const },
+    { slug: 'c', status: 'beta' as const },
+  ];
+  const t = trazarCiudad(apps);
+  const d = trazarDetalles(t, SEMILLA);
+
+  it('son deterministas', () => {
+    expect(trazarDetalles(t, SEMILLA)).toEqual(d);
+  });
+
+  it('hay de todo: cornisas, depósitos, antenas, balcones y comercios con neón', () => {
+    expect(d.cornisas.length).toBe(t.edificios.filter((e) => !e.vacio).length);
+    expect(d.depositos.length).toBeGreaterThan(3);
+    expect(d.antenas.length).toBeGreaterThan(3);
+    expect(d.balcones.length).toBeGreaterThan(3);
+    expect(d.comercios.filter((c) => c.neon).length).toBeGreaterThan(0);
+  });
+
+  it('las cornisas no suben la altura de ningún edificio', () => {
+    t.edificios.filter((e) => !e.vacio).forEach((e, k) => expect(d.cornisas[k].y + d.cornisas[k].alto).toBeLessThanOrEqual(e.alto));
+  });
+
+  it('nada alto en una azotea delante de un ventanal', () => {
+    for (const objeto of [...d.depositos, ...d.antenas]) {
+      const e = t.edificios.find((x) => Math.abs(x.x - objeto.x) <= x.ancho / 2 && Math.abs(x.z - objeto.z) <= x.fondo / 2 && Math.abs(x.alto - objeto.y) < 1e-9)!;
+      for (const p of t.proyectos) if (p.fila > e.fila) expect(Math.abs(e.x - p.x)).toBeGreaterThan(e.ancho / 2 + 5);
+    }
+  });
+
+  it('ni balcones ni comercios en la tienda ni en los edificios de las apps', () => {
+    const especiales = [t.tienda, ...t.proyectos.map((p) => p.edificio)].map((i) => t.edificios[i]);
+    for (const c of [...d.comercios, ...d.balcones]) {
+      for (const e of especiales) expect(Math.abs(c.x - e.x) < e.ancho / 2 && e.fila === 0).toBe(false);
+    }
   });
 });
