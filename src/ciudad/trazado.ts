@@ -423,10 +423,12 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
     }
   });
 
-  // --- La calle: farolas en el borde de la acera, entre los lotes de la manzana y luego cada 7
+  // --- La calle: farolas en el borde de la acera, entre los lotes de la manzana, junto al solar y luego cada 7
   const entreLotes = MANZANA.tienda.ancho / 2 + MANZANA.separacion / 2;
   const farolas: number[] = [];
   for (let x = entreLotes; x < ANCHO_CIUDAD; x += 7) farolas.push(-x, x);
+  // Una más al otro lado del solar: su luz cae sobre la valla y el hueco se lee entre los edificios
+  farolas.push(MANZANA.solar.x + MANZANA.solar.ancho / 2 + 0.25);
   const calle: Calle = {
     fachada: CALLE.fachada,
     bordillo: CALLE.fachada + CALLE.acera,

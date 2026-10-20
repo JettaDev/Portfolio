@@ -3,6 +3,7 @@
 import {
   AdditiveBlending,
   Color,
+  DataTexture,
   DoubleSide,
   InstancedMesh,
   Matrix4,
@@ -158,6 +159,8 @@ export interface Ventanales {
   /** Sin bloom, el halo tiene que compensar la luz que falta. */
   sinBloom(activo: boolean): void;
   texturas: Texture[];
+  /** La captura de cada app (en el orden de `datos`), o null si no ha cargado: el escaparate las reutiliza. */
+  capturas: Promise<Texture | null>[];
   /** Se resuelve cuando han cargado (o fallado) todas las capturas. */
   listo: Promise<void>;
   /** Apagón: vidrio a oscuras, sin captura, sin halo y con el marco apagado (salvo `excepto`). */
@@ -171,7 +174,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
   const luz = new Color(COLORES.calendula);
   let haloBase = 0.22;
   const apagada = new Color(COLORES.apagada);
-  const cargas: Promise<void>[] = [];
+  const cargas: Promise<Texture | null>[] = [];
   const marcos: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
 
   const lista = trazado.proyectos.map((trazo, i): Ventanal => {
@@ -201,9 +204,10 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
           uniforms.captura.value = textura;
           // Un ventanal apagado ya tiene la luz a oscuras: la captura no se ve
           if (!uniforms.luz.value.equals(apagada)) uniforms.hayCaptura.value = 1;
+          return textura;
         })
         // Sin captura, el ventanal es solo luz: no es motivo para no pintar la ciudad
-        .catch(() => {}),
+        .catch(() => null),
     );
 
     // Marco fino del color de la app, por debajo del umbral del bloom
@@ -253,6 +257,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     actualizar,
     sinBloom: (activo) => (haloBase = activo ? 0.42 : 0.22),
     texturas,
+    capturas: cargas,
     listo: Promise.all(cargas).then(() => {}),
     apagar: (excepto) => {
       lista.forEach((v, i) => {
@@ -346,37 +351,28 @@ export function crearEstudio(trazado: Trazado, halo: CanvasTexture): Estudio {
 
 // --- Escaparate de la tienda ----------------------------------------------------------
 
-// El interior de la tienda, en penumbra, con una franja de luz por app en su color: el
-// catálogo visto desde la calle. Las franjas pasan el umbral del bloom y brillan.
-const MAX_FRANJAS = 12;
+// El interior de la tienda: luz cálida y tenue (por debajo del umbral del bloom), más clara
+// arriba, con el suelo en sombra. Delante, las tarjetas de las apps (mallas aparte).
 const fragmentEscaparate = /* glsl */ `
   #include <common>
   #include <fog_pars_fragment>
-  uniform vec3 colores[${MAX_FRANJAS}];
-  uniform float cuantas;
-  uniform float brillo;
-  uniform float ancho;
   uniform vec3 fondo;
+  uniform vec3 calida;
+  uniform float brillo;
   varying vec2 vUv;
   void main() {
     vec2 p = vUv;
-    // Más luz arriba (el techo de la tienda) y el suelo, más oscuro, abajo
-    vec3 color = fondo * (0.5 + 0.7 * smoothstep(0.1, 0.95, p.y));
-    color = mix(color, fondo * 0.3, step(p.y, 0.1));
-    for (int i = 0; i < ${MAX_FRANJAS}; i++) {
-      if (float(i) >= cuantas) break;
-      float cx = 0.14 + 0.72 * (float(i) + 0.5) / cuantas;
-      float d = abs(p.x - cx) * ancho;
-      float franja = (1.0 - smoothstep(0.07, 0.1, d)) * smoothstep(0.16, 0.2, p.y) * (1.0 - smoothstep(0.84, 0.88, p.y));
-      float resplandor = exp(-d * d * 18.0) * smoothstep(0.1, 0.5, p.y) * 0.22;
-      color += colores[i] * (franja * (1.0 + brillo * 0.5) + resplandor * (1.0 + brillo));
-    }
-    // El dintel del escaparate, a contraluz
-    color *= 1.0 - 0.85 * step(0.93, p.y);
+    vec3 color = fondo + calida * (0.55 + 0.45 * smoothstep(0.15, 1.0, p.y)) * (1.0 + brillo * 0.6);
+    color = mix(color, fondo * 0.4, step(p.y, 0.08));
+    // El dintel, a contraluz
+    color *= 1.0 - 0.85 * step(0.94, p.y);
     gl_FragColor = vec4(color, 1.0);
     #include <colorspace_fragment>
     #include <fog_fragment>
   }`;
+
+/** Luz de las capturas expuestas: por debajo del umbral del bloom, para que no brillen como los ventanales. */
+const LUZ_TARJETA = 0.34;
 
 export interface Escaparate {
   objetivo: Objetivo;
@@ -385,17 +381,62 @@ export interface Escaparate {
   apagar(): void;
 }
 
-export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], halo: CanvasTexture): Escaparate {
+/**
+ * El escaparate es una luna de cristal ancha con luz cálida dentro y, expuesta, una tarjeta por
+ * app como las del catálogo: su captura 16:10 con un marco fino en su `hue` y un pie oscuro.
+ * Caben todas: con más apps, las tarjetas se encogen (y pasan a dos filas desde la quinta).
+ */
+export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], capturas: Promise<Texture | null>[], halo: CanvasTexture): Escaparate {
   const e = trazado.escaparate;
   const posicion = new Vector3(e.x, e.y, e.z);
-  const colores = Array.from({ length: MAX_FRANJAS }, (_, i) => new Color(datos[i]?.hue ?? '#000000'));
   const uniforms = UniformsUtils.merge([
     UniformsLib.fog,
-    { cuantas: { value: Math.min(datos.length, MAX_FRANJAS) }, brillo: { value: 0 }, ancho: { value: e.ancho }, fondo: { value: new Color(COLORES.tienda) } },
+    { fondo: { value: new Color(COLORES.tienda).multiplyScalar(0.5) }, calida: { value: new Color(COLORES.calendula).multiplyScalar(0.035) }, brillo: { value: 0 } },
   ]);
-  uniforms.colores = { value: colores };
   const vidrio = new Mesh(new PlaneGeometry(e.ancho, e.alto), new ShaderMaterial({ uniforms, vertexShader, fragmentShader: fragmentEscaparate, fog: true }));
   vidrio.position.copy(posicion);
+
+  // Tarjetas: en una fila (dos desde la quinta app), centradas un poco por encima del suelo de la tienda
+  const n = datos.length;
+  const filas = n > 4 ? 2 : 1;
+  const porFila = Math.ceil(n / filas);
+  const hueco = 0.14;
+  const util = { ancho: e.ancho * 0.86, alto: e.alto * 0.72 };
+  const ancho = Math.min(1.3, (util.ancho - hueco * (porFila - 1)) / porFila, ((util.alto - hueco * (filas - 1)) / filas - 0.08) * 1.6);
+  const alto = ancho / 1.6;
+  const tarjetas: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
+  const piezas: Object3D[] = [];
+  const pie = new MeshBasicMaterial({ color: '#081510', toneMapped: false });
+  // Textura provisional del color del interior: con un mapa desde el principio, poner la captura
+  // no cambia el programa del material (cambiarlo obligaría a recompilar el shader en pleno vuelo)
+  const provisional = new DataTexture(Uint8Array.from([...new Color(COLORES.tienda).toArray().map((v) => Math.round(v * 255)), 255]), 1, 1);
+  provisional.needsUpdate = true;
+  datos.forEach((d, i) => {
+    const fila = Math.floor(i / porFila);
+    const enFila = fila === filas - 1 ? n - porFila * (filas - 1) : porFila;
+    const col = i - fila * porFila;
+    const x = e.x + (col - (enFila - 1) / 2) * (ancho + hueco);
+    const y = e.y + 0.08 + ((filas - 1) / 2 - fila) * (alto + hueco + 0.08);
+    const z = e.z + 0.02;
+
+    const tono = new Color(d.hue);
+    const luminancia = tono.r * 0.299 + tono.g * 0.587 + tono.b * 0.114;
+    if (luminancia > LUMINANCIA_MARCO) tono.multiplyScalar(LUMINANCIA_MARCO / luminancia);
+    const marco = new Mesh(new PlaneGeometry(ancho + 0.05, alto + 0.05), new MeshBasicMaterial({ color: tono, toneMapped: false }));
+    marco.position.set(x, y, z - 0.004);
+    // Hasta que llega la captura, la tarjeta es un rectángulo del color del interior
+    const tarjeta = new Mesh(new PlaneGeometry(ancho, alto), new MeshBasicMaterial({ map: provisional, toneMapped: false }));
+    tarjeta.position.set(x, y, z);
+    const base = new Mesh(new PlaneGeometry(ancho * 0.4, 0.08), pie);
+    base.position.set(x, y - alto / 2 - 0.06, z);
+    capturas[i]?.then((t) => {
+      if (!t || !tarjeta.visible) return;
+      tarjeta.material.map = t;
+      tarjeta.material.color.setScalar(LUZ_TARJETA);
+    });
+    tarjetas.push(tarjeta);
+    piezas.push(marco, tarjeta, base);
+  });
 
   // Marco del escaparate y toldo inclinado hacia la calle
   const oscuro = new MeshBasicMaterial({ color: '#0b1a12', toneMapped: false });
@@ -406,10 +447,10 @@ export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], halo: C
   toldo.rotation.x = -Math.PI / 2 + 0.5;
   toldo.position.y -= (e.toldo.vuelo / 2) * Math.sin(0.5);
 
-  // La luz de la tienda cae sobre la acera
+  // La luz cálida de la tienda cae sobre la acera
   const charco = new Mesh(
     new PlaneGeometry(e.ancho * 1.6, 2.2),
-    new MeshBasicMaterial({ map: halo, color: '#8fb3a0', transparent: true, opacity: 0.16, depthWrite: false, blending: AdditiveBlending }),
+    new MeshBasicMaterial({ map: halo, color: '#b39066', transparent: true, opacity: 0.14, depthWrite: false, blending: AdditiveBlending }),
   );
   charco.rotation.x = -Math.PI / 2;
   charco.position.set(e.x, 0.13, e.z + 1);
@@ -422,14 +463,17 @@ export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], halo: C
   toque.userData.objetivo = objetivo;
   return {
     objetivo,
-    objetos: [marco, vidrio, toldo, charco, toque],
+    objetos: [marco, vidrio, ...piezas, toldo, charco, toque],
     actualizar: () => {
       uniforms.brillo.value = objetivo.brillo;
-      charco.material.opacity = charco.visible ? 0.16 + Math.min(objetivo.brillo, 1) * 0.12 : 0;
+      charco.material.opacity = charco.visible ? 0.14 + Math.min(objetivo.brillo, 1) * 0.1 : 0;
+      for (const t of tarjetas) if (t.material.map !== provisional) t.material.color.setScalar(LUZ_TARJETA * (1 + Math.min(objetivo.brillo, 1) * 0.35));
     },
     apagar: () => {
-      uniforms.cuantas.value = 0;
       uniforms.fondo.value.set(COLORES.apagada);
+      uniforms.calida.value.setScalar(0);
+      tarjetas.forEach((t) => (t.visible = false));
+      piezas.forEach((p) => (p.visible = false));
       charco.visible = false;
     },
   };

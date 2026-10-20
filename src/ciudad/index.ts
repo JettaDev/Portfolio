@@ -82,12 +82,14 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const escena = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
   const edificios = crearEdificios(trazado);
   const calle = crearCalle(trazado, halo);
+  await ceder();
   const huecos = crearHuecos(trazado);
+  await ceder();
   const ventanales = crearVentanales(trazado, datos, halo);
   const obras = crearObras(trazado);
-  const solar = crearSolar(trazado);
+  const solar = crearSolar(trazado, halo);
   const estudio = crearEstudio(trazado, halo);
-  const escaparate = crearEscaparate(trazado, datos, halo);
+  const escaparate = crearEscaparate(trazado, datos, ventanales.capturas, halo);
   escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
   if (opciones.apagon) {
     [calle, huecos, obras, solar, estudio, escaparate].forEach((parte) => parte.apagar());

@@ -113,15 +113,17 @@ function estrellas(cantidad: number, azar: () => number): Points {
 
 function luna(halo: CanvasTexture): Group {
   const grupo = new Group();
-  // Por encima de ~0,7 deslumbra con el bloom (sobre todo en un móvil, donde ocupa más pantalla)
+  // Por debajo del umbral del bloom (luminancia < 0,32) en todos los niveles: con bloom a media
+  // resolución (móviles) su resplandor velaba media pantalla. El halo viene del sprite, contenido,
+  // y el disco lo tapa por dentro (prueba de profundidad), así que tampoco pasa el umbral.
   const cuerpo = new Mesh(
     new SphereGeometry(6, 32, 16),
-    new MeshBasicMaterial({ color: new Color(COLORES.luna).multiplyScalar(0.7), fog: false, toneMapped: false }),
+    new MeshBasicMaterial({ color: new Color(COLORES.luna).multiplyScalar(0.36), fog: false, toneMapped: false }),
   );
   const brillo = new Sprite(
-    new SpriteMaterial({ map: halo, color: '#cfe0d4', opacity: 0.08, transparent: true, depthWrite: false, fog: false, blending: AdditiveBlending }),
+    new SpriteMaterial({ map: halo, color: '#cfe0d4', opacity: 0.2, transparent: true, depthWrite: false, fog: false, blending: AdditiveBlending }),
   );
-  brillo.scale.setScalar(70);
+  brillo.scale.setScalar(26);
   grupo.add(brillo, cuerpo);
   // Un poco a la derecha y por encima del perfil de la ciudad: con la cámara casi en horizontal,
   // también asoma en un móvil en vertical

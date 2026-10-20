@@ -185,7 +185,7 @@ export interface Solar {
   apagar(): void;
 }
 
-export function crearSolar(trazado: Trazado): Solar {
+export function crearSolar(trazado: Trazado, halo: CanvasTexture): Solar {
   const { solar } = trazado;
   const material = new MeshLambertMaterial({ color: COLOR_OBRA });
   const geometria = caja();
@@ -213,6 +213,20 @@ export function crearSolar(trazado: Trazado): Solar {
   tablero.position.set(c.x, c.y, c.z + 0.05);
   grupo.add(tablero);
 
+  // Luz sobre la valla (la de la farola de al lado) y el foco del cartel: el solar se lee como un
+  // hueco iluminado entre dos edificios, no como un cartel flotando delante de la fachada de detrás
+  const luz = (ancho: number, alto: number, opacidad: number) =>
+    new Mesh(new PlaneGeometry(ancho, alto), new MeshBasicMaterial({ map: halo, color: '#9fbfae', transparent: true, opacity: opacidad, depthWrite: false, blending: AdditiveBlending }));
+  // Ancha y baja: una franja de luz a lo largo de la valla, más fuerte del lado de la farola
+  const sobreValla = luz(solar.ancho * 1.5, 1.1, 0.14);
+  sobreValla.position.set(solar.x + 0.5, 0.55, solar.z + 0.08);
+  const foco = new Mesh(geometria, new MeshBasicMaterial({ color: new Color(COLORES.farola).multiplyScalar(0.5), toneMapped: false }));
+  foco.scale.set(c.ancho * 0.7, 0.06, 0.12);
+  foco.position.set(c.x, c.y + c.alto / 2 + 0.04, c.z + 0.12);
+  const sobreCartel = luz(c.ancho * 1.4, c.alto * 1.6, 0.16);
+  sobreCartel.position.set(c.x, c.y + 0.1, c.z + 0.08);
+  grupo.add(sobreValla, foco, sobreCartel);
+
   // Zona de toque: el cartel y la valla
   const toque = new Mesh(new PlaneGeometry(Math.max(c.ancho, solar.ancho), c.y + c.alto / 2 + 0.3), new MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
   toque.position.set(c.x, (c.y + c.alto / 2 + 0.3) / 2, solar.z + 0.1);
@@ -223,6 +237,9 @@ export function crearSolar(trazado: Trazado): Solar {
     objeto: grupo,
     objetivo,
     actualizar: () => tablero.material.color.copy(apagado).multiplyScalar(1 + objetivo.brillo * 1.5),
-    apagar: () => apagado.set(COLORES.apagada),
+    apagar: () => {
+      apagado.set(COLORES.apagada);
+      [sobreValla, foco, sobreCartel].forEach((o) => (o.visible = false));
+    },
   };
 }
