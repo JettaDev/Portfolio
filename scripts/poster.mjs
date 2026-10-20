@@ -15,6 +15,9 @@
 //                       ventanal de esa app encendido y la cámara a medio camino de él
 //   sitios/<id>.webp    el estudio y el solar vistos de cerca (1600×1000), para las páginas de
 //                       Sobre mí y Contacto; sitios.json guarda dónde cae el cartel del solar
+//   fachadas/<slug>.webp  el edificio de cada app a medio vuelo, recortado con su ventanal en el
+//                       centro: el fondo de la portada de su ficha, donde la ventana del
+//                       navegador tapa el ventanal (npm run poster -- --fachadas: solo estas)
 //
 // Arranca su propio servidor de desarrollo (la página /pruebas/ciudad/ solo existe en desarrollo) y usa
 // Chrome con GPU (CHROME_PATH, por defecto /usr/bin/google-chrome). Hay que regenerarlo al
@@ -80,6 +83,34 @@ async function guardar(png, archivo, calidad = 88) {
   return info;
 }
 
+/** El edificio de cada app con su ventanal en el centro exacto de la imagen. */
+async function fachadas(slugs) {
+  const VISTA = { width: 2400, height: 1500 };
+  for (const slug of slugs) {
+    const r = await pintar(VISTA, `nivel=alto&encuadre=ancho&encendida=${slug}&acercar=${process.env.ACERCAR ?? 0.4}`, slug);
+    const cx = r.medida.x * VISTA.width;
+    const cy = r.medida.y * VISTA.height;
+    const mitadAncho = Math.floor(Math.min(cx, VISTA.width - cx));
+    const mitadAlto = Math.floor(Math.min(cy, VISTA.height - cy));
+    const recorte = await sharp(r.png)
+      .extract({ left: Math.round(cx - mitadAncho), top: Math.round(cy - mitadAlto), width: mitadAncho * 2, height: mitadAlto * 2 })
+      .resize({ width: Math.min(1920, mitadAncho * 2) })
+      .toBuffer();
+    await guardar(recorte, join(salida, `fachadas/${slug}.webp`), 82);
+  }
+}
+
+if (process.argv.includes('--fachadas')) {
+  try {
+    const r = await pintar({ width: 800, height: 500 }, 'nivel=bajo');
+    await fachadas(r.slugs);
+  } finally {
+    await navegador.close();
+    await servidor.stop();
+  }
+  process.exit(0);
+}
+
 try {
   const posiciones = {};
   let slugs = [];
@@ -111,6 +142,8 @@ try {
   }
   writeFileSync(join(salida, 'sitios/sitios.json'), JSON.stringify(sitios, null, 2) + '\n');
   console.log('src/assets/ciudad/sitios/sitios.json');
+
+  await fachadas(slugs);
 } finally {
   await navegador.close();
   await servidor.stop();

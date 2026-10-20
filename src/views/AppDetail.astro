@@ -18,11 +18,17 @@ const lang = getLang(Astro.url);
 const t = useT(lang);
 const d = app.data;
 const { Content } = await render(app);
+
+// El edificio de cada app visto a medio vuelo, con el ventanal en el centro (npm run poster)
+const fachadas = import.meta.glob<{ default: ImageMetadata }>('../assets/ciudad/fachadas/*.webp', { eager: true });
+const fachada = (slug: string) => fachadas[`../assets/ciudad/fachadas/${slug}.webp`]?.default;
+const fachadaApp = fachada(app.slug);
+const fachadaSiguiente = next && fachada(next.slug);
 ---
 
 <Base title={d.title} description={d.summary} image={`/og/${lang}/${app.slug}.png`} imageAlt={`${d.title}: ${d.tagline}`}>
   <article style={`--hue:${d.hue}`}>
-    <header class="contenedor pt-12 pb-12 lg:pt-20 lg:pb-16">
+    <header class="contenedor pt-12 pb-10 lg:pt-20 lg:pb-12">
       <h1 style={`view-transition-name:titulo-${app.slug}`} class="vt-titulo text-[clamp(3rem,10vw,8rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" translate="no">
         {d.title}
       </h1>
@@ -56,28 +62,35 @@ const { Content } = await render(app);
       </div>
     </header>
 
-    <!-- La portada: captura, o la demo funcionando dentro de la misma ventana -->
-    <div class="contenedor">
-      <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`}>
-        {d.demo && (
-          <button
-            slot="acciones"
-            type="button"
-            class="hidden shrink-0 rounded-full bg-calendula px-4 py-1.5 text-sm font-semibold text-bosque-hondo transition-[background-color,transform] hover:bg-calendula-hondo active:scale-97 md:[.js_&]:inline-flex"
-            data-demo-toggle
-            data-demo={d.demo}
-            data-label-open={t('apps.tryHere')}
-            data-label-close={t('apps.tryHereClose')}
-            aria-controls="portada"
-            aria-pressed="false"
-          >
-            {t('apps.tryHere')}
-          </button>
-        )}
-        <div id="portada" class="aspect-[16/10] bg-bosque-hondo" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
-          <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 76rem) 72rem, 100vw" loading="eager" class="size-full object-cover object-top" />
-        </div>
-      </BrowserFrame>
+    <!-- La portada es el último fotograma del vuelo: la fachada del edificio de noche y, donde
+         estaba el ventanal, la ventana del navegador con su marco en el color de la app.
+         Dentro, la captura o la demo funcionando. -->
+    <div class="relative overflow-hidden bg-bosque-hondo pt-10 pb-16 sm:pt-14 sm:pb-24 lg:pt-16 lg:pb-28">
+      {fachadaApp && (
+        <Image src={fachadaApp} alt="" widths={[800, 1280, 1920]} sizes="100vw" loading="eager" class="absolute inset-0 size-full object-cover" />
+      )}
+      <div class="contenedor relative">
+        <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`} marco class="mx-auto max-w-[56rem]">
+          {d.demo && (
+            <button
+              slot="acciones"
+              type="button"
+              class="hidden shrink-0 rounded-full bg-calendula px-4 py-1.5 text-sm font-semibold text-bosque-hondo transition-[background-color,transform] hover:bg-calendula-hondo active:scale-97 md:[.js_&]:inline-flex"
+              data-demo-toggle
+              data-demo={d.demo}
+              data-label-open={t('apps.tryHere')}
+              data-label-close={t('apps.tryHereClose')}
+              aria-controls="portada"
+              aria-pressed="false"
+            >
+              {t('apps.tryHere')}
+            </button>
+          )}
+          <div id="portada" class="aspect-[16/10] bg-bosque-hondo" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
+            <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 58rem) 55rem, 100vw" loading="eager" class="size-full object-cover object-top" />
+          </div>
+        </BrowserFrame>
+      </div>
     </div>
 
     <div class="contenedor py-16 lg:py-24">
@@ -92,12 +105,20 @@ const { Content } = await render(app);
   <nav class="bg-musgo" aria-label={t('apps.more')}>
     <div class="contenedor flex flex-col gap-10 py-16 md:flex-row md:items-end md:justify-between lg:py-24" data-reveal>
       {next && (
-        <a href={localePath(lang, `/apps/${next.slug}`)} class="group flex items-end gap-6">
-          <span>
-            <span class="block text-xl text-helecho">{t('apps.next')}</span>
-            <span data-vt-siguiente={`titulo-${next.slug}`} class="vt-titulo mt-2 block w-fit text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]" translate="no">{next.data.title}</span>
+        <a href={localePath(lang, `/apps/${next.slug}`)} class="group flex flex-col gap-6 sm:flex-row sm:items-end">
+          <!-- Calle abajo: el edificio de la siguiente app, con su ventanal encendido -->
+          {fachadaSiguiente && (
+            <span class="block w-full max-w-[18rem] overflow-hidden rounded-ventana bg-bosque-hondo sm:w-56">
+              <Image src={fachadaSiguiente} alt="" widths={[320, 480, 640]} sizes="(min-width: 40rem) 14rem, 18rem" class="aspect-[16/10] w-full scale-[1.6] object-cover transition-transform duration-500 ease-salida group-hover:scale-[1.8]" />
+            </span>
+          )}
+          <span class="flex items-end gap-6">
+            <span>
+              <span class="block text-xl text-helecho">{t('apps.next')}</span>
+              <span data-vt-siguiente={`titulo-${next.slug}`} class="vt-titulo mt-2 block w-fit text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]" translate="no">{next.data.title}</span>
+            </span>
+            <svg class="mb-2 shrink-0 text-calendula transition-transform duration-300 ease-salida group-hover:translate-x-2" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </span>
-          <svg class="mb-2 shrink-0 text-calendula transition-transform duration-300 ease-salida group-hover:translate-x-2" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
       )}
       <a href={pagePath(lang, 'apps')} class="boton boton-secundario self-start md:self-end">{t('apps.back')}</a>
