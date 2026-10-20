@@ -3,6 +3,7 @@
 import {
   AdditiveBlending,
   Color,
+  DoubleSide,
   InstancedMesh,
   Matrix4,
   Mesh,
@@ -90,11 +91,15 @@ export function crearHuecos(trazado: Trazado): Huecos {
 
 // --- Ventanales de las apps ------------------------------------------------------
 
-/** Lo que se puede señalar en la ciudad: los ventanales, el estudio y el solar. */
+/** Lo que se puede señalar en la ciudad: los ventanales, el escaparate, el estudio y el solar. */
 export interface Objetivo {
-  /** Slug de la app, o el ancla a la que lleva (#sobre-mi, #contacto). */
+  /** Slug de la app, o el sitio del barrio (#apps, #sobre-mi, #contacto). */
   id: string;
   posicion: Vector3;
+  /** Lo que mide en la fachada: decide a qué distancia se queda la cámara al volar hasta él. */
+  tamano: { ancho: number; alto: number };
+  /** Dónde va su rótulo HTML, si lo tiene (el del escaparate, encima del toldo). */
+  rotulo?: Vector3;
   /** 0 en reposo, 1 resaltado, 1,5 al entrar. Lo anima GSAP. */
   brillo: number;
   toque: Mesh;
@@ -164,7 +169,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
   const texturas: Texture[] = [];
   const cargador = new TextureLoader();
   const luz = new Color(COLORES.calendula);
-  let haloBase = 0.3;
+  let haloBase = 0.22;
   const apagada = new Color(COLORES.apagada);
   const cargas: Promise<void>[] = [];
   const marcos: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
@@ -210,7 +215,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     marcos.push(marco);
 
     const brillo = new Mesh(
-      new PlaneGeometry(trazo.ancho * 2.6, trazo.alto * 3.4),
+      new PlaneGeometry(trazo.ancho * 2.1, trazo.alto * 2.8),
       new MeshBasicMaterial({ map: halo, color: COLORES.calendula, transparent: true, opacity: haloBase, depthWrite: false, blending: AdditiveBlending }),
     );
     brillo.position.copy(posicion).z += 0.01;
@@ -220,7 +225,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     toque.position.copy(posicion).z += 0.02;
 
     objetos.push(brillo, marco, vidrio, toque);
-    const ventanal: Ventanal = { id: d.slug, datos: d, trazo, posicion, brillo: 0, toque, vidrio, halo: brillo };
+    const ventanal: Ventanal = { id: d.slug, datos: d, trazo, posicion, tamano: { ancho: trazo.ancho, alto: trazo.alto }, brillo: 0, toque, vidrio, halo: brillo };
     toque.userData.objetivo = ventanal;
     return ventanal;
   });
@@ -246,7 +251,7 @@ export function crearVentanales(trazado: Trazado, datos: DatosVentana[], halo: C
     objetos,
     toques: lista.map((v) => v.toque),
     actualizar,
-    sinBloom: (activo) => (haloBase = activo ? 0.5 : 0.3),
+    sinBloom: (activo) => (haloBase = activo ? 0.42 : 0.22),
     texturas,
     listo: Promise.all(cargas).then(() => {}),
     apagar: (excepto) => {
@@ -322,7 +327,7 @@ export function crearEstudio(trazado: Trazado, halo: CanvasTexture): Estudio {
   const toque = new Mesh(new PlaneGeometry(2.4, 2), new MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
   toque.position.copy(posicion).z += 0.02;
 
-  const objetivo: Objetivo = { id: '#sobre-mi', posicion, brillo: 0, toque };
+  const objetivo: Objetivo = { id: '#sobre-mi', posicion, tamano: { ancho: e.ancho, alto: e.alto }, brillo: 0, toque };
   toque.userData.objetivo = objetivo;
   return {
     objetivo,
@@ -335,6 +340,97 @@ export function crearEstudio(trazado: Trazado, halo: CanvasTexture): Estudio {
       uniforms.luz.value.set(COLORES.apagada);
       resplandor.visible = false;
       marco.material.color.set(COLORES.apagada);
+    },
+  };
+}
+
+// --- Escaparate de la tienda ----------------------------------------------------------
+
+// El interior de la tienda, en penumbra, con una franja de luz por app en su color: el
+// catálogo visto desde la calle. Las franjas pasan el umbral del bloom y brillan.
+const MAX_FRANJAS = 12;
+const fragmentEscaparate = /* glsl */ `
+  #include <common>
+  #include <fog_pars_fragment>
+  uniform vec3 colores[${MAX_FRANJAS}];
+  uniform float cuantas;
+  uniform float brillo;
+  uniform float ancho;
+  uniform vec3 fondo;
+  varying vec2 vUv;
+  void main() {
+    vec2 p = vUv;
+    // Más luz arriba (el techo de la tienda) y el suelo, más oscuro, abajo
+    vec3 color = fondo * (0.5 + 0.7 * smoothstep(0.1, 0.95, p.y));
+    color = mix(color, fondo * 0.3, step(p.y, 0.1));
+    for (int i = 0; i < ${MAX_FRANJAS}; i++) {
+      if (float(i) >= cuantas) break;
+      float cx = 0.14 + 0.72 * (float(i) + 0.5) / cuantas;
+      float d = abs(p.x - cx) * ancho;
+      float franja = (1.0 - smoothstep(0.07, 0.1, d)) * smoothstep(0.16, 0.2, p.y) * (1.0 - smoothstep(0.84, 0.88, p.y));
+      float resplandor = exp(-d * d * 18.0) * smoothstep(0.1, 0.5, p.y) * 0.22;
+      color += colores[i] * (franja * (1.0 + brillo * 0.5) + resplandor * (1.0 + brillo));
+    }
+    // El dintel del escaparate, a contraluz
+    color *= 1.0 - 0.85 * step(0.93, p.y);
+    gl_FragColor = vec4(color, 1.0);
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+  }`;
+
+export interface Escaparate {
+  objetivo: Objetivo;
+  objetos: Object3D[];
+  actualizar(): void;
+  apagar(): void;
+}
+
+export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], halo: CanvasTexture): Escaparate {
+  const e = trazado.escaparate;
+  const posicion = new Vector3(e.x, e.y, e.z);
+  const colores = Array.from({ length: MAX_FRANJAS }, (_, i) => new Color(datos[i]?.hue ?? '#000000'));
+  const uniforms = UniformsUtils.merge([
+    UniformsLib.fog,
+    { cuantas: { value: Math.min(datos.length, MAX_FRANJAS) }, brillo: { value: 0 }, ancho: { value: e.ancho }, fondo: { value: new Color(COLORES.tienda) } },
+  ]);
+  uniforms.colores = { value: colores };
+  const vidrio = new Mesh(new PlaneGeometry(e.ancho, e.alto), new ShaderMaterial({ uniforms, vertexShader, fragmentShader: fragmentEscaparate, fog: true }));
+  vidrio.position.copy(posicion);
+
+  // Marco del escaparate y toldo inclinado hacia la calle
+  const oscuro = new MeshBasicMaterial({ color: '#0b1a12', toneMapped: false });
+  const marco = new Mesh(new PlaneGeometry(e.ancho + 0.16, e.alto + 0.16), oscuro);
+  marco.position.copy(posicion).z -= 0.005;
+  const toldo = new Mesh(new PlaneGeometry(e.toldo.ancho, e.toldo.vuelo), new MeshBasicMaterial({ color: '#1d3b2a', side: DoubleSide }));
+  toldo.position.set(e.x, e.toldo.y, e.z + (e.toldo.vuelo / 2) * Math.cos(0.5));
+  toldo.rotation.x = -Math.PI / 2 + 0.5;
+  toldo.position.y -= (e.toldo.vuelo / 2) * Math.sin(0.5);
+
+  // La luz de la tienda cae sobre la acera
+  const charco = new Mesh(
+    new PlaneGeometry(e.ancho * 1.6, 2.2),
+    new MeshBasicMaterial({ map: halo, color: '#8fb3a0', transparent: true, opacity: 0.16, depthWrite: false, blending: AdditiveBlending }),
+  );
+  charco.rotation.x = -Math.PI / 2;
+  charco.position.set(e.x, 0.13, e.z + 1);
+
+  const toque = new Mesh(new PlaneGeometry(e.ancho + 0.4, e.alto + 0.8), new MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  toque.position.set(e.x, e.y + 0.2, e.z + 0.75);
+
+  const rotulo = new Vector3(e.x, e.toldo.y + 0.55, e.z);
+  const objetivo: Objetivo = { id: '#apps', posicion, tamano: { ancho: e.ancho, alto: e.alto }, rotulo, brillo: 0, toque };
+  toque.userData.objetivo = objetivo;
+  return {
+    objetivo,
+    objetos: [marco, vidrio, toldo, charco, toque],
+    actualizar: () => {
+      uniforms.brillo.value = objetivo.brillo;
+      charco.material.opacity = charco.visible ? 0.16 + Math.min(objetivo.brillo, 1) * 0.12 : 0;
+    },
+    apagar: () => {
+      uniforms.cuantas.value = 0;
+      uniforms.fondo.value.set(COLORES.apagada);
+      charco.visible = false;
     },
   };
 }

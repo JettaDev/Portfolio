@@ -52,7 +52,39 @@ const ogImage = new URL(image, Astro.site);
         try {
           const s = sessionStorage;
           const ruta = (p) => p.replace(/(.)\/$/, '$1');
-          addEventListener('pagehide', () => s.setItem('ciudad:anterior', ruta(location.pathname)));
+          addEventListener('pagehide', () => {
+            s.setItem('ciudad:anterior', ruta(location.pathname));
+            // Al volver a la ciudad, la capa crecerá desde la ventana de esta página
+            const r = document.querySelector('[data-destello-destino]')?.getBoundingClientRect();
+            const dentro = (v, max) => Math.round(Math.min(Math.max(v, 0), max));
+            if (r) s.setItem('ciudad:origen', JSON.stringify({ x: dentro(r.left + r.width / 2, innerWidth), y: dentro(r.top + r.height / 2, innerHeight) }));
+            else s.removeItem('ciudad:origen');
+          });
+          const origen = () => {
+            const o = JSON.parse(s.getItem('ciudad:origen') || 'null') || { x: innerWidth / 2, y: innerHeight / 2 };
+            html.style.setProperty('--destello-x', o.x + 'px');
+            html.style.setProperty('--destello-y', o.y + 'px');
+          };
+          // Atrás con bfcache: este script no vuelve a ejecutarse, pero la capa también crece desde allí
+          addEventListener('pageshow', (e) => e.persisted && html.hasAttribute('data-destello') && origen());
+          // Volviendo a la ciudad (Atrás o el logo), la página que se deja se queda quieta mientras la
+          // capa crece encima: su título y su ventana no deben irse con su nombre de view transition,
+          // porque en la portada no existen y desaparecerían de la instantánea
+          addEventListener('pageswap', (e) => {
+            const url = e.activation && e.viewTransition ? new URL(e.activation.entry.url) : null;
+            const inicio = location.pathname.startsWith('/en/') ? '/en/' : '/';
+            const desde = JSON.parse(s.getItem('ciudad:desde') || 'null');
+            if (!url || url.pathname !== inicio || !desde || desde.href !== ruta(location.pathname)) return;
+            document.querySelectorAll('.vt-titulo, [data-vt]').forEach((el) => el.style.setProperty('view-transition-name', 'none'));
+          });
+          // Mientras dura la view transition de llegada, data-transicion (la ciudad espera a que acabe
+          // para recoger la capa: si no, se recogería mientras la transición la hace crecer)
+          addEventListener('pagereveal', (e) => {
+            const vt = e.viewTransition;
+            if (!vt) return;
+            html.dataset.transicion = '';
+            vt.finished.finally(() => delete html.dataset.transicion);
+          });
           const llegada = s.getItem('ciudad:llegada');
           s.removeItem('ciudad:llegada');
           if (llegada && llegada === ruta(location.pathname)) html.dataset.destello = 'llegada';
@@ -62,6 +94,7 @@ const ogImage = new URL(image, Astro.site);
             if (desde && s.getItem('ciudad:anterior') === desde.href && !location.hash) {
               html.dataset.destello = 'regreso';
               html.dataset.regreso = desde.slug;
+              origen();
             }
           }
         } catch {}
@@ -98,12 +131,10 @@ const ogImage = new URL(image, Astro.site);
     {!pantallaCompleta && <Footer />}
     <div class="destello" aria-hidden="true" data-destello-capa></div>
     <script>
-      // Llegada desde la ciudad: el destello se recoge sobre la ventana de la portada de la ficha
+      // Llegada desde la ciudad: el destello se recoge sobre la ventana de la página (la portada de
+      // la ficha, la primera app del catálogo, el titular de Sobre mí o de Contacto)
       import { centroDe, retirar } from '../lib/destello';
-      if (document.documentElement.dataset.destello === 'llegada') {
-        const { x, y } = centroDe(document.querySelector('[data-destello-destino]'));
-        retirar(x, y);
-      }
+      if (document.documentElement.dataset.destello === 'llegada') retirar(centroDe(document.querySelector('[data-destello-destino]')));
     </script>
     <script>
       // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.

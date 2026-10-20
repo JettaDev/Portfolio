@@ -1,7 +1,8 @@
 ---
-// Hero de la portada: la ciudad de noche, donde cada ventana encendida es una app.
-// El póster (misma escena, misma semilla) se pinta al instante y es el LCP; el motor 3D se
-// descarga después y su canvas se funde encima. Sin WebGL, los ventanales del póster son enlaces.
+// La portada: el barrio de noche, a pantalla completa. Cada ventana encendida es una app; el
+// escaparate de la tienda lleva al catálogo, el estudio de encima a Sobre mí y el solar a Contacto.
+// El póster (misma escena, misma semilla) se pinta al instante y el motor 3D se descarga después
+// y se funde encima. Sin WebGL, los sitios del póster son enlaces.
 import { getImage } from 'astro:assets';
 import posterAncho from '../assets/ciudad/poster-ancho.webp';
 import posterAlto from '../assets/ciudad/poster-alto.webp';
@@ -13,8 +14,8 @@ import { getLang, useT, pagePath } from '../i18n/utils';
 const lang = getLang(Astro.url);
 const t = useT(lang);
 const ventanas = await getCiudad(lang);
-// Los sitios del barrio que no son apps: el estudio lleva a Sobre mí y el solar, a Contacto
-const sitios = { '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
+// Los sitios del barrio que no son apps, con su página
+const sitios = { '#apps': pagePath(lang, 'apps'), '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
 
 const [ancho, alto] = await Promise.all([
   getImage({ src: posterAncho, widths: [1500, 2200, 3000], format: 'webp' }),
@@ -22,21 +23,28 @@ const [ancho, alto] = await Promise.all([
 ]);
 
 // El póster se genera aparte (npm run poster): avisa si ya no cuadra con las apps
-const enPoster = (encuadre: 'ancho' | 'alto') => new Map(posiciones[encuadre].ventanas.map((v) => [v.slug, v]));
+type Posicion = { slug: string; x: number; y: number; rx?: number; ry?: number };
+const enPoster = (encuadre: 'ancho' | 'alto') => new Map((posiciones[encuadre].ventanas as Posicion[]).map((v) => [v.slug, v]));
 const posterAnchoPos = enPoster('ancho');
 const posterAltoPos = enPoster('alto');
-const desfasadas = ventanas.filter((v) => !posterAnchoPos.has(v.slug) || !posterAltoPos.has(v.slug));
+const desfasadas = [...ventanas.map((v) => v.slug), ...Object.keys(sitios)].filter((id) => !posterAnchoPos.has(id) || !posterAltoPos.has(id));
 const appsEnPoster = posiciones.ancho.ventanas.filter((v) => !v.slug.startsWith('#')).length;
 if (desfasadas.length || appsEnPoster !== ventanas.length) {
-  console.warn(`[ciudad] El póster no cuadra con las apps (${desfasadas.map((v) => v.slug).join(', ') || 'sobran ventanas'}): ejecuta npm run poster`);
+  console.warn(`[ciudad] El póster no cuadra con las apps (${desfasadas.join(', ') || 'sobran ventanas'}): ejecuta npm run poster`);
 }
 
-// Posición en los dos pósters, como variables CSS (a = ancho, b = alto)
-const enLosPosters = (id: string) => {
+// Posición en los dos pósters, como variables CSS (a = ancho, b = alto); `rotulo` usa la del rótulo
+const enLosPosters = (id: string, rotulo = false) => {
   const a = posterAnchoPos.get(id);
   const b = posterAltoPos.get(id);
-  return a && b ? `--xa:${a.x}; --ya:${a.y}; --xb:${b.x}; --yb:${b.y}` : undefined;
+  if (!a || !b) return undefined;
+  const [xa, ya, xb, yb] = rotulo ? [a.rx ?? a.x, a.ry ?? a.y, b.rx ?? b.x, b.ry ?? b.y] : [a.x, a.y, b.x, b.y];
+  return `--xa:${xa}; --ya:${ya}; --xb:${xb}; --yb:${yb}`;
 };
+const rotulos = [
+  { id: '#apps' as const, texto: t('ciudad.escaparate'), estilo: enLosPosters('#apps', true) },
+  { id: '#contacto' as const, texto: t('ciudad.solar'), estilo: enLosPosters('#contacto') },
+];
 ---
 
 <section
@@ -60,37 +68,37 @@ const enLosPosters = (id: string) => {
     />
   </picture>
 
-  <!-- touch-pan-y: el toque en un ventanal funciona y el dedo sigue pudiendo bajar por la página -->
+  <!-- touch-pan-y: el toque en un sitio funciona y el navegador no se queda con el gesto -->
   <canvas class="lienzo absolute inset-0 block size-full touch-pan-y" aria-hidden="true" data-lienzo></canvas>
 
-  <!-- Sin canvas, los ventanales del póster llevan a cada app. Repiten la lista de abajo: fuera del orden de tabulación. -->
+  <!-- Sin canvas, los ventanales, el escaparate y el estudio del póster son enlaces. Repiten los chips y la cabecera: fuera del orden de tabulación. -->
   <div class="ventanas-poster absolute inset-0" aria-hidden="true">
     {ventanas.map((v) => (
       <>
         {posterAnchoPos.has(v.slug) && (
-          <a href={v.href} tabindex="-1" class="ventana-poster en-ancho" style={`--x:${posterAnchoPos.get(v.slug)!.x}; --y:${posterAnchoPos.get(v.slug)!.y}`}>{v.title}</a>
+          <a href={v.href} tabindex="-1" class="ventana-poster en-ancho" style={`--x:${posterAnchoPos.get(v.slug)!.x}; --y:${posterAnchoPos.get(v.slug)!.y}`} data-id={v.slug}>{v.title}</a>
         )}
         {posterAltoPos.has(v.slug) && (
-          <a href={v.href} tabindex="-1" class="ventana-poster en-alto" style={`--x:${posterAltoPos.get(v.slug)!.x}; --y:${posterAltoPos.get(v.slug)!.y}`}>{v.title}</a>
+          <a href={v.href} tabindex="-1" class="ventana-poster en-alto" style={`--x:${posterAltoPos.get(v.slug)!.x}; --y:${posterAltoPos.get(v.slug)!.y}`} data-id={v.slug}>{v.title}</a>
         )}
       </>
     ))}
-    {enLosPosters('#sobre-mi') && (
-      <a href={sitios['#sobre-mi']} tabindex="-1" class="ventana-poster en-los-dos" style={enLosPosters('#sobre-mi')}>{t('nav.about')}</a>
-    )}
+    {(['#apps', '#sobre-mi'] as const).map((id) => enLosPosters(id) && (
+      <a href={sitios[id]} tabindex="-1" class="ventana-poster sitio en-los-dos" style={enLosPosters(id)} data-id={id}>{id === '#apps' ? t('ciudad.escaparate') : t('nav.about')}</a>
+    ))}
   </div>
 
-  <!-- El solar «Tu proyecto aquí»: el texto del cartel es HTML y lleva a Contacto -->
-  {enLosPosters('#contacto') && (
+  <!-- Rótulos del escaparate y del cartel del solar: son HTML (no hay texto 3D) y enlaces reales -->
+  {rotulos.map((r) => r.estilo && (
     <a
-      href={sitios['#contacto']}
-      class="cartel en-los-dos absolute rounded-md bg-bosque-hondo px-2.5 py-1 text-sm font-semibold whitespace-nowrap text-liquen transition-[background-color,opacity] duration-300 hover:bg-musgo-claro"
-      style={enLosPosters('#contacto')}
-      data-cartel
+      href={sitios[r.id]}
+      class="rotulo en-los-dos absolute rounded-md bg-bosque-hondo px-2 py-1 text-xs font-semibold sm:px-2.5 sm:text-sm whitespace-nowrap text-liquen transition-[background-color,opacity] duration-300 hover:bg-musgo-claro"
+      style={r.estilo}
+      data-rotulo={r.id}
     >
-      {t('ciudad.solar')}
+      {r.texto}
     </a>
-  )}
+  ))}
 
   <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta data-sobre-mi={t('nav.about')}></span>
 
@@ -150,6 +158,9 @@ const enLosPosters = (id: string) => {
     font-size: 0;
     border-radius: 0.375rem;
   }
+  .ventana-poster.sitio {
+    width: 6rem;
+  }
   .en-alto {
     left: calc(50% + (var(--x) - 0.5) * 100cqh * var(--aspecto-alto));
   }
@@ -161,7 +172,7 @@ const enLosPosters = (id: string) => {
     .en-ancho { display: block; }
     .en-alto { display: none; }
   }
-  /* Estudio y cartel: un solo elemento que cambia de sitio según el póster que se ve */
+  /* Escaparate, estudio y rótulos: un solo elemento que cambia de sitio según el póster que se ve */
   .en-los-dos {
     left: calc(50% + (var(--xb) - 0.5) * 100cqh * var(--aspecto-alto));
     top: calc(var(--yb) * 100%);
@@ -173,15 +184,11 @@ const enLosPosters = (id: string) => {
       top: calc(var(--ya) * 100%);
     }
   }
-  [data-volando] .cartel {
-    opacity: 0;
-    pointer-events: none;
-  }
   [data-estado='vivo'] .ventanas-poster {
     display: none;
   }
 
-  /* Nombre de la app junto al ventanal con el puntero encima */
+  /* Nombre de la app (o «Sobre mí») junto a lo que tiene el puntero encima */
   .etiqueta {
     opacity: 0;
     transition: opacity 0.2s;
@@ -191,17 +198,19 @@ const enLosPosters = (id: string) => {
   }
 
   .app[data-activa],
-  .cartel[data-activa] {
+  .rotulo[data-activa] {
     background: var(--color-musgo-claro);
   }
 
-  /* Durante el vuelo los textos se apartan: si no, quedarían encima de la ventana que se acerca */
+  /* Durante el vuelo los textos se apartan: si no, quedarían encima de lo que se acerca */
   .textos {
     transition: opacity 0.35s var(--ease-salida);
   }
   [data-volando] .textos,
-  [data-volando] .etiqueta {
+  [data-volando] .etiqueta,
+  [data-volando] .rotulo {
     opacity: 0;
+    pointer-events: none;
   }
 </style>
 
@@ -218,22 +227,22 @@ const enLosPosters = (id: string) => {
     const lienzo = raiz.querySelector<HTMLCanvasElement>('[data-lienzo]')!;
     const etiqueta = raiz.querySelector<HTMLElement>('[data-etiqueta]')!;
     const pista = raiz.querySelector<HTMLElement>('[data-pista]')!;
-    const enlaces = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-slug]')];
+    const chips = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-slug]')];
+    const rotulos = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-rotulo]')];
     const datos: DatosVentana[] = JSON.parse(raiz.querySelector('[data-datos-ciudad]')!.textContent!);
-    const cartel = raiz.querySelector<HTMLElement>('[data-cartel]');
-    if (cartel) cartel.dataset.posicion = cartel.style.cssText;
-    // Lo que dice la etiqueta al señalar algo: el nombre de la app, «Sobre mí» o el texto del cartel
-    const titulo = new Map<string, string>([
-      ...datos.map((d): [string, string] => [d.slug, d.title]),
-      ['#sobre-mi', etiqueta.dataset.sobreMi ?? ''],
-      ['#contacto', cartel?.textContent?.trim() ?? ''],
-    ]);
-    const href = new Map(datos.map((d) => [d.slug, d.href]));
+    const sitios: Record<string, string> = JSON.parse(raiz.querySelector('[data-sitios-ciudad]')!.textContent!);
+    rotulos.forEach((r) => (r.dataset.posicion = r.style.cssText));
+
+    /** Adónde lleva cada cosa de la ciudad: la ficha de cada app y la página de cada sitio. */
+    const destinos = new Map<string, string>([...datos.map((d): [string, string] => [d.slug, d.href]), ...Object.entries(sitios)]);
+    // Lo que dice la etiqueta al señalar algo (el escaparate y el solar ya tienen su rótulo)
+    const titulo = new Map<string, string>([...datos.map((d): [string, string] => [d.slug, d.title]), ['#sobre-mi', etiqueta.dataset.sobreMi ?? '']]);
+    const conRotulo = (id: string) => rotulos.find((r) => r.dataset.rotulo === id);
 
     // Enlaces del prototipo (/#/slug): a la ficha
     const antiguo = location.hash.match(/^#\/([\w-]+)$/)?.[1];
-    if (antiguo && href.has(antiguo)) {
-      location.replace(href.get(antiguo)!);
+    if (antiguo && destinos.has(antiguo)) {
+      location.replace(destinos.get(antiguo)!);
       return;
     }
 
@@ -243,7 +252,7 @@ const enLosPosters = (id: string) => {
     const reducido = () => movimiento.matches || new URLSearchParams(location.search).has('reducido');
     const nivel = detectarNivel();
     let ciudad: Ciudad | null = null;
-    /** App de la que se sale o a la que se vuelve; null con la ciudad en reposo. */
+    /** Lo que se deja o a lo que se vuelve; null con la ciudad en reposo. */
     let enVuelo: string | null = null;
 
     const marcarVuelo = (fase: 'ida' | 'vuelta' | null) => {
@@ -251,11 +260,8 @@ const enLosPosters = (id: string) => {
       if (fase) raiz.dataset.vuelo = fase;
       else delete raiz.dataset.vuelo;
     };
-    // Las filas del listado recuperan su nombre de view transition
-    const restaurarNombres = () =>
-      document.querySelectorAll<HTMLElement>('[data-vt]').forEach((el) => el.style.setProperty('view-transition-name', el.dataset.vt!));
 
-    // --- Etiqueta junto al ventanal con el puntero encima ---------------------------------
+    // --- Etiqueta junto a lo que tiene el puntero encima -------------------------------------
     let conEtiqueta: string | null = null;
     const colocarEtiqueta = () => {
       if (!conEtiqueta || !ciudad) return;
@@ -264,118 +270,112 @@ const enLosPosters = (id: string) => {
       requestAnimationFrame(colocarEtiqueta);
     };
     const prefetch = new Set<string>();
-    const precargar = (slug: string) => {
-      const url = href.get(slug);
+    const precargar = (id: string) => {
+      const url = destinos.get(id);
       if (!url || prefetch.has(url)) return;
       prefetch.add(url);
       document.head.append(Object.assign(document.createElement('link'), { rel: 'prefetch', href: url }));
     };
     const alPasar = (id: string | null) => {
-      enlaces.forEach((a) => a.toggleAttribute('data-activa', a.dataset.slug === id));
-      cartel?.toggleAttribute('data-activa', id === '#contacto');
-      // El cartel ya dice lo que es: no hace falta etiqueta encima
-      conEtiqueta = id === '#contacto' ? null : id;
+      chips.forEach((a) => a.toggleAttribute('data-activa', a.dataset.slug === id));
+      rotulos.forEach((r) => r.toggleAttribute('data-activa', r.dataset.rotulo === id));
+      if (id) precargar(id);
+      conEtiqueta = id && titulo.has(id) ? id : null;
       etiqueta.toggleAttribute('data-visible', !!conEtiqueta);
       if (conEtiqueta) {
         etiqueta.textContent = titulo.get(conEtiqueta) ?? '';
-        precargar(conEtiqueta);
         colocarEtiqueta();
       }
     };
-    // El estudio y el solar llevan a su página
-    const sitios: Record<string, string> = JSON.parse(raiz.querySelector('[data-sitios-ciudad]')!.textContent!);
-    const alPulsar = (id: string) => {
-      if (id.startsWith('#')) location.href = sitios[id];
-      else entrar(id);
-    };
 
-    // --- Ida: vuelo, destello desde el ventanal y navegación real ---------------------------
+    // --- Ida: vuelo, destello desde lo pulsado y navegación real ------------------------------
     const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    const entrar = async (slug: string) => {
+    /** Centro de un objetivo en pantalla, siguiéndolo mientras la cámara se mueve. */
+    const sobre = (id: string) => () => ciudad?.enPantalla(id) ?? { x: innerWidth / 2, y: innerHeight / 2 };
+    /** El círculo sale cuando el objetivo ya se acerca y cubre la pantalla antes de que la cámara frene. */
+    const INICIO_DESTELLO = 560;
+    const entrar = async (id: string) => {
       if (enVuelo) return;
-      const destino = href.get(slug)!;
-      // Con la ciudad fuera de la pantalla (foco desde más abajo) no hay vuelo que ver
-      if (!ciudad || raiz.getBoundingClientRect().bottom <= 0) {
+      const destino = destinos.get(id)!;
+      if (!ciudad) {
         location.href = destino;
         return;
       }
-      enVuelo = slug;
-      precargar(slug);
+      enVuelo = id;
+      precargar(id);
       alPasar(null);
       marcarVuelo('ida');
-      // La fila del listado no debe transformarse en la ficha: la transición sale de la ciudad
-      for (const nombre of [`ventana-${slug}`, `titulo-${slug}`]) {
-        document.querySelector<HTMLElement>(`[data-vt="${nombre}"]`)?.style.setProperty('view-transition-name', 'none');
-      }
-      recordarSalida(slug, destino);
+      recordarSalida(id, destino);
 
       if (reducido()) {
-        await cubrir(innerWidth / 2, innerHeight / 2);
+        await cubrir({ x: innerWidth / 2, y: innerHeight / 2 });
       } else {
-        // La luz del ventanal llena la pantalla en el último tramo del vuelo
-        const vuelo = ciudad.volarA(slug);
-        await espera(780);
-        const p = ciudad.enPantalla(slug) ?? { x: innerWidth / 2, y: innerHeight / 2 };
-        await Promise.all([vuelo, cubrir(p.x, p.y)]);
+        ciudad.volarA(id);
+        await espera(INICIO_DESTELLO);
+        await cubrir(sobre(id), 400);
       }
       location.href = destino;
       // Si la navegación no llega (sin red, bloqueada…), la capa no puede quedarse tapándolo todo
       const rescate = setTimeout(() => {
         olvidarSalida();
-        restaurarNombres();
-        volver(slug);
+        volver(id);
       }, 5000);
       addEventListener('pagehide', () => clearTimeout(rescate), { once: true });
     };
 
-    // --- Vuelta: el destello se recoge sobre el ventanal y la cámara vuelve al reposo --------
-    const volver = async (slug: string) => {
+    // --- Vuelta: la capa se recoge sobre el objetivo mientras la cámara vuelve al reposo -------
+    /** Espera a que acabe la view transition de llegada (la capa aún está creciendo), como mucho 1 s. */
+    const finTransicion = async () => {
+      await new Promise(requestAnimationFrame);
+      for (let t0 = performance.now(); html.hasAttribute('data-transicion') && performance.now() - t0 < 1000; ) await new Promise(requestAnimationFrame);
+    };
+    const volver = async (id: string) => {
       esperandoVuelta = false;
-      enVuelo = slug;
+      enVuelo = id;
       marcarVuelo('vuelta');
+      await finTransicion();
       if (ciudad && !reducido()) {
-        const p = ciudad.enPantalla(slug) ?? { x: innerWidth / 2, y: innerHeight / 2 };
-        await retirar(p.x, p.y, 450);
-        await ciudad.volverDe(slug);
+        // A la vez: si la cámara esperase a la capa, la captura se quedaría quieta a pantalla completa
+        await Promise.all([ciudad.volverDe(id), retirar(sobre(id), 700)]);
       } else {
-        // Sin vuelo: se recoge sobre el ventanal del póster (o un fundido, con movimiento reducido)
-        if (ciudad) await ciudad.volverDe(slug);
-        const visible = [...raiz.querySelectorAll(`.ventana-poster[href="${href.get(slug)}"]`)].find((a) => a.getClientRects().length);
-        const { x, y } = centroDe(visible ?? null);
-        await retirar(x, y);
+        // Sin vuelo: se recoge sobre el sitio del póster (o un fundido, con movimiento reducido)
+        if (ciudad) await ciudad.volverDe(id);
+        const rotulo = conRotulo(id);
+        const enPoster = [...raiz.querySelectorAll(`.ventana-poster[data-id="${id}"]`), ...(rotulo ? [rotulo] : [])].find((a) => a.getClientRects().length);
+        await retirar(centroDe(enPoster ?? null));
       }
       enVuelo = null;
       marcarVuelo(null);
-      // El foco vuelve al enlace de la app de la que se viene (también si se entró por el canvas)
-      enlaces.find((a) => a.dataset.slug === slug)?.focus({ preventScroll: true });
+      // El foco vuelve a lo que llevaba allí: el chip de la app, el rótulo o el enlace de la cabecera
+      const enlace = chips.find((a) => a.dataset.slug === id) ?? conRotulo(id) ?? document.querySelector<HTMLAnchorElement>(`header a[href="${destinos.get(id)}"]`);
+      enlace?.focus({ preventScroll: true });
     };
 
-    // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el ventanal)
+    // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el objetivo)
     addEventListener('pageshow', (e) => {
       if (!e.persisted || !enVuelo) return;
       olvidarSalida();
-      restaurarNombres();
       volver(enVuelo);
     });
 
-    // 2. Carga normal volviendo de una ficha: el <head> ya ha puesto la capa (data-destello="regreso")
+    // 2. Carga normal volviendo de una página de la ciudad: el <head> ya ha puesto la capa (data-destello="regreso")
     const regreso = html.dataset.destello === 'regreso' ? html.dataset.regreso : undefined;
-    const vuelveDe = regreso && href.has(regreso) ? regreso : undefined;
+    const vuelveDe = regreso && destinos.has(regreso) ? regreso : undefined;
     let esperandoVuelta = !!vuelveDe;
-    if (regreso && !vuelveDe) retirar(innerWidth / 2, innerHeight / 2);
+    if (regreso && !vuelveDe) retirar({ x: innerWidth / 2, y: innerHeight / 2 });
 
-    // --- Lista HTML: el foco y el puntero iluminan su ventanal; Enter o clic hacen el vuelo --
-    for (const a of enlaces) {
-      const slug = a.dataset.slug!;
-      a.addEventListener('pointerenter', () => (ciudad?.resaltar(slug), precargar(slug)));
+    // --- Chips y rótulos: el foco y el puntero iluminan su sitio; Enter o clic hacen el vuelo ---
+    for (const a of [...chips, ...rotulos]) {
+      const id = a.dataset.slug ?? a.dataset.rotulo!;
+      a.addEventListener('pointerenter', () => (ciudad?.resaltar(id), precargar(id)));
       a.addEventListener('pointerleave', () => ciudad?.resaltar(null));
-      a.addEventListener('focus', () => ciudad?.resaltar(slug));
+      a.addEventListener('focus', () => ciudad?.resaltar(id));
       a.addEventListener('blur', () => ciudad?.resaltar(null));
       a.addEventListener('click', (e) => {
         // Con modificadores (pestaña nueva…) o sin ciudad, el enlace hace lo suyo
         if (!ciudad || raiz.dataset.estado !== 'vivo' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
-        entrar(slug);
+        entrar(id);
       });
     }
 
@@ -385,28 +385,23 @@ const enLosPosters = (id: string) => {
       return;
     }
 
-    // El cartel sigue al solar mientras la ciudad se mueve (parallax, descenso)
-    let heroVisible = true;
-    new IntersectionObserver(([e]) => {
-      heroVisible = e.isIntersecting;
-      if (heroVisible) seguirCartel();
-    }).observe(raiz);
-    let siguiendo = false;
-    const seguirCartel = () => {
-      if (siguiendo || !cartel) return;
-      siguiendo = true;
-      const paso = () => {
-        const p = ciudad && raiz.dataset.estado === 'vivo' ? ciudad.enPantalla('#contacto') : null;
-        if (p) {
+    // Los rótulos siguen a su sitio mientras la cámara se mueve (parallax)
+    const seguirRotulos = () => {
+      if (ciudad && raiz.dataset.estado === 'vivo' && !enVuelo) {
+        for (const r of rotulos) {
+          const p = ciudad.enPantalla(r.dataset.rotulo!, 'rotulo');
+          if (!p) continue;
           // Solo translate: mover left/top en cada fotograma obligaría a recalcular el layout
-          cartel.style.left = '0px';
-          cartel.style.top = '0px';
-          cartel.style.translate = `calc(${p.x}px - 50%) calc(${p.y}px - 50%)`;
+          const translate = `calc(${p.x.toFixed(1)}px - 50%) calc(${p.y.toFixed(1)}px - 50%)`;
+          if (r.dataset.translate !== translate) {
+            r.dataset.translate = translate;
+            r.style.left = '0px';
+            r.style.top = '0px';
+            r.style.translate = translate;
+          }
         }
-        if (heroVisible && ciudad) requestAnimationFrame(paso);
-        else siguiendo = false;
-      };
-      paso();
+      }
+      if (ciudad) requestAnimationFrame(seguirRotulos);
     };
 
     // --- Carga diferida del motor ---------------------------------------------------
@@ -423,17 +418,20 @@ const enLosPosters = (id: string) => {
             listo();
           },
           alPasar,
-          alPulsar,
+          alPulsar: entrar,
           alFallar: () => {
             ciudad?.destruir();
             ciudad = null;
             raiz.dataset.estado = 'poster';
-            if (cartel) cartel.style.cssText = cartel.dataset.posicion ?? '';
+            rotulos.forEach((r) => {
+              r.style.cssText = r.dataset.posicion ?? '';
+              delete r.dataset.translate;
+            });
           },
         });
-        // Si la vuelta ya ha empezado sin motor (tardaba), la cámara se queda en reposo
+        // Volviendo, la cámara empieza pegada al objetivo (si la vuelta ya ha empezado sin motor, en reposo)
         if (vuelveDe && esperandoVuelta) ciudad.situarEn(vuelveDe);
-        seguirCartel();
+        seguirRotulos();
         movimiento.addEventListener('change', () => ciudad?.reducido(reducido()));
       } catch {
         // Sin motor (red caída, WebGL que falla al crear el contexto…): se queda el póster
@@ -446,7 +444,7 @@ const enLosPosters = (id: string) => {
       // Volviendo, la capa tapa la ciudad: el motor arranca ya y, si tarda, se vuelve sin él
       marcarVuelo('vuelta');
       arrancar();
-      Promise.race([primerFrame.then(() => espera(320)), espera(4000)]).then(() => volver(vuelveDe));
+      Promise.race([primerFrame, espera(4000)]).then(() => volver(vuelveDe));
       return;
     }
     const cuandoLibre = () =>

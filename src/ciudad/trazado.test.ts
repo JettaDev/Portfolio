@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera, Vector3 } from 'three';
 import {
+  CALLE,
   CAMARA,
+  MANZANA,
   PARALLAX,
   distanciaCamara,
   encuadrePara,
@@ -70,21 +72,23 @@ describe('trazarCiudad', () => {
     }
   });
 
-  it.each(CANTIDADES)('con %i apps, cada una tiene su edificio y la fila de delante se llena primero', (n) => {
+  it.each(CANTIDADES)('con %i apps, cada una tiene su edificio y la primera va en el lote de la manzana', (n) => {
     const t = trazarCiudad(apps(n));
     expect(t.proyectos).toHaveLength(n);
     expect(new Set(t.proyectos.map((p) => p.edificio)).size).toBe(n);
     expect(t.proyectos.map((p) => p.slug)).toEqual(apps(n).map((a) => a.slug));
-    const filas = t.proyectos.map((p) => p.fila);
-    const delante = t.edificios.filter((e, i) => e.fila === 0 && !filas.includes(i)).length;
-    if (filas.some((f) => f > 0)) expect(filas.filter((f) => f === 0).length).toBeGreaterThanOrEqual(2);
-    expect(delante).toBeGreaterThan(0);
-    expect(Math.max(...filas)).toBeLessThan(3);
+    const primera = t.edificios[t.proyectos[0].edificio];
+    expect(primera.fila).toBe(0);
+    expect(primera.x).toBe(MANZANA.lote.x);
+    expect(Math.max(...t.proyectos.map((p) => p.fila))).toBeLessThan(3);
   });
 
-  it('las dos primeras apps quedan a lados opuestos del centro', () => {
-    const [a, b] = trazarCiudad(apps(2)).proyectos;
-    expect(Math.sign(a.x)).not.toBe(Math.sign(b.x));
+  it('las apps siguientes van en torres de detrás, cerca del centro', () => {
+    const t = trazarCiudad(apps(3));
+    for (const p of t.proyectos.slice(1)) {
+      expect(p.fila).toBeGreaterThan(0);
+      expect(Math.abs(p.x)).toBeLessThan(7);
+    }
   });
 
   it('respeta la planta pedida en el MDX', () => {
@@ -105,25 +109,58 @@ describe('trazarCiudad', () => {
     }
   });
 
-  it.each(CANTIDADES)('con %i apps, el solar es un lote vacío de la fila de delante y no es de ninguna app', (n) => {
+  it.each(CANTIDADES)('con %i apps, el solar es un lote vacío junto a la tienda y no es de ninguna app', (n) => {
     const t = trazarCiudad(apps(n));
     const lote = t.edificios[t.solar.edificio];
+    const tienda = t.edificios[t.tienda];
     expect(lote.fila).toBe(0);
     expect(lote.vacio).toBe(true);
+    expect(lote.x - lote.ancho / 2 - (tienda.x + tienda.ancho / 2)).toBeCloseTo(MANZANA.separacion);
     expect(t.proyectos.map((p) => p.edificio)).not.toContain(t.solar.edificio);
     expect(t.huecos.some((h) => Math.abs(h.x - lote.x) < lote.ancho / 2 && Math.abs(h.z - t.solar.z) < 0.1)).toBe(false);
   });
 
-  it('el solar está donde iría la próxima app', () => {
-    const conDos = trazarCiudad(apps(2));
-    const conTres = trazarCiudad(apps(3));
-    expect(conTres.proyectos[2].edificio).toBe(conDos.solar.edificio);
+  it.each(CANTIDADES)('con %i apps, la tienda está en el centro de la calle, con el escaparate abajo y el estudio arriba', (n) => {
+    const t = trazarCiudad(apps(n));
+    const tienda = t.edificios[t.tienda];
+    expect(tienda.fila).toBe(0);
+    expect(tienda.x).toBe(MANZANA.tienda.x);
+    expect(t.proyectos.map((p) => p.edificio)).not.toContain(t.tienda);
+    expect(t.escaparate.edificio).toBe(t.tienda);
+    expect(t.estudio.edificio).toBe(t.tienda);
+    // El escaparate cabe en la fachada, a pie de calle, y el estudio es la última planta
+    expect(t.escaparate.ancho).toBeLessThan(tienda.ancho);
+    expect(t.escaparate.y - t.escaparate.alto / 2).toBeLessThan(1);
+    expect(tienda.alto - (t.estudio.y + t.estudio.alto / 2)).toBeLessThan(1.6);
+    // Los huecos de la tienda empiezan por encima del rótulo y ninguno pisa el estudio
+    const enTienda = t.huecos.filter((h) => Math.abs(h.x - tienda.x) < tienda.ancho / 2 && Math.abs(h.z - t.escaparate.z) < 0.1);
+    expect(enTienda.length).toBeGreaterThan(0);
+    for (const h of enTienda) {
+      expect(h.y - 0.31).toBeGreaterThan(t.escaparate.toldo.y + 0.9);
+      expect(Math.abs(h.x - t.estudio.x) < 0.21 + t.estudio.ancho / 2 && Math.abs(h.y - t.estudio.y) < 0.31 + t.estudio.alto / 2).toBe(false);
+    }
   });
 
-  it('el estudio va en la segunda fila, en un edificio sin app', () => {
-    const t = trazarCiudad(apps(6));
-    expect(t.edificios[t.estudio.edificio].fila).toBe(1);
-    expect(t.proyectos.map((p) => p.edificio)).not.toContain(t.estudio.edificio);
+  it('la manzana y la calle no dependen de las apps', () => {
+    const [a, b] = [trazarCiudad(apps(1)), trazarCiudad(apps(10))];
+    for (const k of ['escaparate', 'estudio', 'solar', 'calle', 'tienda'] as const) expect(b[k]).toEqual(a[k]);
+  });
+
+  it('todas las fachadas de la fila de delante dan a la calle y las farolas no tapan los sitios', () => {
+    const t = trazarCiudad(apps(3));
+    for (const e of t.edificios.filter((e) => e.fila === 0)) expect(e.z + e.fondo / 2).toBeCloseTo(CALLE.fachada);
+    const tapa = (x: number, r: { x: number; ancho: number }) => Math.abs(x - r.x) < r.ancho / 2 + 0.2;
+    for (const x of t.calle.farolas) {
+      expect(tapa(x, t.escaparate)).toBe(false);
+      expect(tapa(x, t.solar.cartel)).toBe(false);
+    }
+    expect(t.calle.bordillo).toBeGreaterThan(t.calle.fachada);
+    expect(t.calle.fin).toBeGreaterThan(t.calle.bordillo);
+  });
+
+  it('el estudio y el escaparate no se repiten como ventanal de app', () => {
+    const t = trazarCiudad(apps(10));
+    for (const p of t.proyectos) expect(p.edificio).not.toBe(t.tienda);
   });
 
   it('solo las apps en desarrollo tienen obra', () => {
@@ -132,19 +169,29 @@ describe('trazarCiudad', () => {
   });
 
   for (const [nombre, aspecto] of Object.entries(ASPECTOS)) {
-    it.each(CANTIDADES)(`con %i apps, el estudio y el cartel del solar caben y se ven (${nombre})`, (n) => {
+    it.each(CANTIDADES)(`con %i apps, el estudio, el escaparate y el cartel del solar caben y se ven (${nombre})`, (n) => {
       const t = trazarCiudad(apps(n));
       const camara = camaraEnReposo(t, aspecto);
-      const cartel = { ...t.solar.cartel };
-      for (const v of [...esquinas(t.estudio), ...esquinas(cartel)]) {
+      for (const v of [...esquinas(t.estudio), ...esquinas(t.escaparate), ...esquinas(t.solar.cartel)]) {
         const ndc = v.clone().project(camara);
         expect(Math.abs(ndc.x)).toBeLessThan(1);
         expect(Math.abs(ndc.y)).toBeLessThan(1);
       }
-      const ojo = camara.position;
-      for (const v of esquinas(t.estudio)) {
-        expect(t.edificios.filter((e, i) => i !== t.estudio.edificio && corta(ojo, v, e))).toEqual([]);
+      for (const [dx, dy] of [[0, 0], [-PARALLAX.x, -PARALLAX.y], [PARALLAX.x, PARALLAX.y]]) {
+        const ojo = camaraEnReposo(t, aspecto, dx, dy).position;
+        for (const v of [...esquinas(t.estudio), ...esquinas(t.escaparate)]) {
+          expect(t.edificios.filter((e, i) => i !== t.tienda && corta(ojo, v, e))).toEqual([]);
+        }
       }
+    });
+
+    it(`se ve la calle: la acera delante de la tienda queda dentro del encuadre (${nombre})`, () => {
+      const t = trazarCiudad(apps(2));
+      const camara = camaraEnReposo(t, aspecto);
+      const acera = new Vector3(0, CALLE.fachada > 0 ? 0.12 : 0, (t.calle.fachada + t.calle.bordillo) / 2).project(camara);
+      expect(acera.y).toBeGreaterThan(-1);
+      // …y no se queda en medio de la pantalla: la calle es el pie del encuadre
+      expect(acera.y).toBeLessThan(-0.3);
     });
 
     it.each(CANTIDADES)(`con %i apps, todos los ventanales caben en el encuadre (${nombre})`, (n) => {

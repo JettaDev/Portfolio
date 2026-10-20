@@ -135,7 +135,7 @@ html[data-destello] .vt-titulo,
 html[data-destello] [data-vt] {
   view-transition-name: none !important;
 }
-/* Solo cuenta la capa en vivo, que es la que se recoge; si aparece (al volver), entra con un fundido corto */
+/* Solo cuenta la capa en vivo, que es la que se recoge */
 ::view-transition-old(destello) {
   animation: none;
   opacity: 0;
@@ -143,11 +143,33 @@ html[data-destello] [data-vt] {
 ::view-transition-new(destello) {
   animation: none;
 }
-::view-transition-new(destello):only-child {
-  animation: 0.25s ease-out both destello-entra;
+/* Llegada: la página vieja estaba cubierta del todo. Su instantánea (la captura a pantalla
+   completa) no debe asomar mientras la capa se recoge, ni fundirse con la nueva. */
+html[data-destello='llegada']::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
 }
-@keyframes destello-entra {
-  from { opacity: 0; }
+html[data-destello='llegada']::view-transition-new(root) {
+  animation: none;
+}
+/* Vuelta a la ciudad: la página que se deja se queda quieta y la capa crece desde su ventana
+   como un círculo, igual que en la ida. La ciudad no se ve hasta que la capa la cubre. */
+html[data-destello]:not([data-destello='llegada'])::view-transition-old(root) {
+  animation: none;
+}
+html[data-destello]:not([data-destello='llegada'])::view-transition-new(root) {
+  animation: none;
+  opacity: 0;
+}
+html[data-destello]:not([data-destello='llegada'])::view-transition-group(*) {
+  animation-duration: 0.38s;
+}
+::view-transition-new(destello):only-child {
+  animation: 0.38s cubic-bezier(0.55, 0, 0.8, 0.45) both destello-crece;
+}
+@keyframes destello-crece {
+  from { clip-path: circle(0 at var(--destello-x, 50%) var(--destello-y, 50%)); }
+  to { clip-path: circle(150vmax at var(--destello-x, 50%) var(--destello-y, 50%)); }
 }
 
 /* Entrada de las partes de cada sección: título, texto e imagen escalonados al aparecer.

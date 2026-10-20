@@ -31,11 +31,13 @@ describe('póster de la ciudad', () => {
     }
   });
 
-  it('sitúa el estudio y el cartel del solar', () => {
+  it('sitúa el escaparate (con su rótulo), el estudio y el cartel del solar', () => {
     for (const encuadre of ['ancho', 'alto'] as const) {
       const ids = posiciones[encuadre].ventanas.map((v) => v.slug);
-      expect(ids).toContain('#sobre-mi');
-      expect(ids).toContain('#contacto');
+      expect(ids).toEqual(expect.arrayContaining(['#apps', '#sobre-mi', '#contacto']));
+      const escaparate = posiciones[encuadre].ventanas.find((v) => v.slug === '#apps') as { y: number; ry?: number };
+      // El rótulo va encima del toldo, por encima del cristal
+      expect(escaparate.ry).toBeLessThan(escaparate.y);
     }
   });
 });

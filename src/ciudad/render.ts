@@ -12,6 +12,8 @@ interface Calidad {
   filas: number;
   /** Resolución del bloom respecto al lienzo; 0 = sin bloom (halos de sprite). */
   bloom: number;
+  /** Radio del bloom: a media resolución se extiende más por la pantalla, así que va más corto. */
+  radio: number;
   /** Densidad de píxeles máxima. */
   dpr: number;
   /** Muestras de antialiasing (MSAA) del render intermedio. */
@@ -19,18 +21,21 @@ interface Calidad {
 }
 
 export const NIVELES: Record<NivelVivo, Calidad> = {
-  alto: { filas: 5, bloom: 1, dpr: 2, muestras: 4 },
-  medio: { filas: 3, bloom: 0.5, dpr: 1.5, muestras: 0 },
-  bajo: { filas: 3, bloom: 0, dpr: 1, muestras: 0 },
+  alto: { filas: 5, bloom: 1, radio: 0.4, dpr: 2, muestras: 4 },
+  medio: { filas: 3, bloom: 0.5, radio: 0.15, dpr: 1.5, muestras: 0 },
+  bajo: { filas: 3, bloom: 0, radio: 0, dpr: 1, muestras: 0 },
 };
 
 /** Umbral alto: solo brillan los ventanales y la luna, no las ventanas decorativas. */
-const BLOOM = { fuerza: 0.9, radio: 0.4, umbral: 0.32 } as const;
+const BLOOM = { fuerza: 0.9, umbral: 0.32 } as const;
 
 /** Bloom a una fracción de la resolución del lienzo. */
 class BloomEscalado extends UnrealBloomPass {
-  constructor(private readonly escala: number) {
-    super(new Vector2(1, 1), BLOOM.fuerza, BLOOM.radio, BLOOM.umbral);
+  constructor(
+    private readonly escala: number,
+    radio: number,
+  ) {
+    super(new Vector2(1, 1), BLOOM.fuerza, radio, BLOOM.umbral);
   }
 
   override setSize(ancho: number, alto: number): void {
@@ -73,7 +78,7 @@ export class Pintor {
       const composer = new EffectComposer(this.renderer, destino);
       composer.setPixelRatio(dpr);
       composer.addPass(new RenderPass(this.escena, this.camara));
-      this.bloom = new BloomEscalado(this.calidad.bloom);
+      this.bloom = new BloomEscalado(this.calidad.bloom, this.calidad.radio);
       composer.addPass(this.bloom);
       composer.addPass(new OutputPass());
       this.composer = composer;

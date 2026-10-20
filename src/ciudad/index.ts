@@ -4,13 +4,13 @@
 import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } from 'three';
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
-import { crearEdificios, crearObras, crearSolar } from './edificios';
+import { crearCalle, crearEdificios, crearObras, crearSolar } from './edificios';
 import { crearEscena, texturaHalo } from './escena';
 import { Pintor, NIVELES } from './render';
 import { MedidorFps, detectarNivel, nivelInferior, type Nivel, type NivelVivo } from './rendimiento';
 import { SEMILLA } from './semilla';
 import { trazarCiudad, type Encuadre } from './trazado';
-import { crearEstudio, crearHuecos, crearVentanales, type DatosVentana, type Objetivo } from './ventanas';
+import { crearEscaparate, crearEstudio, crearHuecos, crearVentanales, type DatosVentana, type Objetivo } from './ventanas';
 
 export type { DatosVentana } from './ventanas';
 export type { Nivel } from './rendimiento';
@@ -31,8 +31,8 @@ export interface OpcionesCiudad {
   /** Con apagón, el único ventanal que sigue encendido (imágenes Open Graph). */
   encendida?: string;
   /**
-   * El puntero entra o sale de algo señalable: un ventanal (su slug), el estudio (`#sobre-mi`)
-   * o el solar (`#contacto`).
+   * El puntero entra o sale de algo señalable: un ventanal (su slug), el escaparate (`#apps`),
+   * el estudio (`#sobre-mi`) o el solar (`#contacto`).
    */
   alPasar?: (id: string | null) => void;
   /** Clic o toque sobre algo señalable (mismos ids que `alPasar`). */
@@ -49,18 +49,18 @@ export interface Ciudad {
   readonly nivel: Nivel;
   /** Se resuelve cuando han cargado las capturas de los ventanales. */
   readonly listo: Promise<void>;
-  /** Ilumina un ventanal, el estudio o el solar (hover o foco en HTML), o nada con `null`. */
+  /** Ilumina un ventanal, el escaparate, el estudio o el solar (hover o foco en HTML), o nada con `null`. */
   resaltar(id: string | null): void;
-  /** Descenso a la calle con el scroll (0 arriba del todo, 1 con el hero ya fuera). */
-  descender(p: number): void;
-  /** Vuela hasta el ventanal; se resuelve con la cámara pegada a él. */
-  volarA(slug: string): Promise<void>;
-  /** Arranca pegada al ventanal y vuelve al reposo. */
-  volverDe(slug: string): Promise<void>;
-  /** Deja la cámara pegada al ventanal, como al final de `volarA`, o a una fracción del vuelo. */
-  situarEn(slug: string, progreso?: number): void;
-  /** Centro de un ventanal, el estudio o el cartel del solar en píxeles CSS, relativo al canvas. */
-  enPantalla(id: string): { x: number; y: number } | null;
+  /** Vuela hasta un objetivo (mismos ids que `alPasar`); se resuelve con la cámara pegada a él. */
+  volarA(id: string): Promise<void>;
+  /** Arranca pegada al objetivo y vuelve al reposo. */
+  volverDe(id: string): Promise<void>;
+  /** Deja la cámara pegada al objetivo, como al final de `volarA`, o a una fracción del vuelo. */
+  situarEn(id: string, progreso?: number): void;
+  /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
+  enPantalla(id: string, punto?: 'centro' | 'rotulo'): { x: number; y: number } | null;
+  /** Tamaño en pantalla de un objetivo (alto, en píxeles CSS): el destello se recoge hasta él. */
+  altoEnPantalla(id: string): number | null;
   reducido(activo: boolean): void;
   destruir(): void;
 }
@@ -81,16 +81,18 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   );
   await ceder();
   const halo = texturaHalo();
-  const { escena, fundir } = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
+  const escena = crearEscena(semilla, halo, { pocasEstrellas: nivel !== 'alto' });
   const edificios = crearEdificios(trazado);
+  const calle = crearCalle(trazado, halo);
   const huecos = crearHuecos(trazado);
   const ventanales = crearVentanales(trazado, datos, halo);
   const obras = crearObras(trazado);
   const solar = crearSolar(trazado);
   const estudio = crearEstudio(trazado, halo);
-  escena.add(edificios, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos);
+  const escaparate = crearEscaparate(trazado, datos, halo);
+  escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
   if (opciones.apagon) {
-    [huecos, obras, solar, estudio].forEach((parte) => parte.apagar());
+    [calle, huecos, obras, solar, estudio, escaparate].forEach((parte) => parte.apagar());
     ventanales.apagar(opciones.encendida);
   }
   await ceder();
@@ -124,10 +126,11 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   pintor.calentar();
   await ceder();
 
-  // --- Ventanales, estudio y solar: resaltar, buscar y tocar ------------------------------
-  const porSlug = new Map(ventanales.lista.map((v) => [v.datos.slug, v]));
-  const objetivos: Objetivo[] = [...ventanales.lista, estudio.objetivo, solar.objetivo];
+  // --- Ventanales, escaparate, estudio y solar: resaltar, buscar y tocar ----------------------
+  const objetivos: Objetivo[] = [...ventanales.lista, escaparate.objetivo, estudio.objetivo, solar.objetivo];
   const porId = new Map(objetivos.map((o) => [o.id, o]));
+  /** 0 lejos, 1 con la cámara a su distancia de llegada (misma cuenta que la captura de los ventanales). */
+  const cercania = (o: Objetivo) => Math.min(1, Math.max(0, (14 - camara.camara.position.distanceTo(o.posicion)) / 11.5));
   const toques = objetivos.map((o) => o.toque);
   let resaltado: Objetivo | null = null;
 
@@ -186,9 +189,6 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   let primerFrame = false;
   let capturas = false;
   let tiempo = 0;
-  // Descenso con el scroll: el objetivo llega del scroll y aquí se suaviza
-  let bajadaObjetivo = 0;
-  let bajada = 0;
   ventanales.listo.then(() => (capturas = true));
 
   const fotograma = (ahora: number) => {
@@ -211,18 +211,13 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       tiempo += dt;
       huecos.parpadear(dt);
     }
-    // Con movimiento reducido no hay descenso: el hero se va con el scroll, sin más
-    const meta = reducido ? 0 : bajadaObjetivo;
-    bajada = Math.abs(meta - bajada) < 0.0005 ? meta : bajada + (meta - bajada) * (1 - Math.exp(-dt * 10));
-    camara.descender(bajada);
-    // La niebla empieza a cerrarse a partir de un cuarto de bajada y lo cubre todo al final
-    const f = Math.min(1, Math.max(0, (bajada - 0.25) / 0.75));
-    fundir(f * f * (3 - 2 * f));
     camara.actualizar(!reducido);
     obras.actualizar(tiempo, !reducido);
     estudio.actualizar();
     solar.actualizar();
-    const revelado = ventanales.actualizar(camara.camara.position, tiempo);
+    escaparate.actualizar();
+    // Cerca de un ventanal (o del escaparate) el bloom se atenúa: lo que llena la pantalla no deslumbra
+    const revelado = Math.max(ventanales.actualizar(camara.camara.position, tiempo), cercania(escaparate.objetivo));
     pintor.atenuarBloom(1 - revelado);
     pintor.pintar();
 
@@ -272,10 +267,10 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   actualizarBucle();
 
   // --- API ---------------------------------------------------------------------------
-  const ventanal = (slug: string) => {
-    const v = porSlug.get(slug);
-    if (!v) throw new Error(`No hay ventana para «${slug}»`);
-    return v;
+  const objetivo = (id: string) => {
+    const o = porId.get(id);
+    if (!o) throw new Error(`No hay nada en la ciudad para «${id}»`);
+    return o;
   };
 
   return {
@@ -284,37 +279,40 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     },
     listo: ventanales.listo,
     resaltar: (id) => resaltar(id ? (porId.get(id) ?? null) : null),
-    descender: (p) => {
-      bajadaObjetivo = Math.min(1, Math.max(0, p));
-    },
-    volarA: (slug) => {
-      const v = ventanal(slug);
+    volarA: (id) => {
+      const o = objetivo(id);
       resaltado = null;
       canvas.style.cursor = '';
-      gsap.killTweensOf(v);
-      return reducido ? Promise.resolve() : camara.volarA(v);
+      gsap.killTweensOf(o);
+      return reducido ? Promise.resolve() : camara.volarA(o);
     },
-    volverDe: (slug) => {
-      const v = ventanal(slug);
-      gsap.killTweensOf(v);
+    volverDe: (id) => {
+      const o = objetivo(id);
+      gsap.killTweensOf(o);
       if (reducido) {
         camara.reposar();
-        v.brillo = 0;
+        o.brillo = 0;
         return Promise.resolve();
       }
-      return camara.volverDe(v);
+      return camara.volverDe(o);
     },
-    situarEn: (slug, progreso) => {
-      const v = ventanal(slug);
-      gsap.killTweensOf(v);
+    situarEn: (id, progreso) => {
+      const o = objetivo(id);
+      gsap.killTweensOf(o);
       resaltado = null;
-      camara.situar(v, progreso);
+      camara.situar(o, progreso);
     },
-    enPantalla: (id) => {
-      const v = porId.get(id);
-      if (!v) return null;
-      const p = v.posicion.clone().project(camara.camara);
+    enPantalla: (id, punto = 'centro') => {
+      const o = porId.get(id);
+      if (!o) return null;
+      const p = (punto === 'rotulo' && o.rotulo ? o.rotulo : o.posicion).clone().project(camara.camara);
       return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight };
+    },
+    altoEnPantalla: (id) => {
+      const o = porId.get(id);
+      if (!o) return null;
+      const d = Math.max(0.01, camara.camara.position.distanceTo(o.posicion));
+      return (o.tamano.alto / (2 * d * Math.tan(((camara.camara.fov / 2) * Math.PI) / 180))) * canvas.clientHeight;
     },
     reducido: (activo) => {
       reducido = activo;

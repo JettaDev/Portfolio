@@ -36,11 +36,16 @@ export const COLORES = {
   brote: '#7fe0a6',
   luna: '#f4f1e1',
   estrellas: '#e6eee4',
-  /** Fondo de la sección que sigue al hero: al bajar, la ciudad se funde con él. */
-  bosqueHondo: '#0a1d13',
+  /** Calle: acera, calzada y luz fría de las farolas (no compite con el caléndula). */
+  acera: '#0f2218',
+  calzada: '#08140e',
+  raya: '#1d3428',
+  farola: '#e9f1e6',
+  /** Interior en penumbra de la tienda, detrás de las franjas del escaparate. */
+  tienda: '#163324',
 } as const;
 
-const NIEBLA = { densidad: 0.0105, densidadFundida: 0.085 };
+const NIEBLA = { densidad: 0.0105 };
 
 /** Halo radial pintado en un canvas, sin archivos externos (compartido por luna y ventanales). */
 export function texturaHalo(): CanvasTexture {
@@ -70,8 +75,6 @@ function cupula(): Mesh {
       uniforms: {
         arriba: { value: new Color(COLORES.cielo) },
         abajo: { value: new Color(COLORES.horizonte) },
-        fondo: { value: new Color(COLORES.bosqueHondo) },
-        fundido: { value: 0 },
       },
       vertexShader: /* glsl */ `
         varying float vAltura;
@@ -82,12 +85,9 @@ function cupula(): Mesh {
       fragmentShader: /* glsl */ `
         uniform vec3 arriba;
         uniform vec3 abajo;
-        uniform vec3 fondo;
-        uniform float fundido;
         varying float vAltura;
         void main() {
-          vec3 cielo = mix(abajo, arriba, smoothstep(-0.02, 0.35, vAltura));
-          gl_FragColor = vec4(mix(cielo, fondo, fundido), 1.0);
+          gl_FragColor = vec4(mix(abajo, arriba, smoothstep(-0.02, 0.3, vAltura)), 1.0);
           #include <colorspace_fragment>
         }`,
     }),
@@ -113,30 +113,23 @@ function estrellas(cantidad: number, azar: () => number): Points {
 
 function luna(halo: CanvasTexture): Group {
   const grupo = new Group();
-  // Por encima de ~0,85 deslumbra con el bloom
+  // Por encima de ~0,7 deslumbra con el bloom (sobre todo en un móvil, donde ocupa más pantalla)
   const cuerpo = new Mesh(
-    new SphereGeometry(7, 32, 16),
-    new MeshBasicMaterial({ color: new Color(COLORES.luna).multiplyScalar(0.85), fog: false, toneMapped: false, transparent: true }),
+    new SphereGeometry(6, 32, 16),
+    new MeshBasicMaterial({ color: new Color(COLORES.luna).multiplyScalar(0.7), fog: false, toneMapped: false }),
   );
   const brillo = new Sprite(
-    new SpriteMaterial({ map: halo, color: '#cfe0d4', opacity: 0.12, transparent: true, depthWrite: false, fog: false, blending: AdditiveBlending }),
+    new SpriteMaterial({ map: halo, color: '#cfe0d4', opacity: 0.08, transparent: true, depthWrite: false, fog: false, blending: AdditiveBlending }),
   );
   brillo.scale.setScalar(70);
   grupo.add(brillo, cuerpo);
-  grupo.position.set(80, 118, -260);
+  // Un poco a la derecha y por encima del perfil de la ciudad: con la cámara casi en horizontal,
+  // también asoma en un móvil en vertical
+  grupo.position.set(30, 118, -260);
   return grupo;
 }
 
-export interface Atmosfera {
-  escena: Scene;
-  /**
-   * Funde la ciudad con el fondo de la sección siguiente (0 = noche, 1 = todo bosque-hondo):
-   * la niebla se espesa y el cielo, la luna y las estrellas se apagan.
-   */
-  fundir(f: number): void;
-}
-
-export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrellas = false } = {}): Atmosfera {
+export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrellas = false } = {}): Scene {
   const azar = aleatorio(semilla ^ 0x5eed);
   const escena = new Scene();
   const niebla = new FogExp2(COLORES.niebla, NIEBLA.densidad);
@@ -153,32 +146,9 @@ export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrell
   luzLuna.position.set(75, 80, -60);
   escena.add(luzLuna);
 
-  // Sin luz: así su color es exactamente el de la sección siguiente cuando se funde
+  // Sin luz: el suelo es un plano de color, la calle y las aceras van encima (edificios.ts)
   const suelo = new Mesh(new PlaneGeometry(1200, 1200), new MeshBasicMaterial({ color: COLORES.suelo }));
   suelo.rotation.x = -Math.PI / 2;
   escena.add(suelo);
-
-  const colores = {
-    niebla: new Color(COLORES.niebla),
-    suelo: new Color(COLORES.suelo),
-    cielo: new Color(COLORES.cielo),
-    fondo: new Color(COLORES.bosqueHondo),
-  };
-  const materialCielo = cielo.material as ShaderMaterial;
-  const materialEstrellas = puntos.material as PointsMaterial;
-  const [brilloLuna, cuerpoLuna] = astro.children as [Sprite, Mesh<SphereGeometry, MeshBasicMaterial>];
-  let ultimo = -1;
-  const fundir = (f: number) => {
-    if (f === ultimo) return;
-    ultimo = f;
-    niebla.color.lerpColors(colores.niebla, colores.fondo, f);
-    niebla.density = NIEBLA.densidad + (NIEBLA.densidadFundida - NIEBLA.densidad) * f ** 1.5;
-    (escena.background as Color).lerpColors(colores.cielo, colores.fondo, f);
-    (suelo.material as MeshBasicMaterial).color.lerpColors(colores.suelo, colores.fondo, f);
-    materialCielo.uniforms.fundido.value = f;
-    materialEstrellas.opacity = 0.8 * (1 - f);
-    brilloLuna.material.opacity = 0.12 * (1 - f);
-    cuerpoLuna.material.opacity = 1 - f;
-  };
-  return { escena, fundir };
+  return escena;
 }
