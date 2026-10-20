@@ -181,6 +181,27 @@ describe('páginas de la ciudad', () => {
   });
 });
 
+describe('paseo a pie de calle', () => {
+  test('el botón baja a la calle, las teclas andan y Esc vuelve con el foco en el botón', async () => {
+    const { ctx, page, errores } = await pagina();
+    await page.goto(url('/'), { waitUntil: 'load' });
+    await viva(page);
+    await page.click('[data-pasear]');
+    assert.ok(await page.evaluate(() => document.querySelector('[data-ciudad]').hasAttribute('data-paseo')));
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-salir')), true, 'el foco pasa a «Salir del paseo»');
+    await page.waitForTimeout(1600);
+    assert.equal(await page.isVisible('h1'), false, 'la portada se aparta');
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(500);
+    await page.keyboard.up('KeyW');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-pasear')), true, 'el foco vuelve al botón');
+    assert.equal(await page.isVisible('[data-paseo-mandos]'), false);
+    assert.deepEqual(errores, []);
+    await ctx.close();
+  });
+});
+
 describe('movimiento reducido', () => {
   test('sin vuelo: navega enseguida y vuelve al reposo', async () => {
     const { ctx, page } = await pagina({ ...ESCRITORIO, reducedMotion: 'reduce' });

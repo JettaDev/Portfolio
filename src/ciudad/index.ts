@@ -57,7 +57,12 @@ export interface Ciudad {
   volverDe(id: string): Promise<void>;
   /** Deja la cámara pegada al objetivo, como al final de `volarA`, o a una fracción del vuelo. */
   situarEn(id: string, progreso?: number): void;
-  /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
+  /** Baja a pasear a pie de calle en primera persona (o vuelve al reposo). Se resuelve al llegar. */
+  pasear(activo: boolean): Promise<void>;
+  readonly paseando: boolean;
+  /** Durante el paseo, lo que se pide andar (-1..1): adelante, a la derecha y girar a la derecha; `carrera`, más deprisa. */
+  andar(adelante: number, lado: number, carrera?: boolean, giro?: number): void;
+  /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas; null si queda detrás de la cámara. */
   enPantalla(id: string, punto?: 'centro' | 'rotulo'): { x: number; y: number } | null;
   reducido(activo: boolean): void;
   destruir(): void;
@@ -151,7 +156,15 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     return (rayo.intersectObjects(toques, false)[0]?.object.userData.objetivo as Objetivo) ?? null;
   };
 
+  // En el paseo, arrastrar (ratón o dedo) gira la mirada: un píxel es lo que ocupa en pantalla
+  let arrastre: { id: number; x: number; y: number } | null = null;
   const alMover = (e: PointerEvent) => {
+    if (arrastre?.id === e.pointerId) {
+      const radianes = ((camara.camara.fov * Math.PI) / 180 / Math.max(1, canvas.clientHeight)) * 1.1;
+      camara.girar((e.clientX - arrastre.x) * radianes, (e.clientY - arrastre.y) * radianes);
+      arrastre.x = e.clientX;
+      arrastre.y = e.clientY;
+    }
     if (e.pointerType !== 'mouse' || !camara.enReposo) return; // en táctil no hay hover
     const r = canvas.getBoundingClientRect();
     camara.apuntar(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
@@ -169,8 +182,18 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   };
   // Clic o toque: solo si el puntero apenas se ha movido (no es un arrastre)
   let pulsadoEn: { x: number; y: number } | null = null;
-  const alPulsar = (e: PointerEvent) => (pulsadoEn = { x: e.clientX, y: e.clientY });
+  const alPulsar = (e: PointerEvent) => {
+    pulsadoEn = { x: e.clientX, y: e.clientY };
+    if (camara.paseando && camara.enReposo && e.isPrimary) {
+      arrastre = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      canvas.setPointerCapture(e.pointerId);
+    }
+  };
+  const alCancelar = (e: PointerEvent) => {
+    if (arrastre?.id === e.pointerId) arrastre = null;
+  };
   const alSoltar = (e: PointerEvent) => {
+    alCancelar(e);
     if (!pulsadoEn || !camara.enReposo || Math.hypot(e.clientX - pulsadoEn.x, e.clientY - pulsadoEn.y) > 10) return;
     pulsadoEn = null;
     const v = buscar(e);
@@ -180,6 +203,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   canvas.addEventListener('pointerleave', alSalir);
   canvas.addEventListener('pointerdown', alPulsar);
   canvas.addEventListener('pointerup', alSoltar);
+  canvas.addEventListener('pointercancel', alCancelar);
 
   // --- Bucle, pausa y medición ----------------------------------------------------------
   const medidor = new MedidorFps();
@@ -211,7 +235,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       tiempo += dt;
       huecos.parpadear(dt);
     }
-    camara.actualizar(!reducido);
+    camara.actualizar(!reducido, dt);
     obras.actualizar(tiempo, !reducido);
     estudio.actualizar();
     solar.actualizar();
@@ -302,10 +326,22 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       resaltado = null;
       camara.situar(o, progreso);
     },
+    pasear: (activo) => {
+      if (activo === camara.paseando) return Promise.resolve();
+      resaltar(null);
+      opciones.alPasar?.(null);
+      arrastre = null;
+      return camara.pasear(activo, !reducido);
+    },
+    get paseando() {
+      return camara.paseando;
+    },
+    andar: (adelante, lado, carrera, giro) => camara.andar(adelante, lado, carrera, giro),
     enPantalla: (id, punto = 'centro') => {
       const o = porId.get(id);
       if (!o) return null;
       const p = (punto === 'rotulo' && o.rotulo ? o.rotulo : o.posicion).clone().project(camara.camara);
+      if (p.z > 1) return null;
       return { x: (p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-p.y * 0.5 + 0.5) * canvas.clientHeight };
     },
     reducido: (activo) => {
@@ -319,6 +355,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       canvas.removeEventListener('pointerleave', alSalir);
       canvas.removeEventListener('pointerdown', alPulsar);
       canvas.removeEventListener('pointerup', alSoltar);
+      canvas.removeEventListener('pointercancel', alCancelar);
       canvas.removeEventListener('webglcontextlost', alPerderContexto);
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
       removeEventListener('pagehide', alOcultarPagina);
