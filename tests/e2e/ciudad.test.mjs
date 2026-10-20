@@ -181,23 +181,31 @@ describe('páginas de la ciudad', () => {
   });
 });
 
-describe('paseo a pie de calle', () => {
-  test('el botón baja a la calle, las teclas andan y Esc vuelve con el foco en el botón', async () => {
+describe('la ciudad como juego', () => {
+  test('desde la portada se llega al juego, se juega, se pausa con Esc y se sigue', async () => {
     const { ctx, page, errores } = await pagina();
     await page.goto(url('/'), { waitUntil: 'load' });
-    await viva(page);
-    await page.click('[data-pasear]');
-    assert.ok(await page.evaluate(() => document.querySelector('[data-ciudad]').hasAttribute('data-paseo')));
-    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-salir')), true, 'el foco pasa a «Salir del paseo»');
-    await page.waitForTimeout(1600);
-    assert.equal(await page.isVisible('h1'), false, 'la portada se aparta');
+    await page.click('.explorar');
+    await page.waitForURL('**/explora/**');
+    await page.waitForSelector('[data-jugar]:not([disabled])', { timeout: 30_000 });
+    await page.click('[data-jugar]');
+    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'jugando');
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(400);
     await page.keyboard.up('KeyW');
     await page.keyboard.press('Escape');
-    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-pasear')), true, 'el foco vuelve al botón');
-    assert.equal(await page.isVisible('[data-paseo-mandos]'), false);
+    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'pausa');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-jugar')), true, 'el foco va a «Seguir jugando»');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'jugando');
     assert.deepEqual(errores, []);
+    await ctx.close();
+  });
+
+  test('en inglés tiene su ruta traducida', async () => {
+    const { ctx, page } = await pagina();
+    await page.goto(url('/en/explore/'), { waitUntil: 'load' });
+    assert.equal(await page.textContent('h1'), 'JettaDev’s city');
     await ctx.close();
   });
 });

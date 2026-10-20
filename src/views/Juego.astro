@@ -1,0 +1,603 @@
+---
+// «La ciudad» como juego: el barrio de JettaDev en tercera persona. El motor 3D (src/juego) se
+// carga diferido; aquí va todo lo que es HTML: la pantalla de inicio, el HUD, la pausa, los
+// controles táctiles y la demo de cada app en grande.
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import Base from '../layouts/Base.astro';
+import BrowserFrame from '../components/BrowserFrame.astro';
+import { getApps } from '../lib/apps';
+import { getCiudad } from '../lib/ciudad';
+import { getLang, useT, localePath, pagePath } from '../i18n/utils';
+
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const ventanas = await getCiudad(lang);
+const fichas = new Map((await getApps(lang)).map((a) => [a.slug, a.data]));
+const apps = ventanas.map((v) => {
+  const d = fichas.get(v.slug)!;
+  return {
+    slug: v.slug,
+    title: v.title,
+    hue: v.hue,
+    href: v.href,
+    cover: { src: v.cover.src },
+    demo: d.demo ?? null,
+    domain: d.domain,
+    tagline: d.tagline,
+    stack: d.stack,
+    estado: t(`status.${d.status}`).replace('{year}', String(d.year)),
+    status: d.status,
+  };
+});
+const sitios = { '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
+// Modelo propio del personaje (hecho en Blender): si existe, se usa en vez del muñeco
+const modelo = existsSync(join(process.cwd(), 'public/juego/personaje.glb')) ? '/juego/personaje.glb' : null;
+const textos = {
+  enter: t('juego.enter'),
+  studio: t('juego.studio'),
+  solar: t('juego.solar'),
+  demo: t('juego.demo'),
+  noDemo: t('juego.noDemo'),
+  details: t('juego.details'),
+  leave: t('juego.leave'),
+  demoFrame: t('juego.demoFrame'),
+  signStudio: t('juego.signStudio'),
+  signSolar: t('ciudad.solar'),
+};
+const controles = [
+  [t('juego.walk'), t('juego.walkKeys')],
+  [t('juego.run'), t('juego.runKeys')],
+  [t('juego.jump'), t('juego.jumpKeys')],
+  [t('juego.use'), t('juego.useKeys')],
+  [t('juego.look'), t('juego.lookKeys')],
+  [t('juego.zoom'), t('juego.zoomKeys')],
+  [t('juego.pause'), t('juego.pauseKeys')],
+];
+const tactiles = [t('juego.touchWalk'), t('juego.touchLook'), t('juego.touchButtons')];
+const inicio = localePath(lang, '/');
+---
+
+<Base title={t('juego.title')} description={t('juego.description')} pantallaCompleta sinCabecera>
+  <section class="juego fixed inset-0 overflow-hidden bg-bosque-hondo select-none" aria-labelledby="juego-titulo" data-juego data-estado="cargando">
+    <canvas class="absolute inset-0 block size-full touch-none" aria-hidden="true" data-lienzo></canvas>
+
+    <!-- Zonas táctiles: la izquierda es el mando de andar, la derecha mira -->
+    <div class="tactil absolute inset-0" aria-hidden="true" data-tactil>
+      <div class="absolute inset-y-0 left-0 w-1/2" data-zona="andar"></div>
+      <div class="absolute inset-y-0 right-0 w-1/2" data-zona="mirar"></div>
+      <div class="mando absolute rounded-full bg-musgo/80" data-mando><span class="pomo absolute top-1/2 left-1/2 rounded-full bg-liquen/85" data-pomo></span></div>
+    </div>
+
+    <!-- HUD de arriba: salir, pausa, sonido y el minimapa -->
+    <div class="hud absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-5" data-hud>
+      <div class="flex flex-wrap gap-2">
+        <a href={inicio} class="boton boton-secundario min-h-11 px-4 py-2 text-sm" data-salir>{t('juego.exit')}</a>
+        <button type="button" class="boton boton-secundario min-h-11 px-4 py-2 text-sm" data-boton-pausa>{t('juego.pauseButton')}</button>
+      </div>
+      <div class="flex flex-col items-end gap-2">
+        <button type="button" class="boton boton-secundario min-h-11 gap-2 px-4 py-2 text-sm" aria-pressed="true" data-sonido>
+          <span class="punto size-2 rounded-full" aria-hidden="true"></span>{t('juego.sound')}
+        </button>
+        <canvas class="mapa rounded-ventana" width="180" height="180" role="img" aria-label={t('juego.map')} data-mapa></canvas>
+      </div>
+    </div>
+
+    <!-- La sala de una app: su ficha corta -->
+    <aside class="ficha absolute top-20 left-3 max-w-[22rem] rounded-ventana bg-bosque-hondo/90 p-5 sm:top-24 sm:left-5" aria-live="polite" data-ficha hidden>
+      <h2 class="text-2xl leading-tight font-bold tracking-[-0.02em]" data-ficha-titulo></h2>
+      <p class="mt-2 text-liquen" data-ficha-tagline></p>
+      <p class="mt-3 flex items-center gap-2 text-sm text-helecho"><span class="size-2 rounded-full bg-(--hue)" aria-hidden="true"></span><span data-ficha-estado></span></p>
+      <ul class="mt-3 flex flex-wrap gap-1.5 text-sm" data-ficha-stack></ul>
+      <a class="mt-4 inline-block font-semibold text-brote underline-offset-4 hover:underline" data-ficha-enlace></a>
+    </aside>
+
+    <!-- Lo que se puede hacer aquí: «E · Entrar en…» (en táctil, el botón de acción) -->
+    <p class="aviso absolute inset-x-0 bottom-8 mx-auto flex w-max max-w-[calc(100%-2rem)] items-center gap-3 rounded-full bg-bosque-hondo/90 py-2 pr-5 pl-2 font-semibold" aria-live="polite" data-aviso hidden>
+      <kbd class="tecla grid size-8 place-items-center rounded-full bg-calendula text-bosque-hondo">E</kbd><span data-aviso-texto></span>
+    </p>
+    <div class="botones absolute right-4 bottom-6 flex flex-col items-end gap-3" data-botones>
+      <button type="button" class="boton boton-principal min-h-14 px-6" data-boton-accion hidden>{t('juego.action')}</button>
+      <button type="button" class="boton boton-secundario size-18 rounded-full p-0" data-boton-saltar>{t('juego.jump')}</button>
+    </div>
+
+    <!-- Fundido al entrar y salir de los edificios -->
+    <div class="fundido pointer-events-none absolute inset-0 bg-bosque-hondo" aria-hidden="true" data-fundido></div>
+
+    <!-- Pantalla de inicio (y de pausa) -->
+    <div class="portada absolute inset-0 flex items-end p-3 sm:items-center sm:p-10" data-portada>
+      <div class="panel w-full max-w-[30rem] rounded-ventana bg-bosque-hondo/92 p-6 sm:p-8">
+        <h1 id="juego-titulo" class="text-[clamp(1.9rem,4vw,2.75rem)] leading-[1.02] font-bold tracking-[-0.03em] text-balance" data-titulo-inicio>{t('juego.title')}</h1>
+        <h2 class="hidden text-[clamp(1.9rem,4vw,2.75rem)] leading-[1.02] font-bold tracking-[-0.03em]" data-titulo-pausa>{t('juego.pause')}</h2>
+        <p class="mt-3 text-lg text-liquen" data-lead>{t('juego.lead')}</p>
+
+        <h2 class="mt-6 text-sm font-semibold text-helecho">{t('juego.controls')}</h2>
+        <dl class="controles mt-2 grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 text-[0.9375rem]">
+          {controles.map(([accion, teclas]) => (
+            <>
+              <dt class="text-helecho">{accion}</dt>
+              <dd class="font-semibold">{teclas}</dd>
+            </>
+          ))}
+        </dl>
+        <ul class="tactiles mt-2 space-y-1.5 text-[0.9375rem]">
+          {tactiles.map((x) => <li>{x}</li>)}
+        </ul>
+        <p class="mt-4 text-sm text-helecho">{t('juego.soundNote')}</p>
+
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+          <button type="button" class="boton boton-principal min-h-12 min-w-36" disabled data-jugar data-texto={t('juego.play')} data-seguir={t('juego.resume')}>{t('juego.loading')}</button>
+          <a href={inicio} class="boton boton-secundario min-h-12">{t('juego.exit')}</a>
+        </div>
+        <p class="mt-4 hidden text-calendula" role="alert" data-sin-webgl>{t('juego.noWebgl')}</p>
+      </div>
+    </div>
+
+    <!-- La demo de una app en la pantalla grande -->
+    <dialog class="demo m-auto h-[min(90dvh,60rem)] w-[min(94vw,90rem)] max-w-none bg-transparent p-0 text-liquen backdrop:bg-bosque-hondo/80" data-demo>
+      <BrowserFrame domain="" class="flex h-full flex-col" marco>
+        <button slot="acciones" type="button" class="boton boton-secundario min-h-9 px-3 py-1 text-sm" data-cerrar-demo>{t('juego.closeDemo')}</button>
+        <iframe class="block h-[calc(min(90dvh,60rem)-4.5rem)] w-full bg-bosque-hondo" title="" data-demo-marco></iframe>
+      </BrowserFrame>
+    </dialog>
+
+    <script type="application/json" data-datos-juego set:html={JSON.stringify({ apps, sitios, modelo, textos })} />
+  </section>
+</Base>
+
+<style>
+  .juego {
+    container-type: size;
+  }
+  .fundido {
+    opacity: 0;
+    transition: opacity 0.28s var(--ease-salida);
+  }
+  .fundido[data-activo] {
+    opacity: 1;
+  }
+
+  /* El HUD y los controles solo se ven jugando; la portada, solo sin jugar */
+  .hud,
+  .botones,
+  .tactil,
+  .aviso,
+  .ficha {
+    transition: opacity 0.3s var(--ease-salida);
+  }
+  [data-juego]:not([data-estado='jugando']) :is(.hud, .botones, .tactil, .aviso, .ficha) {
+    opacity: 0;
+    visibility: hidden;
+  }
+  [data-estado='jugando'] .portada {
+    display: none;
+  }
+
+  .mapa {
+    width: 9rem;
+    height: 9rem;
+  }
+  [data-en-sala] .mapa {
+    display: none;
+  }
+
+  /* Táctil: mando, botones y su lista de controles; con ratón, la lista de teclas */
+  .tactil,
+  .botones,
+  .tactiles {
+    display: none;
+  }
+  @media (pointer: coarse) {
+    .tactil,
+    .tactiles {
+      display: block;
+    }
+    .botones {
+      display: flex;
+    }
+    .controles,
+    .aviso .tecla {
+      display: none;
+    }
+    .aviso {
+      bottom: auto;
+      top: 50%;
+      padding-left: 1.25rem;
+      pointer-events: none;
+    }
+    .mapa {
+      width: 6.5rem;
+      height: 6.5rem;
+    }
+  }
+  .mando {
+    width: 8rem;
+    height: 8rem;
+    translate: -50% -50%;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .mando[data-activo] {
+    opacity: 1;
+  }
+  .pomo {
+    width: 3.25rem;
+    height: 3.25rem;
+    translate: -50% -50%;
+  }
+
+  .punto {
+    background: var(--color-helecho);
+  }
+  [aria-pressed='true'] .punto {
+    background: var(--color-brote);
+  }
+
+  /* Al entrar en una sala, su ficha aparece desde la izquierda */
+  .ficha:not([hidden]) {
+    animation: entra-ficha 0.5s var(--ease-salida) both;
+  }
+  @keyframes entra-ficha {
+    from {
+      opacity: 0;
+      translate: -1.5rem 0;
+    }
+  }
+  .aviso:not([hidden]) {
+    animation: entra-aviso 0.25s var(--ease-salida) both;
+  }
+  @keyframes entra-aviso {
+    from {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
+
+  /* Pantalla de pausa: otro título, sin entradilla */
+  [data-estado='pausa'] [data-titulo-inicio],
+  [data-estado='pausa'] [data-lead] {
+    display: none;
+  }
+  [data-estado='pausa'] [data-titulo-pausa] {
+    display: block;
+  }
+
+  .demo::backdrop {
+    background: color-mix(in oklab, var(--color-bosque-hondo) 80%, transparent);
+  }
+</style>
+
+<script>
+  import { detectarNivel } from '../ciudad/rendimiento';
+  import type { Cerca, DatosApp, Juego } from '../juego';
+
+  type App = DatosApp & { href: string; demo: string | null; domain: string; tagline: string; stack: string[]; estado: string };
+  type Datos = { apps: App[]; sitios: Record<string, string>; modelo: string | null; textos: Record<string, string> };
+
+  const raiz = document.querySelector<HTMLElement>('[data-juego]');
+  if (raiz) iniciar(raiz);
+
+  function iniciar(raiz: HTMLElement) {
+    const $ = <T extends HTMLElement>(s: string) => raiz.querySelector<T>(s)!;
+    const lienzo = $<HTMLCanvasElement>('[data-lienzo]');
+    const jugarBoton = $<HTMLButtonElement>('[data-jugar]');
+    const pausaBoton = $<HTMLButtonElement>('[data-boton-pausa]');
+    const sonidoBoton = $<HTMLButtonElement>('[data-sonido]');
+    const aviso = $('[data-aviso]');
+    const avisoTexto = $('[data-aviso-texto]');
+    const accionBoton = $<HTMLButtonElement>('[data-boton-accion]');
+    const saltarBoton = $<HTMLButtonElement>('[data-boton-saltar]');
+    const fundido = $('[data-fundido]');
+    const ficha = $('[data-ficha]');
+    const demo = $<HTMLDialogElement>('[data-demo]');
+    const demoMarco = $<HTMLIFrameElement>('[data-demo-marco]');
+    const mando = $('[data-mando]');
+    const pomo = $('[data-pomo]');
+    const datos: Datos = JSON.parse($('[data-datos-juego]').textContent!);
+    const { apps, sitios, textos } = datos;
+    const porSlug = new Map(apps.map((a) => [a.slug, a]));
+    const tactil = matchMedia('(pointer: coarse)').matches;
+
+    // --- Sonido: se recuerda la elección -------------------------------------------------
+    const leer = (k: string) => {
+      try {
+        return localStorage.getItem(k);
+      } catch {
+        return null;
+      }
+    };
+    const guardar = (k: string, v: string) => {
+      try {
+        localStorage.setItem(k, v);
+      } catch {}
+    };
+    let silenciado = leer('juego:silencio') === '1';
+    sonidoBoton.setAttribute('aria-pressed', String(!silenciado));
+
+    let juego: Juego | null = null;
+    const estado = (e: 'cargando' | 'listo' | 'jugando' | 'pausa') => (raiz.dataset.estado = e);
+    const jugando = () => raiz.dataset.estado === 'jugando';
+
+    const silenciar = (si: boolean) => {
+      silenciado = si;
+      sonidoBoton.setAttribute('aria-pressed', String(!si));
+      guardar('juego:silencio', si ? '1' : '0');
+      juego?.silenciar(si);
+    };
+    sonidoBoton.addEventListener('click', () => silenciar(!silenciado));
+
+    // --- Jugar, pausa y ratón capturado --------------------------------------------------
+    const capturarRaton = () => {
+      if (tactil || !lienzo.requestPointerLock) return;
+      try {
+        const r = lienzo.requestPointerLock() as unknown as Promise<void> | undefined;
+        r?.catch?.(() => {});
+      } catch {}
+    };
+    /** Al soltar el ratón a propósito (demo, cambio de página) no se pausa. */
+    let soltandoAdrede = false;
+    const soltarRaton = () => {
+      if (document.pointerLockElement) {
+        soltandoAdrede = true;
+        document.exitPointerLock();
+      }
+    };
+
+    const jugar = () => {
+      if (!juego) return;
+      estado('jugando');
+      juego.jugar();
+      capturarRaton();
+      (document.activeElement as HTMLElement | null)?.blur();
+    };
+    const pausar = () => {
+      if (!jugando()) return;
+      estado('pausa');
+      juego?.pausar();
+      soltarRaton();
+      soltarMando();
+      jugarBoton.textContent = jugarBoton.dataset.seguir!;
+      jugarBoton.focus({ preventScroll: true });
+    };
+    jugarBoton.addEventListener('click', jugar);
+    pausaBoton.addEventListener('click', pausar);
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement) return;
+      if (soltandoAdrede) soltandoAdrede = false;
+      else pausar(); // Esc (el navegador suelta el ratón y no deja ver la tecla)
+    });
+    // Sin ratón capturado, un clic en la ciudad lo captura otra vez
+    lienzo.addEventListener('click', () => jugando() && !document.pointerLockElement && capturarRaton());
+    addEventListener('blur', () => juego?.mover(0, 0));
+    // Volviendo con Atrás desde una ficha: la partida espera en pausa
+    addEventListener('pageshow', (e) => {
+      if (!e.persisted) return;
+      fundido.removeAttribute('data-activo');
+      if (raiz.dataset.estado === 'jugando') {
+        raiz.dataset.estado = 'jugando';
+        pausar();
+      }
+    });
+
+    // --- Teclado -------------------------------------------------------------------------
+    const teclas = new Set<string>();
+    const ANDAR = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+    const hay = (...c: string[]) => (c.some((k) => teclas.has(k)) ? 1 : 0);
+    const moverConTeclas = () => {
+      juego?.mover(hay('KeyW', 'ArrowUp') - hay('KeyS', 'ArrowDown'), hay('KeyD', 'ArrowRight') - hay('KeyA', 'ArrowLeft'));
+      juego?.correr(hay('ShiftLeft', 'ShiftRight') === 1);
+    };
+    addEventListener('keydown', (e) => {
+      if (demo.open || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.code === 'KeyM') return silenciar(!silenciado);
+      if (!jugando()) return;
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        e.preventDefault();
+        return pausar();
+      }
+      if (ANDAR.has(e.code) || e.code.startsWith('Shift')) {
+        e.preventDefault();
+        teclas.add(e.code);
+        moverConTeclas();
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        if (!e.repeat) juego?.saltar();
+      } else if ((e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        juego?.accion();
+      }
+    });
+    addEventListener('keyup', (e) => {
+      if (teclas.delete(e.code)) moverConTeclas();
+    });
+    addEventListener('blur', () => {
+      teclas.clear();
+      moverConTeclas();
+    });
+
+    // --- Ratón: capturado mueve la cámara; sin capturar, arrastrar -----------------------
+    let arrastre: { x: number; y: number } | null = null;
+    addEventListener('mousemove', (e) => {
+      if (!jugando()) return;
+      if (document.pointerLockElement === lienzo) juego?.girarCamara(e.movementX, e.movementY);
+      else if (arrastre) {
+        juego?.girarCamara(e.clientX - arrastre.x, e.clientY - arrastre.y);
+        arrastre = { x: e.clientX, y: e.clientY };
+      }
+    });
+    lienzo.addEventListener('mousedown', (e) => (arrastre = { x: e.clientX, y: e.clientY }));
+    addEventListener('mouseup', () => (arrastre = null));
+    lienzo.addEventListener('wheel', (e) => (e.preventDefault(), juego?.acercar(e.deltaY)), { passive: false });
+
+    // --- Táctil: mando a la izquierda, mirar a la derecha y botones -----------------------
+    let dedoAndar: { id: number; x: number; y: number } | null = null;
+    let dedoMirar: { id: number; x: number; y: number } | null = null;
+    const soltarMando = () => {
+      dedoAndar = null;
+      delete mando.dataset.activo;
+      pomo.style.translate = '';
+      juego?.mover(0, 0);
+      juego?.correr(false);
+    };
+    const zonaAndar = $('[data-zona="andar"]');
+    const zonaMirar = $('[data-zona="mirar"]');
+    zonaAndar.addEventListener('pointerdown', (e) => {
+      if (dedoAndar) return;
+      zonaAndar.setPointerCapture(e.pointerId);
+      dedoAndar = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      mando.style.left = `${e.clientX}px`;
+      mando.style.top = `${e.clientY}px`;
+      mando.dataset.activo = '';
+    });
+    zonaAndar.addEventListener('pointermove', (e) => {
+      if (dedoAndar?.id !== e.pointerId) return;
+      const radio = mando.clientWidth / 2;
+      let dx = e.clientX - dedoAndar.x;
+      let dy = e.clientY - dedoAndar.y;
+      const d = Math.hypot(dx, dy);
+      if (d > radio) [dx, dy] = [(dx / d) * radio, (dy / d) * radio];
+      pomo.style.translate = `calc(-50% + ${dx.toFixed(1)}px) calc(-50% + ${dy.toFixed(1)}px)`;
+      juego?.mover(-dy / radio, dx / radio);
+      // Al fondo del mando se corre
+      juego?.correr(d > radio * 1.15);
+    });
+    for (const fin of ['pointerup', 'pointercancel'] as const) {
+      zonaAndar.addEventListener(fin, (e) => dedoAndar?.id === e.pointerId && soltarMando());
+      zonaMirar.addEventListener(fin, (e) => dedoMirar?.id === e.pointerId && (dedoMirar = null));
+    }
+    zonaMirar.addEventListener('pointerdown', (e) => {
+      zonaMirar.setPointerCapture(e.pointerId);
+      dedoMirar = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    });
+    zonaMirar.addEventListener('pointermove', (e) => {
+      if (dedoMirar?.id !== e.pointerId) return;
+      juego?.girarCamara((e.clientX - dedoMirar.x) * 1.5, (e.clientY - dedoMirar.y) * 1.5);
+      dedoMirar.x = e.clientX;
+      dedoMirar.y = e.clientY;
+    });
+    saltarBoton.addEventListener('pointerdown', (e) => (e.preventDefault(), juego?.saltar()));
+    accionBoton.addEventListener('click', () => juego?.accion());
+
+    // --- Avisos, ficha de la sala y demo --------------------------------------------------
+    const conTitulo = (plantilla: string, slug: string) => plantilla.replace('{title}', porSlug.get(slug)?.title ?? '');
+    const alCerca = (c: Cerca | null) => {
+      aviso.hidden = !c;
+      accionBoton.hidden = !c;
+      if (!c) return;
+      const app = porSlug.get(c.id);
+      const texto =
+        c.accion === 'entrar'
+          ? conTitulo(textos.enter, c.id)
+          : c.accion === 'visitar'
+            ? c.id === '#sobre-mi'
+              ? textos.studio
+              : textos.solar
+            : c.accion === 'demo'
+              ? conTitulo(app?.demo ? textos.demo : textos.noDemo, c.id)
+              : c.accion === 'ficha'
+                ? conTitulo(textos.details, c.id)
+                : textos.leave;
+      avisoTexto.textContent = texto;
+      accionBoton.textContent = texto;
+    };
+
+    const alSala = (slug: string | null) => {
+      raiz.toggleAttribute('data-en-sala', !!slug);
+      ficha.hidden = !slug;
+      const app = slug ? porSlug.get(slug) : null;
+      if (!app) return;
+      ficha.style.setProperty('--hue', app.hue);
+      $('[data-ficha-titulo]').textContent = app.title;
+      $('[data-ficha-tagline]').textContent = app.tagline;
+      $('[data-ficha-estado]').textContent = app.estado;
+      const stack = $('[data-ficha-stack]');
+      stack.replaceChildren(
+        ...app.stack.map((s) => Object.assign(document.createElement('li'), { textContent: s, className: 'rounded-md bg-musgo px-2 py-0.5' })),
+      );
+      const enlace = $<HTMLAnchorElement>('[data-ficha-enlace]');
+      enlace.href = app.href;
+      enlace.textContent = conTitulo(textos.details, slug!);
+    };
+
+    const navegar = (id: string) => {
+      const destino = porSlug.get(id)?.href ?? sitios[id];
+      if (!destino) return;
+      soltarRaton();
+      fundido.dataset.activo = '';
+      setTimeout(() => (location.href = destino), 300);
+    };
+
+    const abrirDemo = (slug: string) => {
+      const app = porSlug.get(slug);
+      if (!app) return;
+      if (!app.demo) return navegar(slug);
+      soltarRaton();
+      juego?.pausar();
+      teclas.clear();
+      demo.querySelector<HTMLElement>('[data-dominio], .truncate')!.textContent = app.domain;
+      demo.style.setProperty('--hue', app.hue);
+      demo.querySelector<HTMLElement>('[style*="--hue"]')?.style.setProperty('--hue', app.hue);
+      demoMarco.title = conTitulo(textos.demoFrame, slug);
+      demoMarco.src = app.demo;
+      demo.showModal();
+    };
+    const cerrarDemo = () => {
+      if (demo.open) demo.close();
+    };
+    $('[data-cerrar-demo]').addEventListener('click', cerrarDemo);
+    demo.addEventListener('close', () => {
+      demoMarco.src = 'about:blank';
+      if (jugando()) {
+        juego?.jugar();
+        capturarRaton();
+      }
+    });
+
+    const fundir = async (cambio: () => void) => {
+      fundido.dataset.activo = '';
+      await new Promise((r) => setTimeout(r, 300));
+      cambio();
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      delete fundido.dataset.activo;
+    };
+
+    // --- Arranque ---------------------------------------------------------------------
+    const nivel = detectarNivel();
+    const sinWebgl = () => {
+      jugarBoton.hidden = true;
+      $('[data-sin-webgl]').classList.remove('hidden');
+    };
+    if (nivel === 'estatico' && !new URLSearchParams(location.search).has('nivel')) return sinWebgl();
+
+    import('../juego')
+      .then(({ montarJuego }) =>
+        montarJuego(lienzo, apps, {
+          nivel: nivel === 'estatico' ? 'bajo' : nivel,
+          modelo: datos.modelo ?? undefined,
+          textos: { estudio: textos.signStudio, solar: textos.signSolar },
+          silenciado,
+          minimapa: $<HTMLCanvasElement>('[data-mapa]'),
+          alCerca,
+          alSala,
+          alNavegar: navegar,
+          alDemo: abrirDemo,
+          fundir,
+          alFallar: () => {
+            juego?.destruir();
+            juego = null;
+            estado('listo');
+            sinWebgl();
+          },
+        }),
+      )
+      .then((j) => {
+        juego = j;
+        estado('listo');
+        jugarBoton.disabled = false;
+        jugarBoton.textContent = jugarBoton.dataset.texto!;
+        jugarBoton.focus({ preventScroll: true });
+      })
+      .catch(sinWebgl);
+  }
+</script>

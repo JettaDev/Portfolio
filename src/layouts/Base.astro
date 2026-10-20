@@ -20,11 +20,13 @@ interface Props {
   portada?: boolean;
   /** Una sola pantalla, sin scroll ni pie (la portada) */
   pantallaCompleta?: boolean;
+  /** Sin cabecera (el juego tiene su propia interfaz) */
+  sinCabecera?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false, sinCabecera = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
@@ -124,7 +126,7 @@ const ogImage = new URL(image, Astro.site);
     >
       {t('nav.skip')}
     </a>
-    <Header sobreHero={cabeceraSobreHero} />
+    {!sinCabecera && <Header sobreHero={cabeceraSobreHero} />}
     <main id="contenido" class="flex-1">
       <slot />
     </main>

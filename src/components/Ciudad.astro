@@ -130,19 +130,8 @@ const rotulos = [
         </ul>
       </nav>
 
-      <!-- Solo con la ciudad en marcha (sin WebGL se queda el póster, que no se puede pasear) -->
-      <button type="button" class="pasear boton boton-secundario pointer-events-auto min-h-11" data-pasear>{t('ciudad.pasear')}</button>
-    </div>
-  </div>
-
-  <!-- El paseo: ayuda, salida y, en táctil, un mando para andar (mirar es arrastrar sobre la ciudad) -->
-  <div class="paseo contenedor pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 pb-6 sm:pb-10" data-paseo-mandos hidden>
-    <div class="pointer-events-auto max-w-[44ch]">
-      <p class="text-liquen" aria-live="polite" data-ayuda data-tactil={t('ciudad.paseoAyudaTactil')} data-texto={t('ciudad.paseoAyuda')}></p>
-      <button type="button" class="boton boton-secundario mt-3 min-h-11" data-salir>{t('ciudad.salirPaseo')}</button>
-    </div>
-    <div class="mando pointer-events-auto relative shrink-0 touch-none rounded-full bg-bosque-hondo" aria-hidden="true" data-mando>
-      <span class="pomo absolute top-1/2 left-1/2 rounded-full bg-musgo-claro" data-pomo></span>
+      <!-- El barrio como videojuego, en su propia página -->
+      <a href={pagePath(lang, 'juego')} class="explorar boton boton-secundario pointer-events-auto min-h-11">{t('ciudad.jugar')}</a>
     </div>
   </div>
 
@@ -252,63 +241,9 @@ const rotulos = [
   }
   [data-volando] .textos,
   [data-volando] .etiqueta,
-  [data-volando] .rotulo,
-  [data-volando] .paseo {
+  [data-volando] .rotulo {
     opacity: 0;
     pointer-events: none;
-  }
-
-  /* El botón del paseo aparece cuando la ciudad ya se mueve: sin canvas no hay nada que pasear */
-  .pasear {
-    display: none;
-  }
-  [data-estado='vivo'] .pasear {
-    display: inline-flex;
-  }
-
-  /* Paseando, la portada se aparta (la cabecera y los rótulos de la ciudad se quedan) y el dedo
-     sobre el canvas mira alrededor en vez de desplazar la página */
-  /* Al ocultarse, la visibilidad espera al fundido; al volver, es inmediata (el botón recibe el foco) */
-  [data-paseo] .textos {
-    opacity: 0;
-    visibility: hidden;
-    transition-property: opacity, visibility;
-  }
-  [data-paseo] .lienzo {
-    touch-action: none;
-  }
-  .paseo {
-    transition: opacity 0.35s var(--ease-salida);
-  }
-
-  /* Mando de andar: solo en pantallas táctiles; el pomo sigue al dedo dentro del círculo */
-  .mando {
-    display: none;
-    width: 7.5rem;
-    height: 7.5rem;
-  }
-  @media (pointer: coarse) {
-    .mando {
-      display: block;
-    }
-  }
-  .pomo {
-    width: 3rem;
-    height: 3rem;
-    translate: -50% -50%;
-  }
-  .mando[data-activo] .pomo {
-    background: var(--color-corteza);
-  }
-
-  @media (max-height: 500px) and (min-aspect-ratio: 6 / 5) {
-    .paseo {
-      padding-bottom: 1rem;
-    }
-    .mando {
-      width: 6rem;
-      height: 6rem;
-    }
   }
 </style>
 
@@ -327,12 +262,6 @@ const rotulos = [
     const pista = raiz.querySelector<HTMLElement>('[data-pista]')!;
     const chips = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-slug]')];
     const rotulos = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-rotulo]')];
-    const botonPasear = raiz.querySelector<HTMLButtonElement>('[data-pasear]')!;
-    const mandos = raiz.querySelector<HTMLElement>('[data-paseo-mandos]')!;
-    const ayuda = mandos.querySelector<HTMLElement>('[data-ayuda]')!;
-    const salir = mandos.querySelector<HTMLButtonElement>('[data-salir]')!;
-    const mando = mandos.querySelector<HTMLElement>('[data-mando]')!;
-    const pomo = mando.querySelector<HTMLElement>('[data-pomo]')!;
     const datos: DatosVentana[] = JSON.parse(raiz.querySelector('[data-datos-ciudad]')!.textContent!);
     const sitios: Record<string, string> = JSON.parse(raiz.querySelector('[data-sitios-ciudad]')!.textContent!);
     rotulos.forEach((r) => (r.dataset.posicion = r.style.cssText));
@@ -350,8 +279,7 @@ const rotulos = [
       return;
     }
 
-    const tactil = matchMedia('(pointer: coarse)').matches;
-    if (tactil) pista.textContent = pista.dataset.tactil ?? pista.textContent;
+    if (matchMedia('(pointer: coarse)').matches) pista.textContent = pista.dataset.tactil ?? pista.textContent;
 
     const movimiento = matchMedia('(prefers-reduced-motion: reduce)');
     const reducido = () => movimiento.matches || new URLSearchParams(location.search).has('reducido');
@@ -409,7 +337,6 @@ const rotulos = [
       enVuelo = id;
       precargar(id);
       alPasar(null);
-      pararDeAndar();
       marcarVuelo('ida');
       recordarSalida(id, destino);
 
@@ -438,8 +365,6 @@ const rotulos = [
     const volver = async (id: string) => {
       esperandoVuelta = false;
       enVuelo = id;
-      // La vuelta acaba en la vista de siempre, aunque se saliera paseando
-      cerrarPaseo();
       marcarVuelo('vuelta');
       await finTransicion();
       if (ciudad && !reducido()) {
@@ -458,103 +383,6 @@ const rotulos = [
       const enlace = chips.find((a) => a.dataset.slug === id) ?? conRotulo(id) ?? document.querySelector<HTMLAnchorElement>(`header a[href="${destinos.get(id)}"]`);
       enlace?.focus({ preventScroll: true });
     };
-
-    // --- Paseo a pie de calle ------------------------------------------------------------
-    let paseando = false;
-    const teclas = new Set<string>();
-    const TECLAS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
-    const pulsada = (...codigos: string[]) => (codigos.some((c) => teclas.has(c)) ? 1 : 0);
-    const andarConTeclas = () =>
-      ciudad?.andar(
-        pulsada('KeyW', 'ArrowUp') - pulsada('KeyS', 'ArrowDown'),
-        pulsada('KeyD') - pulsada('KeyA'),
-        pulsada('ShiftLeft', 'ShiftRight') === 1,
-        // Las flechas de los lados giran: sin ratón también se puede mirar alrededor
-        pulsada('ArrowRight') - pulsada('ArrowLeft'),
-      );
-    const soltarMando = () => {
-      delete mando.dataset.activo;
-      pomo.style.translate = '';
-    };
-    const pararDeAndar = () => {
-      teclas.clear();
-      soltarMando();
-      ciudad?.andar(0, 0);
-    };
-    /** Quita la interfaz del paseo (el motor ya ha vuelto o va a volver por su cuenta). */
-    const cerrarPaseo = () => {
-      if (!paseando) return false;
-      paseando = false;
-      pararDeAndar();
-      raiz.removeAttribute('data-paseo');
-      mandos.hidden = true;
-      return true;
-    };
-    const empezarPaseo = () => {
-      if (!ciudad || enVuelo || paseando) return;
-      paseando = true;
-      alPasar(null);
-      raiz.toggleAttribute('data-paseo', true);
-      ayuda.textContent = (tactil ? ayuda.dataset.tactil : ayuda.dataset.texto) ?? '';
-      mandos.hidden = false;
-      salir.focus({ preventScroll: true });
-      ciudad.pasear(true);
-    };
-    const terminarPaseo = () => {
-      if (!cerrarPaseo()) return;
-      botonPasear.focus({ preventScroll: true });
-      ciudad?.pasear(false);
-    };
-    botonPasear.addEventListener('click', empezarPaseo);
-    salir.addEventListener('click', terminarPaseo);
-
-    addEventListener('keydown', (e) => {
-      if (!paseando || enVuelo || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.code === 'Escape') {
-        terminarPaseo();
-        return;
-      }
-      if (!TECLAS.has(e.code)) return;
-      e.preventDefault();
-      teclas.add(e.code);
-      andarConTeclas();
-    });
-    addEventListener('keyup', (e) => {
-      if (!teclas.delete(e.code)) return;
-      andarConTeclas();
-    });
-    // Si la ventana pierde el foco con una tecla pulsada, su keyup no llega: se para
-    addEventListener('blur', () => paseando && pararDeAndar());
-
-    // Mando táctil: la distancia del pomo al centro es la velocidad, y su dirección, hacia dónde
-    let dedo: number | null = null;
-    const moverMando = (e: PointerEvent) => {
-      if (e.pointerId !== dedo) return;
-      const r = mando.getBoundingClientRect();
-      const radio = r.width / 2;
-      let dx = e.clientX - (r.left + radio);
-      let dy = e.clientY - (r.top + radio);
-      const d = Math.hypot(dx, dy);
-      if (d > radio) [dx, dy] = [(dx / d) * radio, (dy / d) * radio];
-      pomo.style.translate = `calc(-50% + ${dx.toFixed(1)}px) calc(-50% + ${dy.toFixed(1)}px)`;
-      ciudad?.andar(-dy / radio, dx / radio);
-    };
-    const soltarDedo = (e: PointerEvent) => {
-      if (e.pointerId !== dedo) return;
-      dedo = null;
-      soltarMando();
-      ciudad?.andar(0, 0);
-    };
-    mando.addEventListener('pointerdown', (e) => {
-      if (!paseando || enVuelo) return;
-      dedo = e.pointerId;
-      mando.setPointerCapture(e.pointerId);
-      mando.dataset.activo = '';
-      moverMando(e);
-    });
-    mando.addEventListener('pointermove', moverMando);
-    mando.addEventListener('pointerup', soltarDedo);
-    mando.addEventListener('pointercancel', soltarDedo);
 
     // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el objetivo)
     addEventListener('pageshow', (e) => {
@@ -595,8 +423,6 @@ const rotulos = [
       if (ciudad && raiz.dataset.estado === 'vivo' && !enVuelo) {
         for (const r of rotulos) {
           const p = ciudad.enPantalla(r.dataset.rotulo!, 'rotulo');
-          // Paseando, lo que queda a la espalda no tiene rótulo
-          r.style.visibility = p ? '' : 'hidden';
           if (!p) continue;
           // Solo translate: mover left/top en cada fotograma obligaría a recalcular el layout
           const translate = `calc(${p.x.toFixed(1)}px - 50%) calc(${p.y.toFixed(1)}px - 50%)`;
@@ -627,7 +453,6 @@ const rotulos = [
           alPasar,
           alPulsar: entrar,
           alFallar: () => {
-            cerrarPaseo();
             ciudad?.destruir();
             ciudad = null;
             raiz.dataset.estado = 'poster';

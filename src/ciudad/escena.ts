@@ -131,10 +131,10 @@ function luna(halo: CanvasTexture): Group {
   return grupo;
 }
 
-export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrellas = false } = {}): Scene {
+export function crearEscena(semilla: number, halo: CanvasTexture, { pocasEstrellas = false, niebla: densidad = NIEBLA.densidad } = {}): Scene {
   const azar = aleatorio(semilla ^ 0x5eed);
   const escena = new Scene();
-  const niebla = new FogExp2(COLORES.niebla, NIEBLA.densidad);
+  const niebla = new FogExp2(COLORES.niebla, densidad);
   escena.fog = niebla;
   escena.background = new Color(COLORES.cielo);
   const cielo = cupula();
