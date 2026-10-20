@@ -53,8 +53,11 @@ export const MANZANA = {
   separacion: 0.4,
 } as const;
 
-/** Hasta dónde llega el cartel del solar (con sus postes). */
-const ALTO_CARTEL = 3;
+/**
+ * Hasta dónde llega el cartel del solar (con sus postes): una valla alta, para que su rótulo no
+ * se cruce con el del escaparate en una pantalla estrecha.
+ */
+const ALTO_CARTEL = 5.4;
 
 /** Plantas de la tienda que ocupa el comercio: el escaparate y la banda del rótulo encima. */
 const PLANTAS_COMERCIO = 2;

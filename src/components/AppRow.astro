@@ -28,9 +28,9 @@ const d = app.data;
   </a>
 
   <div class:list={['md:col-span-5', reverse && 'md:order-1']} data-reveal>
-    <h3 data-fijo style={`view-transition-name:titulo-${app.slug}`} data-vt={`titulo-${app.slug}`} class="vt-titulo text-[clamp(2.25rem,4vw,3.5rem)] leading-none font-bold tracking-[-0.03em]" translate="no">
+    <h2 data-fijo style={`view-transition-name:titulo-${app.slug}`} data-vt={`titulo-${app.slug}`} class="vt-titulo text-[clamp(2.25rem,4vw,3.5rem)] leading-none font-bold tracking-[-0.03em]" translate="no">
       <a href={href} class="decoration-(--hue) decoration-[3px] underline-offset-[8px] hover:underline">{d.title}</a>
-    </h3>
+    </h2>
     <Status status={d.status} year={d.year} class="mt-4" />
     <p class="mt-6 text-xl text-pretty text-liquen">{d.tagline}</p>
     <p class="mt-3 max-w-[48ch] text-lg text-liquen/80">{d.summary}</p>

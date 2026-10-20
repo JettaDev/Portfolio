@@ -13,6 +13,8 @@
 //   og/sitio.webp       fondos de las imágenes Open Graph (1600×630; npm run og les pone el
 //   og/<slug>.webp      texto encima): la ciudad entera, y la ciudad apagada con solo el
 //                       ventanal de esa app encendido y la cámara a medio camino de él
+//   sitios/<id>.webp    el estudio y el solar vistos de cerca (1600×1000), para las páginas de
+//                       Sobre mí y Contacto; sitios.json guarda dónde cae el cartel del solar
 //
 // Arranca su propio servidor de desarrollo (la página /pruebas/ciudad/ solo existe en desarrollo) y usa
 // Chrome con GPU (CHROME_PATH, por defecto /usr/bin/google-chrome). Hay que regenerarlo al
@@ -47,7 +49,7 @@ const navegador = await chromium.launch({
 });
 
 /** Pinta la escena con esos parámetros y devuelve la captura del canvas y las posiciones. */
-async function pintar(viewport, consulta) {
+async function pintar(viewport, consulta, medir) {
   const pagina = await navegador.newPage({ viewport });
   const errores = [];
   pagina.on('pageerror', (e) => errores.push(e.message));
@@ -59,8 +61,16 @@ async function pintar(viewport, consulta) {
   const png = await pagina.locator('#ciudad').screenshot({ animations: 'disabled' });
   const { ventanas } = await pagina.evaluate(() => window.poster);
   const slugs = await pagina.evaluate(() => JSON.parse(document.getElementById('datos-ciudad').textContent).map((d) => d.slug));
+  // Posición relativa de un objetivo con la cámara como esté ahora (no en reposo)
+  const medida = medir
+    ? await pagina.evaluate((id) => {
+        const c = document.getElementById('ciudad');
+        const p = window.ciudad.enPantalla(id);
+        return { x: p.x / c.clientWidth, y: p.y / c.clientHeight };
+      }, medir)
+    : null;
   await pagina.close();
-  return { png, ventanas, slugs };
+  return { png, ventanas, slugs, medida };
 }
 
 async function guardar(png, archivo, calidad = 88) {
@@ -90,6 +100,17 @@ try {
 
   writeFileSync(join(salida, 'poster.json'), JSON.stringify(posiciones, null, 2) + '\n');
   console.log('src/assets/ciudad/poster.json');
+
+  // El estudio y el solar de cerca, a medio vuelo: la imagen de Sobre mí y de Contacto
+  const SITIO = { width: 1600, height: 1000 };
+  const sitios = {};
+  for (const [nombre, id, acercar] of [['sobre-mi', '#sobre-mi', 0.6], ['contacto', '#contacto', 0.5]]) {
+    const r = await pintar(SITIO, `nivel=alto&encuadre=ancho&encendida=${encodeURIComponent(id)}&acercar=${acercar}`, id);
+    await guardar(r.png, join(salida, `sitios/${nombre}.webp`), 90);
+    sitios[nombre] = r.medida;
+  }
+  writeFileSync(join(salida, 'sitios/sitios.json'), JSON.stringify(sitios, null, 2) + '\n');
+  console.log('src/assets/ciudad/sitios/sitios.json');
 } finally {
   await navegador.close();
   await servidor.stop();

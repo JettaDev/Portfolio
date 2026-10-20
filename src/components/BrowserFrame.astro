@@ -6,8 +6,10 @@ interface Props {
   class?: string;
   /** view-transition-name: la misma ventana en el listado y en el detalle se transforma de una a otra */
   name?: string;
+  /** Dentro de un botón o enlace con su propio nombre: el dominio es decorativo y no debe contar como texto */
+  decorativa?: boolean;
 }
-const { domain, hue = '#7fe0a6', class: className, name } = Astro.props;
+const { domain, hue = '#7fe0a6', class: className, name, decorativa = false } = Astro.props;
 ---
 
 <div
@@ -23,7 +25,11 @@ const { domain, hue = '#7fe0a6', class: className, name } = Astro.props;
     </span>
     <span class="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-bosque-hondo/60 px-3 py-1 text-sm text-helecho">
       <span class="size-1.5 shrink-0 rounded-full bg-(--hue)" aria-hidden="true"></span>
-      <span class="truncate" translate="no">{domain}</span>
+      {decorativa ? (
+        <span class="truncate before:content-[attr(data-dominio)]" data-dominio={domain} aria-hidden="true"></span>
+      ) : (
+        <span class="truncate" translate="no">{domain}</span>
+      )}
     </span>
     <slot name="acciones" />
   </div>

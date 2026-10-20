@@ -58,7 +58,7 @@ for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2));
                         </div>
                       </div>
                     ) : (
-                      <BrowserFrame domain={domain} hue={hue} class="transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
+                      <BrowserFrame domain={domain} hue={hue} decorativa class="transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
                         <Image src={shot.src} alt={shot.alt} widths={[640, 960, 1440, 1920]} sizes="(min-width: 76rem) 48rem, (min-width: 48rem) 64vw, 100vw" class="w-full" />
                       </BrowserFrame>
                     )}

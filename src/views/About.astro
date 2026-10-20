@@ -1,6 +1,9 @@
 ---
-// Sobre mí: el estudio de la ciudad (la ventana con la lámpara) lleva aquí.
+// Sobre mí: el estudio de la ciudad (la ventana con la lámpara, encima de la tienda) lleva aquí.
+// Su imagen es la escena real (npm run poster) y es donde se recoge el destello al llegar.
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
+import estudio from '../assets/ciudad/sitios/sobre-mi.webp';
 import { getLang, useT, pagePath } from '../i18n/utils';
 import { site } from '../site';
 
@@ -9,15 +12,20 @@ const t = useT(lang);
 ---
 
 <Base title={t('about.title')} description={t('about.description')}>
-  <header class="contenedor pt-12 pb-16 lg:pt-20 lg:pb-24">
-    <h1 class="w-fit text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" data-destello-destino>{t('about.title')}</h1>
-    <div data-reveal>
-      <p class="mt-10 max-w-[30ch] text-[clamp(1.4rem,2.4vw,2.1rem)] leading-[1.25] tracking-[-0.01em] text-pretty text-liquen">{t('about.lead')}</p>
-      <p class="mt-6 max-w-[52ch] text-xl text-pretty text-liquen">{t('about.body')}</p>
-      <div class="mt-10 flex flex-wrap gap-3">
-        <a href={pagePath(lang, 'contact')} class="boton boton-principal">{t('about.contact')}</a>
-        <a href={pagePath(lang, 'apps')} class="boton boton-secundario">{t('about.apps')}</a>
+  <header class="contenedor grid gap-10 pt-12 pb-16 md:grid-cols-12 md:items-center md:gap-12 lg:pt-20 lg:pb-24">
+    <div class="md:col-span-6">
+      <h1 class="text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]">{t('about.title')}</h1>
+      <div data-reveal>
+        <p class="mt-10 max-w-[30ch] text-[clamp(1.4rem,2.4vw,2.1rem)] leading-[1.25] tracking-[-0.01em] text-pretty text-liquen">{t('about.lead')}</p>
+        <p class="mt-6 max-w-[52ch] text-xl text-pretty text-liquen">{t('about.body')}</p>
+        <div class="mt-10 flex flex-wrap gap-3">
+          <a href={pagePath(lang, 'contact')} class="boton boton-principal">{t('about.contact')}</a>
+          <a href={pagePath(lang, 'apps')} class="boton boton-secundario">{t('about.apps')}</a>
+        </div>
       </div>
+    </div>
+    <div class="overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" data-destello-destino>
+      <Image src={estudio} alt={t('about.alt')} widths={[640, 960, 1280, 1600]} sizes="(min-width: 76rem) 36rem, (min-width: 48rem) 50vw, 100vw" loading="eager" class="aspect-[16/10] w-full object-cover" />
     </div>
   </header>
 

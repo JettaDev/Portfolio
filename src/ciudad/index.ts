@@ -216,8 +216,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     estudio.actualizar();
     solar.actualizar();
     escaparate.actualizar();
-    // Cerca de un ventanal (o del escaparate) el bloom se atenúa: lo que llena la pantalla no deslumbra
-    const revelado = Math.max(ventanales.actualizar(camara.camara.position, tiempo), cercania(escaparate.objetivo));
+    // Cerca de un ventanal (o de otro sitio) el bloom se atenúa: lo que llena la pantalla no deslumbra
+    const revelado = Math.max(ventanales.actualizar(camara.camara.position, tiempo), ...[escaparate, estudio, solar].map((s) => cercania(s.objetivo)));
     pintor.atenuarBloom(1 - revelado);
     pintor.pintar();
 

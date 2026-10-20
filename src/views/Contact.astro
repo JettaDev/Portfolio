@@ -1,26 +1,61 @@
 ---
-// Contacto: el solar «Tu proyecto aquí» de la ciudad lleva aquí.
+// Contacto: el solar «Tu proyecto aquí» de la ciudad lleva aquí. Su imagen es la escena real
+// (npm run poster), con el rótulo del cartel en HTML encima, y es donde se recoge el destello.
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
+import solar from '../assets/ciudad/sitios/contacto.webp';
+import posiciones from '../assets/ciudad/sitios/sitios.json';
 import { getLang, useT } from '../i18n/utils';
 import { site } from '../site';
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
+const cartel = posiciones.contacto;
 ---
 
 <Base title={t('nav.contact')} description={t('contact.description')}>
-  <section class="flex min-h-[calc(100svh-4rem)] flex-col justify-center bg-musgo py-24">
-    <div class="contenedor">
-      <h1 class="w-fit text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" data-destello-destino>{t('contact.title')}</h1>
-      <div data-reveal>
-        <p class="mt-8 max-w-[44ch] text-xl text-pretty text-liquen">{t('contact.lead')} {t('contact.solar')}</p>
-        <a
-          href={`mailto:${site.email}`}
-          class="mt-12 inline-block text-[clamp(1.6rem,5.5vw,4.5rem)] leading-none font-bold tracking-[-0.03em] break-all text-calendula underline decoration-calendula/30 decoration-[3px] underline-offset-[12px] transition-colors hover:decoration-calendula sm:break-normal"
+  <section class="bg-musgo py-12 lg:py-20">
+    <div class="contenedor grid gap-10 md:grid-cols-12 md:items-center md:gap-12">
+      <div class="md:col-span-6">
+        <h1 class="text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]">{t('contact.title')}</h1>
+        <div data-reveal>
+          <p class="mt-8 max-w-[44ch] text-xl text-pretty text-liquen">{t('contact.lead')} {t('contact.solar')}</p>
+          <a
+            href={`mailto:${site.email}`}
+            class="mt-10 inline-block text-[clamp(1.5rem,3.4vw,2.6rem)] leading-none font-bold tracking-[-0.03em] break-all text-calendula underline decoration-calendula/30 decoration-[3px] underline-offset-[10px] transition-colors hover:decoration-calendula sm:break-normal"
+          >
+            {site.email}
+          </a>
+          <div class="mt-8 flex flex-wrap items-center gap-4">
+            <button type="button" class="boton boton-secundario" data-copiar={site.email}>{t('contact.copy')}</button>
+            <p class="text-helecho" role="status" data-copiado={t('contact.copied')}></p>
+          </div>
+        </div>
+      </div>
+      <div class="relative overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" data-destello-destino>
+        <Image src={solar} alt={t('contact.alt')} widths={[640, 960, 1280, 1600]} sizes="(min-width: 76rem) 36rem, (min-width: 48rem) 50vw, 100vw" loading="eager" class="aspect-[16/10] w-full object-cover" />
+        <!-- El texto del cartel, como en la ciudad: HTML encima (el alt ya lo cuenta) -->
+        <span
+          class="absolute -translate-1/2 rounded-md bg-bosque-hondo px-2 py-1 text-[0.8125rem] font-semibold whitespace-nowrap text-liquen sm:px-2.5 sm:text-sm"
+          style={`left:${cartel.x * 100}%; top:${cartel.y * 100}%`}
+          aria-hidden="true">{t('ciudad.solar')}</span
         >
-          {site.email}
-        </a>
       </div>
     </div>
   </section>
 </Base>
+
+<script>
+  // Copiar el email: con aviso para lectores de pantalla en el mismo sitio
+  const boton = document.querySelector<HTMLButtonElement>('[data-copiar]');
+  const aviso = document.querySelector<HTMLElement>('[data-copiado]');
+  boton?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(boton.dataset.copiar!);
+      if (aviso) aviso.textContent = aviso.dataset.copiado ?? '';
+      setTimeout(() => aviso && (aviso.textContent = ''), 3000);
+    } catch {
+      location.href = `mailto:${boton.dataset.copiar}`;
+    }
+  });
+</script>
