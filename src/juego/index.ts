@@ -3,6 +3,7 @@
 // desde el estudio y el solar va a Sobre mí y a Contacto. Se carga diferido; no depende de Astro.
 // Los controles (teclado, ratón y táctil) y el HUD son HTML: llaman a esta API.
 
+import { gsap } from 'gsap';
 import { PerspectiveCamera, Vector3, type BufferGeometry, type Material, type Mesh } from 'three';
 import { crearEscena, texturaHalo } from '../ciudad/escena';
 import { Pintor } from '../ciudad/render';
@@ -45,8 +46,14 @@ export interface OpcionesJuego {
 
 export interface Juego {
   readonly listo: Promise<void>;
-  /** Empieza (o sigue) la partida: el bucle corre y el sonido suena. */
-  jugar(): Promise<void>;
+  /** Llegada: la cámara baja del cielo hasta quedar detrás del jugador. */
+  llegar(): Promise<void>;
+  /** Despegue antes de volver a la portada: la cámara sube al cielo. */
+  despegar(): Promise<void>;
+  /** Empieza (o sigue) la partida: el jugador responde a los controles. */
+  jugar(): void;
+  /** Arranca el sonido (necesita un gesto del usuario: una tecla o un toque). */
+  sonar(): Promise<void>;
   pausar(): void;
   /** Lo que se pide andar (-1..1): adelante y a la derecha. */
   mover(adelante: number, lado: number): void;
@@ -86,6 +93,8 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
   await ceder();
 
   let personaje: Personaje = crearPersonaje(halo);
+  personaje.objeto.position.set(mundo.salida.x, alturaSuelo(mundo.salida.x, mundo.salida.z), mundo.salida.z);
+  personaje.objeto.rotation.y = mundo.salida.giro;
   escena.add(personaje.objeto);
   if (opciones.modelo) {
     cargarModelo(opciones.modelo, halo).then((p) => {
@@ -122,9 +131,12 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
   let velY = 0;
   let enSuelo = true;
   let rumbo = mundo.salida.giro;
-  let camGiro = mundo.salida.giro + Math.PI;
-  let camCabeceo: number = CAMARA.cabeceo;
-  let distancia: number = CAMARA.distancia;
+  /** La cámara alrededor del jugador: giro, cabeceo y distancia (las escenas los animan). */
+  const vista = { giro: mundo.salida.giro + Math.PI, cabeceo: CAMARA.cabeceo as number, distancia: CAMARA.distancia as number };
+  /** En las tomas de cine (llegada y despegue) la cámara no choca con los edificios. */
+  let cine = false;
+  /** El jugador anda solo hasta un punto (al entrar y salir de los edificios). */
+  let guion: { x: number; z: number; velocidad: number; resolver: () => void } | null = null;
   const camPos = new Vector3();
   const pedido = { adelante: 0, lado: 0, correr: false };
   let pedirSalto = false;
@@ -140,19 +152,19 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
   const colocarCamara = (inmediato: boolean, dt: number) => {
     const objetivo = new Vector3(pos.x, pos.y + CAMARA.altura, pos.z);
     // En la sala la cámara va más cerca: no cabe a la distancia de la calle
-    const d = enSala ? Math.min(distancia, 3.4) : distancia;
-    const c = Math.cos(camCabeceo);
-    const deseo = new Vector3(objetivo.x + Math.sin(camGiro) * c * d, objetivo.y + Math.sin(camCabeceo) * d, objetivo.z + Math.cos(camGiro) * c * d);
+    const d = enSala ? Math.min(vista.distancia, 3.4) : vista.distancia;
+    const c = Math.cos(vista.cabeceo);
+    const deseo = new Vector3(objetivo.x + Math.sin(vista.giro) * c * d, objetivo.y + Math.sin(vista.cabeceo) * d, objetivo.z + Math.cos(vista.giro) * c * d);
     if (enSala) {
       // Dentro de la sala, la cámara no sale de las paredes ni pasa del techo
       deseo.x = Math.min(SALA.ancho / 2 - 0.3, Math.max(-SALA.ancho / 2 + 0.3, deseo.x));
       deseo.z = Math.min(SALA.fondo / 2 - 0.3, Math.max(-SALA.fondo / 2 + 0.3, deseo.z));
       deseo.y = Math.min(SALA.y + SALA.alto - 0.4, deseo.y);
-    } else {
+    } else if (!cine) {
       const t = rayoLibre(objetivo, deseo, mundo.cajas, 0.25);
       if (t < 1) deseo.lerpVectors(objetivo, deseo, Math.max(0.12, t));
-      deseo.y = Math.max(deseo.y, 0.4);
     }
+    if (!enSala) deseo.y = Math.max(deseo.y, 0.4);
     if (inmediato) camPos.copy(deseo);
     else {
       // Más deprisa si se acerca (un muro) que si se aleja: nunca se queda dentro de nada
@@ -195,59 +207,127 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
     vel.set(0, 0, 0);
     velY = 0;
     rumbo = mirando;
-    camGiro = mirando + Math.PI;
-    camCabeceo = CAMARA.cabeceo;
+    vista.giro = mirando + Math.PI;
+    vista.cabeceo = CAMARA.cabeceo;
     personaje.objeto.position.copy(pos);
     personaje.objeto.rotation.y = rumbo;
     colocarCamara(true, 0);
   };
 
-  const cambiarDeSitio = async (cambio: () => void) => {
+  const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  /** Anda solo hasta (x, z), sin chocar (cruza el umbral de las puertas). */
+  const caminarHasta = (x: number, z: number, velocidad = 2.4) => new Promise<void>((resolver) => (guion = { x, z, velocidad, resolver }));
+  const moverVista = (a: Partial<typeof vista>, duracion: number, ease = 'power2.inOut') =>
+    new Promise<void>((r) => gsap.to(vista, { ...a, duration: duracion, ease, overwrite: true, onComplete: r }));
+  /** Giro equivalente a `objetivo` más cercano al actual (para no dar la vuelta larga). */
+  const giroCercano = (objetivo: number) => vista.giro + Math.atan2(Math.sin(objetivo - vista.giro), Math.cos(objetivo - vista.giro));
+  const fundir = (cambio: () => void) => (opciones.fundir ? opciones.fundir(cambio) : Promise.resolve(cambio()));
+
+  /**
+   * Entrar: el jugador va hasta la puerta, la puerta se abre y cruza el umbral mientras se funde;
+   * dentro, da unos pasos por la sala y la cámara se coloca detrás.
+   */
+  const entrarEnSala = async (p: Puerta) => {
+    const app = apps.find((a) => a.slug === p.id);
+    if (!app || cambiando) return;
     cambiando = true;
-    pedido.adelante = pedido.lado = 0;
-    if (opciones.fundir) await opciones.fundir(cambio);
-    else cambio();
+    avisarCerca(null);
+    const nx = Math.sin(p.giro);
+    const nz = Math.cos(p.giro);
+    moverVista({ giro: giroCercano(p.giro), cabeceo: 0.18, distancia: 3.8 }, 0.8);
+    await caminarHasta(p.x + nx * 1.1, p.z + nz * 1.1, 2.6);
+    sonido.puerta();
+    await sitios.abrir(p.id, true);
+    caminarHasta(p.x - nx * 0.6, p.z - nz * 0.6, 2.2);
+    await espera(320);
+    await fundir(() => {
+      guion = null;
+      enSala = app.slug;
+      puertaDeSala = p;
+      sala.vestir(app, sitios.capturas.get(app.slug));
+      sitios.abrir(p.id, false, true);
+      gsap.killTweensOf(vista);
+      teletransportar(0, SALA.y, SALA.fondo / 2 - 0.5, Math.PI);
+      // Dentro, la cámara espera en la sala y ve al jugador cruzar la puerta
+      Object.assign(vista, { giro: Math.PI - 0.5, cabeceo: 0.28, distancia: 3.4 });
+      colocarCamara(true, 0);
+      sonido.dentro(true);
+      opciones.alSala?.(app.slug);
+    });
+    // Y mientras entra, se coloca detrás de él
+    moverVista({ giro: giroCercano(0), cabeceo: CAMARA.cabeceo, distancia: CAMARA.distancia }, 1.4, 'power2.inOut');
+    await caminarHasta(sala.entrada.x, sala.entrada.z, 2.2);
     cambiando = false;
     buscarCerca();
   };
 
-  const entrarEnSala = (p: Puerta) => {
-    const app = apps.find((a) => a.slug === p.id);
-    if (!app) return;
-    sonido.puerta();
-    cambiarDeSitio(() => {
-      enSala = app.slug;
-      puertaDeSala = p;
-      sala.vestir(app, sitios.capturas.get(app.slug));
-      teletransportar(sala.entrada.x, SALA.y, sala.entrada.z, sala.entrada.giro);
-      sonido.dentro(true);
-      opciones.alSala?.(app.slug);
-    });
-  };
-
-  const salirDeSala = () => {
+  /** Salir: hasta la puerta de la sala y, fuera, el jugador sale del edificio hacia la cámara. */
+  const salirDeSala = async () => {
     const p = puertaDeSala;
-    if (!p) return;
+    if (!p || cambiando) return;
+    cambiando = true;
+    avisarCerca(null);
+    moverVista({ giro: giroCercano(Math.PI), cabeceo: 0.2, distancia: 3 }, 0.6);
+    await caminarHasta(0, SALA.fondo / 2 - 0.6, 2.4);
     sonido.puerta();
-    cambiarDeSitio(() => {
+    const nx = Math.sin(p.giro);
+    const nz = Math.cos(p.giro);
+    await fundir(() => {
+      guion = null;
       enSala = null;
       puertaDeSala = null;
-      const x = p.x + Math.sin(p.giro) * 1.3;
-      const z = p.z + Math.cos(p.giro) * 1.3;
+      sitios.abrir(p.id, true, true);
+      gsap.killTweensOf(vista);
+      const x = p.x - nx * 0.4;
+      const z = p.z - nz * 0.4;
       teletransportar(x, alturaSuelo(x, z), z, p.giro);
+      // La cámara espera en la acera, de cara a la puerta
+      Object.assign(vista, { giro: p.giro, cabeceo: 0.22, distancia: 4.6 });
+      colocarCamara(true, 0);
       sonido.dentro(false);
       opciones.alSala?.(null);
     });
+    await caminarHasta(p.x + nx * 1.8, p.z + nz * 1.8, 2.4);
+    sitios.abrir(p.id, false);
+    // Se queda en la calle, en diagonal: detrás del jugador estaría metida en la fachada
+    await moverVista({ giro: giroCercano(p.giro + 0.9), cabeceo: CAMARA.cabeceo, distancia: CAMARA.distancia }, 0.9);
+    cambiando = false;
+    buscarCerca();
   };
 
   // --- Física -------------------------------------------------------------------------
+  const andarSolo = (dt: number) => {
+    const g = guion!;
+    const dx = g.x - pos.x;
+    const dz = g.z - pos.z;
+    const d = Math.hypot(dx, dz);
+    const paso = Math.min(d, g.velocidad * dt);
+    if (d < 0.02) {
+      guion = null;
+      vel.set(0, 0, 0);
+      g.resolver();
+      return;
+    }
+    vel.set((dx / d) * g.velocidad, 0, (dz / d) * g.velocidad);
+    pos.x += (dx / d) * paso;
+    pos.z += (dz / d) * paso;
+  };
+
   const moverJugador = (dt: number) => {
+    if (guion) {
+      andarSolo(dt);
+      pos.y = enSala ? SALA.y : alturaSuelo(pos.x, pos.z);
+      enSuelo = true;
+      velY = 0;
+      animarPersonaje(dt);
+      return;
+    }
     const quieto = cambiando;
     const adelante = quieto ? 0 : pedido.adelante;
     const lado = quieto ? 0 : pedido.lado;
     // Relativo a la cámara: adelante es hacia donde mira
-    const fx = -Math.sin(camGiro);
-    const fz = -Math.cos(camGiro);
+    const fx = -Math.sin(vista.giro);
+    const fz = -Math.cos(vista.giro);
     let dx = fx * adelante + -fz * lado;
     let dz = fz * adelante + fx * lado;
     const largo = Math.hypot(dx, dz);
@@ -298,6 +378,10 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
       enSuelo = true;
     } else if (pos.y > suelo + 0.05) enSuelo = false;
 
+    animarPersonaje(dt);
+  };
+
+  const animarPersonaje = (dt: number) => {
     const velocidad = Math.hypot(vel.x, vel.z);
     if (velocidad > 0.4) {
       const objetivo = Math.atan2(vel.x, vel.z);
@@ -382,8 +466,6 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
     if (jugando) moverJugador(dt);
     else personaje.animar({ velocidad: 0, enElAire: false, dt });
     if (jugando && !cambiando) buscarCerca();
-    // Sin jugar (pantalla de inicio o pausa), la cámara da vueltas despacio alrededor
-    if (!jugando) camGiro += dt * 0.08;
     colocarCamara(false, dt);
     sitios.actualizar(tiempo, cerca && !enSala ? cerca.id : null);
     sala.actualizar(tiempo);
@@ -414,16 +496,29 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
 
   return {
     listo,
-    jugar: async () => {
-      jugando = true;
-      await sonido.arrancar();
-      sonido.pausar(false);
-      if (!enSala) {
-        // La cámara vuelve detrás del jugador
-        camGiro = rumbo + Math.PI;
-        camCabeceo = CAMARA.cabeceo;
-      }
+    llegar: async () => {
+      // Desde lo alto, girando, hasta la espalda del jugador
+      cine = true;
+      cambiando = false;
+      const final = { giro: rumbo + Math.PI, cabeceo: CAMARA.cabeceo, distancia: CAMARA.distancia };
+      Object.assign(vista, { giro: final.giro + 1.5, cabeceo: 1.2, distancia: 60 });
+      colocarCamara(true, 0);
+      await moverVista(final, 2.8, 'power3.inOut');
+      cine = false;
     },
+    despegar: async () => {
+      cambiando = true;
+      avisarCerca(null);
+      cine = true;
+      // Primero mira hacia abajo (la cámara se levanta por encima de todo) y luego se aleja
+      gsap.to(vista, { cabeceo: 1.4, duration: 0.6, ease: 'power2.out', overwrite: true });
+      await new Promise<void>((r) => gsap.to(vista, { distancia: 70, giro: vista.giro + 0.8, duration: 1.5, ease: 'power2.in', onComplete: r }));
+    },
+    jugar: () => {
+      jugando = true;
+      sonido.pausar(false);
+    },
+    sonar: () => sonido.arrancar(),
     pausar: () => {
       jugando = false;
       pedido.adelante = pedido.lado = 0;
@@ -438,11 +533,12 @@ export async function montarJuego(canvas: HTMLCanvasElement, apps: DatosApp[], o
     correr: (si) => (pedido.correr = si),
     saltar: () => (pedirSalto = true),
     girarCamara: (dx, dy) => {
-      camGiro -= dx * 0.0042;
-      camCabeceo = Math.min(1.25, Math.max(-0.15, camCabeceo + dy * 0.0035));
+      if (cambiando || cine) return;
+      vista.giro -= dx * 0.0042;
+      vista.cabeceo = Math.min(1.25, Math.max(-0.15, vista.cabeceo + dy * 0.0035));
     },
     acercar: (delta) => {
-      distancia = Math.min(CAMARA.max, Math.max(CAMARA.min, distancia * (1 + delta * 0.001)));
+      vista.distancia = Math.min(CAMARA.max, Math.max(CAMARA.min, vista.distancia * (1 + delta * 0.001)));
     },
     accion: () => {
       if (!jugando || cambiando || !cerca) return;

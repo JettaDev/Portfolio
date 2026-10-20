@@ -16,6 +16,8 @@ const t = useT(lang);
 const ventanas = await getCiudad(lang);
 // Los sitios del barrio que no son apps, con su página
 const sitios = { '#apps': pagePath(lang, 'apps'), '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
+// El juego: se llega volando hasta la calle
+const juego = pagePath(lang, 'juego');
 
 const [ancho, alto] = await Promise.all([
   getImage({ src: posterAncho, widths: [1500, 2200, 3000], format: 'webp' }),
@@ -131,12 +133,12 @@ const rotulos = [
       </nav>
 
       <!-- El barrio como videojuego, en su propia página -->
-      <a href={pagePath(lang, 'juego')} class="explorar boton boton-secundario pointer-events-auto min-h-11">{t('ciudad.jugar')}</a>
+      <a href={juego} class="explorar boton boton-secundario pointer-events-auto min-h-11">{t('ciudad.jugar')}</a>
     </div>
   </div>
 
   <script type="application/json" data-datos-ciudad set:html={JSON.stringify(ventanas)} />
-  <script type="application/json" data-sitios-ciudad set:html={JSON.stringify(sitios)} />
+  <script type="application/json" data-sitios-ciudad set:html={JSON.stringify({ ...sitios, '#calle': juego })} />
 </section>
 
 <style>
@@ -262,6 +264,7 @@ const rotulos = [
     const pista = raiz.querySelector<HTMLElement>('[data-pista]')!;
     const chips = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-slug]')];
     const rotulos = [...raiz.querySelectorAll<HTMLAnchorElement>('a[data-rotulo]')];
+    const explorar = raiz.querySelector<HTMLAnchorElement>('.explorar')!;
     const datos: DatosVentana[] = JSON.parse(raiz.querySelector('[data-datos-ciudad]')!.textContent!);
     const sitios: Record<string, string> = JSON.parse(raiz.querySelector('[data-sitios-ciudad]')!.textContent!);
     rotulos.forEach((r) => (r.dataset.posicion = r.style.cssText));
@@ -380,7 +383,7 @@ const rotulos = [
       enVuelo = null;
       marcarVuelo(null);
       // El foco vuelve a lo que llevaba allí: el chip de la app, el rótulo o el enlace de la cabecera
-      const enlace = chips.find((a) => a.dataset.slug === id) ?? conRotulo(id) ?? document.querySelector<HTMLAnchorElement>(`header a[href="${destinos.get(id)}"]`);
+      const enlace = chips.find((a) => a.dataset.slug === id) ?? conRotulo(id) ?? (id === '#calle' ? explorar : null) ?? document.querySelector<HTMLAnchorElement>(`header a[href="${destinos.get(id)}"]`);
       enlace?.focus({ preventScroll: true });
     };
 
@@ -411,6 +414,13 @@ const rotulos = [
         entrar(id);
       });
     }
+
+    // «Explorar la ciudad»: la cámara baja volando hasta la calle y el destello lleva al juego
+    explorar.addEventListener('click', (e) => {
+      if (!ciudad || raiz.dataset.estado !== 'vivo' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      entrar('#calle');
+    });
 
     if (nivel === 'estatico') {
       // Se queda el póster con sus enlaces

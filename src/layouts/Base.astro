@@ -136,7 +136,8 @@ const ogImage = new URL(image, Astro.site);
       // Llegada desde la ciudad: el destello se recoge sobre la ventana de la página (la portada de
       // la ficha, la primera app del catálogo, el titular de Sobre mí o de Contacto)
       import { centroDe, retirar } from '../lib/destello';
-      if (document.documentElement.dataset.destello === 'llegada') retirar(centroDe(document.querySelector('[data-destello-destino]')));
+      // (salvo si la página lo recoge ella misma cuando está lista: el juego)
+      if (document.documentElement.dataset.destello === 'llegada' && !document.querySelector('[data-destello-espera]')) retirar(centroDe(document.querySelector('[data-destello-destino]')));
     </script>
     <script>
       // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.

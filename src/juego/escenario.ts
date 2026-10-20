@@ -28,6 +28,7 @@ import {
   Vector3,
   type Texture,
 } from 'three';
+import { gsap } from 'gsap';
 import { COLORES } from '../ciudad/escena';
 import { BORDILLO, COCHE, CUADRA, MANZANA, RADIO, type Mundo, type Puerta } from './mundo';
 
@@ -290,6 +291,8 @@ export interface Sitios {
   capturas: Map<string, Texture>;
   /** Marcadores que flotan sobre las puertas, la luz de las puertas al acercarse… */
   actualizar(t: number, cercana: string | null): void;
+  /** Abre o cierra la puerta de un sitio (animada salvo con `inmediato`); se resuelve al acabar. */
+  abrir(id: string, abierta: boolean, inmediato?: boolean): Promise<void>;
 }
 
 /** Punto de una fachada: `lado` a lo largo de ella, `alto` y `fuera` hacia la calle. */
@@ -319,6 +322,8 @@ export function crearSitios(mundo: Mundo, apps: DatosApp[], halo: CanvasTexture,
   const cargador = new TextureLoader();
   const marcadores = new Map<string, { malla: Mesh; base: number }>();
   const luces = new Map<string, MeshBasicMaterial>();
+  const hojas = new Map<string, Group>();
+  const hoja = new MeshLambertMaterial({ color: '#132b1f' });
   const caja = new BoxGeometry(1, 1, 1);
   const marco = new MeshLambertMaterial({ color: '#0a1610' });
 
@@ -339,6 +344,21 @@ export function crearSitios(mundo: Mundo, apps: DatosApp[], halo: CanvasTexture,
       ]) {
         grupo.add(plano(ancho, alto, cerco, p, lado, BORDILLO + y, 0.05));
       }
+      // La hoja de la puerta, con su bisagra a la izquierda y un cristal en el color del sitio
+      const bisagra = new Group();
+      bisagra.position.copy(enFachada(p, -0.74, BORDILLO, 0.06));
+      bisagra.rotation.y = p.giro;
+      const tablero = new Mesh(caja, hoja);
+      tablero.scale.set(1.48, 2.48, 0.06);
+      tablero.position.set(0.74, 1.24, 0);
+      const cristal = new Mesh(new PlaneGeometry(0.9, 0.5), new MeshBasicMaterial({ color: new Color(hue).multiplyScalar(0.6), toneMapped: false }));
+      cristal.position.set(0.74, 1.75, 0.035);
+      const pomo = new Mesh(caja, new MeshBasicMaterial({ color: '#d9c9a0' }));
+      pomo.scale.set(0.06, 0.14, 0.08);
+      pomo.position.set(1.28, 1.1, 0.06);
+      bisagra.add(tablero, cristal, pomo);
+      hojas.set(p.id, bisagra);
+      grupo.add(bisagra);
       // Marquesina sobre la puerta
       const marquesina = new Mesh(caja, marco);
       marquesina.scale.set(2.6, 0.12, 1.1);
@@ -413,6 +433,19 @@ export function crearSitios(mundo: Mundo, apps: DatosApp[], halo: CanvasTexture,
   return {
     objeto: grupo,
     capturas,
+    abrir: (id, abierta, inmediato = false) => {
+      const b = hojas.get(id);
+      if (!b) return Promise.resolve();
+      const p = mundo.puertas.find((x) => x.id === id)!;
+      // Se abre hacia la calle, girando sobre la bisagra
+      const giro = p.giro + (abierta ? -1.75 : 0);
+      gsap.killTweensOf(b.rotation);
+      if (inmediato) {
+        b.rotation.y = giro;
+        return Promise.resolve();
+      }
+      return new Promise((r) => gsap.to(b.rotation, { y: giro, duration: abierta ? 0.5 : 0.6, ease: abierta ? 'power2.out' : 'power2.inOut', onComplete: r }));
+    },
     actualizar: (t, cercana) => {
       for (const [id, { malla, base }] of marcadores) {
         malla.rotation.y = t * 1.6;

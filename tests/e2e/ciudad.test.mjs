@@ -182,22 +182,24 @@ describe('páginas de la ciudad', () => {
 });
 
 describe('la ciudad como juego', () => {
-  test('desde la portada se llega al juego, se juega, se pausa con Esc y se sigue', async () => {
+  test('de la portada al juego volando, se juega y con Q se vuelve a la portada', async () => {
     const { ctx, page, errores } = await pagina();
     await page.goto(url('/'), { waitUntil: 'load' });
+    await viva(page);
     await page.click('.explorar');
     await page.waitForURL('**/explora/**');
-    await page.waitForSelector('[data-jugar]:not([disabled])', { timeout: 30_000 });
-    await page.click('[data-jugar]');
-    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'jugando');
+    await page.waitForSelector('[data-juego][data-estado="jugando"]', { timeout: 30_000 });
+    assert.ok(await enReposo(page), 'el destello se recoge al llegar');
+    assert.equal(await page.isVisible('[data-ayuda]'), true, 'sale el mensaje de cómo se juega');
+    await page.click('[data-entendido]');
+    assert.equal(await page.isVisible('[data-ayuda]'), false);
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(400);
     await page.keyboard.up('KeyW');
-    await page.keyboard.press('Escape');
-    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'pausa');
-    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-jugar')), true, 'el foco va a «Seguir jugando»');
-    await page.keyboard.press('Enter');
-    assert.equal(await page.getAttribute('[data-juego]', 'data-estado'), 'jugando');
+    await page.keyboard.press('KeyQ');
+    await page.waitForURL((u) => sinBarra(u.pathname) === '', { timeout: 10_000 });
+    assert.ok(await enReposo(page), 'la portada vuelve al reposo');
+    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('explorar')), true, 'el foco vuelve a «Explorar la ciudad»');
     assert.deepEqual(errores, []);
     await ctx.close();
   });
@@ -206,6 +208,7 @@ describe('la ciudad como juego', () => {
     const { ctx, page } = await pagina();
     await page.goto(url('/en/explore/'), { waitUntil: 'load' });
     assert.equal(await page.textContent('h1'), 'JettaDev’s city');
+    assert.equal(await page.getAttribute('[data-salir]', 'href'), '/en/');
     await ctx.close();
   });
 });

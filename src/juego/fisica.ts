@@ -64,6 +64,8 @@ export function rayoLibre(
     const min = [c.x - c.ancho / 2 - margen, -1, c.z - c.fondo / 2 - margen];
     const max = [c.x + c.ancho / 2 + margen, c.alto + margen, c.z + c.fondo / 2 + margen];
     const o = [a.x, a.y, a.z];
+    // Si el rayo sale de dentro de la caja (el jugador en el umbral de una puerta), esa no cuenta
+    if (o.every((x, k) => x > min[k] && x < max[k])) continue;
     const v = [d.x, d.y, d.z];
     let entrada = 0;
     let salida = t;
