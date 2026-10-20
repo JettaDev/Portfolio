@@ -10,6 +10,8 @@ import type { Objetivo } from './ventanas';
 export const DURACION_VUELO = 1.1;
 /** La vuelta sale rápida desde el objetivo y frena al llegar al reposo. */
 export const DURACION_VUELTA = 1.05;
+/** Acercamiento antes de que la ventana salga de la fachada. */
+export const DURACION_ACERCAMIENTO = 0.9;
 const TAN = Math.tan(((CAMARA.fov / 2) * Math.PI) / 180);
 
 /** Distancia a la que se queda la cámara delante de un objetivo: lo justo para que llene la pantalla de alto. */
@@ -148,6 +150,26 @@ export class CamaraCiudad {
   }
 
   /**
+   * Acercamiento para «la ventana sale»: la cámara vuela hasta que el objetivo ocupa `fraccion`
+   * del ancho de la pantalla (sin pasar del 55 % del alto) y se queda ahí. Se resuelve al llegar.
+   */
+  acercarA(o: Objetivo, fraccion: number): Promise<void> {
+    this.vuelo?.kill();
+    const tanV = TAN;
+    const tanH = TAN * this.camara.aspect;
+    const d = Math.max(o.tamano.ancho / 2 / (fraccion * tanH), o.tamano.alto / 2 / (0.55 * tanV));
+    const p = o.posicion;
+    const viaje = { duration: DURACION_ACERCAMIENTO, ease: 'power3.inOut' };
+    const linea = gsap
+      .timeline({ paused: true })
+      .to(this.camara.position, { x: p.x, y: p.y, z: p.z + d, ...viaje }, 0)
+      .to(this.mira, { x: p.x, y: p.y, z: p.z, ...viaje }, 0)
+      .to(o, { brillo: 0.35, duration: 0.6, ease: 'power2.out' }, 0);
+    this.vuelo = linea;
+    return new Promise((resolver) => linea.eventCallback('onComplete', () => resolver()).play());
+  }
+
+  /**
    * Coloca la cámara pegada al objetivo, sin animación (al volver a la portada sin bfcache), o en
    * un punto intermedio del vuelo (`progreso` < 1, para las imágenes Open Graph).
    */
@@ -161,18 +183,21 @@ export class CamaraCiudad {
    * Vuelo de vuelta: arranca pegado al objetivo y sale ya en marcha (no es la ida al revés, que
    * arrancaría parada y dejaría la captura quieta a pantalla completa). Frena al llegar al reposo.
    */
-  volverDe(o: Objetivo): Promise<void> {
+  volverDe(o: Objetivo, desdeDondeEste = false): Promise<void> {
     this.vuelo?.kill();
     const desde = this.llegada(o);
-    this.camara.position.copy(desde.posicion);
-    this.mira.copy(desde.mira);
+    // Volviendo con Atrás la cámara sigue donde se quedó (acercada); si no, pegada al objetivo
+    if (!desdeDondeEste) {
+      this.camara.position.copy(desde.posicion);
+      this.mira.copy(desde.mira);
+    }
     const viaje = { duration: DURACION_VUELTA, ease: 'power2.out' };
     const linea = gsap
       .timeline({ paused: true })
       .to(this.camara.position, { ...this.reposoActual, ...viaje }, 0)
       // La mirada se suelta del objetivo un poco más tarde: al principio aún se ve de frente
       .to(this.mira, { ...this.miraEnReposo, duration: DURACION_VUELTA, ease: 'power3.inOut' }, 0)
-      .fromTo(o, { brillo: desde.brillo }, { brillo: 0, duration: 0.8, ease: 'power2.out' }, 0);
+      .fromTo(o, { brillo: desdeDondeEste ? o.brillo : desde.brillo }, { brillo: 0, duration: 0.8, ease: 'power2.out' }, 0);
     this.vuelo = linea;
     return new Promise((resolver) =>
       linea

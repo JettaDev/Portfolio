@@ -1,6 +1,6 @@
 ---
 // Sobre mí: el estudio de la ciudad (la ventana con la lámpara, encima de la tienda) lleva aquí.
-// Su imagen es la escena real (npm run poster) y es donde se recoge el destello al llegar.
+// Su imagen es la escena real (npm run poster) y es adonde vuela el estudio al llegar desde la ciudad.
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import estudio from '../assets/ciudad/sitios/sobre-mi.webp';
@@ -11,7 +11,7 @@ const lang = getLang(Astro.url);
 const t = useT(lang);
 ---
 
-<Base title={t('about.title')} description={t('about.description')}>
+<Base title={t('about.title')} description={t('about.description')} ventanaDestino>
   <header class="contenedor grid gap-10 pt-12 pb-16 md:grid-cols-12 md:items-center md:gap-12 lg:pt-20 lg:pb-24">
     <div class="md:col-span-6">
       <h1 class="text-[clamp(3rem,9vw,6.5rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]">{t('about.title')}</h1>
@@ -24,7 +24,7 @@ const t = useT(lang);
         </div>
       </div>
     </div>
-    <div class="overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" data-destello-destino>
+    <div class="overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" id="ventana-destino" data-ventana-destino>
       <Image src={estudio} alt={t('about.alt')} widths={[640, 960, 1280, 1600]} sizes="(min-width: 76rem) 36rem, (min-width: 48rem) 50vw, 100vw" loading="eager" class="aspect-[16/10] w-full object-cover" />
     </div>
   </header>

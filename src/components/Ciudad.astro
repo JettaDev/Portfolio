@@ -4,6 +4,7 @@
 // El póster (misma escena, misma semilla) se pinta al instante y el motor 3D se descarga después
 // y se funde encima. Sin WebGL, los sitios del póster son enlaces.
 import { getImage } from 'astro:assets';
+import BrowserFrame from './BrowserFrame.astro';
 import posterAncho from '../assets/ciudad/poster-ancho.webp';
 import posterAlto from '../assets/ciudad/poster-alto.webp';
 import posiciones from '../assets/ciudad/poster.json';
@@ -100,6 +101,9 @@ const rotulos = [
     </a>
   ))}
 
+  <!-- Marca: hasta aquí, los sitios del póster ya están en el HTML (la portada espera a pintar) -->
+  <span id="sitios-poster" hidden></span>
+
   <span class="etiqueta pointer-events-none absolute top-0 left-0 rounded-full bg-bosque-hondo px-3 py-1.5 text-sm font-semibold whitespace-nowrap" aria-hidden="true" data-etiqueta data-sobre-mi={t('nav.about')} data-miau={t('ciudad.miau')}></span>
 
   <div class="textos contenedor pointer-events-none relative flex h-full flex-col justify-between pt-20 pb-6 sm:pt-24 sm:pb-10">
@@ -128,6 +132,18 @@ const rotulos = [
         ))}
       </ul>
     </nav>
+  </div>
+
+  <!-- «La ventana sale» (src/lib/salida.ts): el velo oscurece la ciudad alrededor de lo pulsado y
+       de estas plantillas sale la ventana que vuela hasta su página -->
+  <div class="velo pointer-events-none fixed top-0 left-0 rounded-md" aria-hidden="true" data-velo></div>
+  <div hidden aria-hidden="true" data-plantilla-ventana>
+    <BrowserFrame domain="" marco decorativa class="w-full">
+      <div class="aspect-[16/10] bg-bosque-hondo" data-cuerpo></div>
+    </BrowserFrame>
+  </div>
+  <div hidden aria-hidden="true" data-plantilla-recorte>
+    <div class="overflow-hidden rounded-ventana bg-bosque-hondo"><div data-cuerpo></div></div>
   </div>
 
   <script type="application/json" data-datos-ciudad set:html={JSON.stringify(ventanas)} />
@@ -230,6 +246,19 @@ const rotulos = [
     }
   }
 
+  /* El velo: un hueco transparente sobre lo pulsado y una sombra enorme que oscurece el resto */
+  .velo {
+    width: 0;
+    height: 0;
+    z-index: 30;
+    box-shadow: 0 0 0 200vmax color-mix(in oklab, var(--color-bosque-hondo) 82%, transparent);
+    opacity: 0;
+    transition: opacity 0.6s var(--ease-salida);
+  }
+  .velo[data-activo] {
+    opacity: 1;
+  }
+
   /* Durante el vuelo los textos se apartan: si no, quedarían encima de lo que se acerca */
   .textos {
     transition: opacity 0.35s var(--ease-salida);
@@ -245,7 +274,7 @@ const rotulos = [
 <script>
   import { detectarNivel } from '../ciudad/rendimiento';
   import type { Ciudad, DatosVentana } from '../ciudad';
-  import { centroDe, cubrir, olvidarSalida, recordarSalida, retirar } from '../lib/destello';
+  import { Velo, crearVentana, finTransicion, olvidarSalida, recordarSalida, type Rect, type Ventana } from '../lib/salida';
 
   const raiz = document.querySelector<HTMLElement>('[data-ciudad]');
   if (raiz) iniciar(raiz);
@@ -303,6 +332,11 @@ const rotulos = [
       if (!url || prefetch.has(url)) return;
       prefetch.add(url);
       document.head.append(Object.assign(document.createElement('link'), { rel: 'prefetch', href: url }));
+      // Y las imágenes de su ficha: la ventana que sale aterriza con la captura ya cargada
+      const app = datos.find((d) => d.slug === id) as (DatosVentana & { ficha?: { srcset: string; sizes: string }[] }) | undefined;
+      for (const img of app?.ficha ?? []) {
+        document.head.append(Object.assign(document.createElement('link'), { rel: 'preload', as: 'image', imageSrcset: img.srcset, imageSizes: img.sizes }));
+      }
     };
     const alPasar = (id: string | null) => {
       chips.forEach((a) => a.toggleAttribute('data-activa', a.dataset.slug === id));
@@ -316,16 +350,61 @@ const rotulos = [
       }
     };
 
-    // --- Ida: vuelo, destello desde lo pulsado y navegación real ------------------------------
-    const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    /** Centro de un objetivo en pantalla, siguiéndolo mientras la cámara se mueve. */
-    const sobre = (id: string) => () => ciudad?.enPantalla(id) ?? { x: innerWidth / 2, y: innerHeight / 2 };
-    /** El círculo sale cuando el objetivo ya se acerca y cubre la pantalla antes de que la cámara frene. */
-    const INICIO_DESTELLO = 560;
+    // --- Ida: «la ventana sale» --------------------------------------------------------------
+    // La ciudad se oscurece alrededor de lo pulsado, la cámara se acerca, la ventana se despega
+    // de la fachada (marco, barra y captura) y la view transition la lleva a su sitio en la página
+    const velo = new Velo(raiz.querySelector<HTMLElement>('[data-velo]')!);
+    const plantillaVentana = raiz.querySelector<HTMLElement>('[data-plantilla-ventana] > *')!;
+    const plantillaRecorte = raiz.querySelector<HTMLElement>('[data-plantilla-recorte] > *')!;
+    /** Lo que sale de los sitios (escaparate, estudio y solar): un trozo de calle alrededor. */
+    const ampliar = (id: string) => (id === '#apps' ? 1.6 : id.startsWith('#') ? 2.8 : undefined);
+    /** Rectángulo de lo que sale en la pantalla (el canvas puede no empezar en 0,0). */
+    const enVentana = (id: string): Rect | null => {
+      const r = ciudad?.rectEnPantalla(id, ampliar(id));
+      if (!r) return null;
+      const c = lienzo.getBoundingClientRect();
+      return { ...r, x: r.x + c.left, y: r.y + c.top };
+    };
+    /** La ventana que ha salido y espera (al volver con Atrás, sigue ahí). */
+    let ventana: Ventana | null = null;
+
+    /** La captura que irá en la ventana: se carga mientras la cámara se acerca. */
+    const cargarCaptura = (id: string): Promise<HTMLImageElement | null> => {
+      const app = datos.find((d) => d.slug === id);
+      if (!app) return Promise.resolve(null);
+      const img = new Image();
+      img.src = app.cover.src;
+      img.alt = '';
+      img.className = 'size-full object-cover object-top';
+      return img.decode().then(
+        () => img,
+        () => img,
+      );
+    };
+
+    const sacarVentana = (id: string, r: Rect, captura: HTMLImageElement | null): Ventana => {
+      const app = datos.find((d) => d.slug === id) as (DatosVentana & { domain?: string }) | undefined;
+      if (app) {
+        const v = crearVentana(plantillaVentana, r, (cuerpo) => captura && cuerpo.append(captura));
+        v.el.style.setProperty('--hue', app.hue);
+        const dominio = v.el.querySelector<HTMLElement>('[data-dominio]');
+        if (dominio) dominio.dataset.dominio = app.domain ?? '';
+        return v;
+      }
+      // El escaparate, el estudio o el solar: sale el trozo de ciudad pulsado
+      const recorte = ciudad?.recorte(id, ampliar(id));
+      return crearVentana(plantillaRecorte, r, (cuerpo) => {
+        if (!recorte) return;
+        recorte.style.cssText = `display:block;width:${r.ancho}px;height:${r.alto}px`;
+        cuerpo.append(recorte);
+      });
+    };
+
     const entrar = async (id: string) => {
       if (enVuelo) return;
       const destino = destinos.get(id)!;
-      if (!ciudad) {
+      if (!ciudad || reducido()) {
+        // Sin motor o con movimiento reducido: a la página sin más
         location.href = destino;
         return;
       }
@@ -334,16 +413,20 @@ const rotulos = [
       alPasar(null);
       marcarVuelo('ida');
       recordarSalida(id, destino);
-
-      if (reducido()) {
-        await cubrir({ x: innerWidth / 2, y: innerHeight / 2 });
-      } else {
-        ciudad.volarA(id);
-        await espera(INICIO_DESTELLO);
-        await cubrir(sobre(id), 400);
-      }
-      location.href = destino;
-      // Si la navegación no llega (sin red, bloqueada…), la capa no puede quedarse tapándolo todo
+      velo.oscurecer(() => enVentana(id));
+      const [captura] = await Promise.all([cargarCaptura(id), ciudad.acercarA(id)]);
+      velo.parar();
+      const r = enVentana(id);
+      if (r) {
+        ventana = sacarVentana(id, r, captura);
+        ventana.el.style.viewTransitionName = 'salida';
+        // La página se pide mientras la ventana se despega: la espera queda dentro de la animación
+        const salida = ventana.salir();
+        await new Promise((ok) => setTimeout(ok, 200));
+        location.href = destino;
+        await salida;
+      } else location.href = destino;
+      // Si la navegación no llega (sin red, bloqueada…), la ventana vuelve a su sitio
       const rescate = setTimeout(() => {
         olvidarSalida();
         volver(id);
@@ -351,27 +434,20 @@ const rotulos = [
       addEventListener('pagehide', () => clearTimeout(rescate), { once: true });
     };
 
-    // --- Vuelta: la capa se recoge sobre el objetivo mientras la cámara vuelve al reposo -------
-    /** Espera a que acabe la view transition de llegada (la capa aún está creciendo), como mucho 1 s. */
-    const finTransicion = async () => {
-      await new Promise(requestAnimationFrame);
-      for (let t0 = performance.now(); html.hasAttribute('data-transicion') && performance.now() - t0 < 1000; ) await new Promise(requestAnimationFrame);
-    };
+    // --- Vuelta: la ventana de la página regresa a su hueco y la cámara se aleja -------------
     const volver = async (id: string) => {
-      esperandoVuelta = false;
       enVuelo = id;
       marcarVuelo('vuelta');
       await finTransicion();
-      if (ciudad && !reducido()) {
-        // A la vez: si la cámara esperase a la capa, la captura se quedaría quieta a pantalla completa
-        await Promise.all([ciudad.volverDe(id), retirar(sobre(id), 700)]);
-      } else {
-        // Sin vuelo: se recoge sobre el sitio del póster (o un fundido, con movimiento reducido)
-        if (ciudad) await ciudad.volverDe(id);
-        const rotulo = conRotulo(id);
-        const enPoster = [...raiz.querySelectorAll(`.ventana-poster[data-id="${id}"]`), ...(rotulo ? [rotulo] : [])].find((a) => a.getClientRects().length);
-        await retirar(centroDe(enPoster ?? null));
+      if (ventana) {
+        ventana.el.style.viewTransitionName = '';
+        const r = enVentana(id);
+        if (r && ciudad && !reducido()) await ventana.entrar(r);
+        ventana.quitar();
+        ventana = null;
       }
+      velo.aclarar();
+      if (ciudad) await ciudad.volverDe(id, true);
       enVuelo = null;
       marcarVuelo(null);
       // El foco vuelve a lo que llevaba allí: el chip de la app, el rótulo o el enlace de la cabecera
@@ -379,18 +455,23 @@ const rotulos = [
       enlace?.focus({ preventScroll: true });
     };
 
-    // 1. Atrás con bfcache: la página vuelve tal cual se dejó (cubierta y con la cámara en el objetivo)
+    // 1. Atrás con bfcache: la página vuelve tal cual se dejó (la ventana fuera, la cámara cerca)
     addEventListener('pageshow', (e) => {
       if (!e.persisted || !enVuelo) return;
       olvidarSalida();
       volver(enVuelo);
     });
 
-    // 2. Carga normal volviendo de una página de la ciudad: el <head> ya ha puesto la capa (data-destello="regreso")
-    const regreso = html.dataset.destello === 'regreso' ? html.dataset.regreso : undefined;
-    const vuelveDe = regreso && destinos.has(regreso) ? regreso : undefined;
-    let esperandoVuelta = !!vuelveDe;
-    if (regreso && !vuelveDe) retirar({ x: innerWidth / 2, y: innerHeight / 2 });
+    // 2. Carga normal volviendo de una página de la ciudad: la view transition ya ha llevado su
+    //    ventana hasta el sitio del póster (lo prepara el <head>). Solo falta devolver el foco
+    const regreso = html.dataset.regreso;
+    if (regreso) {
+      finTransicion().then(() => {
+        delete html.dataset.regreso;
+        const enlace = chips.find((a) => a.dataset.slug === regreso) ?? conRotulo(regreso) ?? document.querySelector<HTMLAnchorElement>(`header a[href="${destinos.get(regreso)}"]`);
+        enlace?.focus({ preventScroll: true });
+      });
+    }
 
     // --- Chips y rótulos: el foco y el puntero iluminan su sitio; Enter o clic hacen el vuelo ---
     for (const a of [...chips, ...rotulos]) {
@@ -407,11 +488,7 @@ const rotulos = [
       });
     }
 
-    if (nivel === 'estatico') {
-      // Se queda el póster con sus enlaces
-      if (vuelveDe) volver(vuelveDe);
-      return;
-    }
+    if (nivel === 'estatico') return; // Se queda el póster con sus enlaces
 
     // Los rótulos siguen a su sitio mientras la cámara se mueve (parallax)
     const seguirRotulos = () => {
@@ -433,8 +510,6 @@ const rotulos = [
     };
 
     // --- Carga diferida del motor ---------------------------------------------------
-    let listo: () => void;
-    const primerFrame = new Promise<void>((r) => (listo = r));
     const arrancar = async () => {
       try {
         const { montarCiudad, climaDelDia } = await import('../ciudad');
@@ -450,7 +525,6 @@ const rotulos = [
           hora: params.has('hora') && Number.isFinite(horaPedida) ? horaPedida : ahora.getHours() + ahora.getMinutes() / 60,
           alPrimerFrame: () => {
             raiz.dataset.estado = 'vivo';
-            listo();
           },
           alPasar,
           alPulsar: entrar,
@@ -477,24 +551,14 @@ const rotulos = [
             });
           },
         });
-        // Volviendo, la cámara empieza pegada al objetivo (si la vuelta ya ha empezado sin motor, en reposo)
-        if (vuelveDe && esperandoVuelta) ciudad.situarEn(vuelveDe);
         seguirRotulos();
         movimiento.addEventListener('change', () => ciudad?.reducido(reducido()));
       } catch {
         // Sin motor (red caída, WebGL que falla al crear el contexto…): se queda el póster
         raiz.dataset.estado = 'poster';
-        listo();
       }
     };
 
-    if (vuelveDe) {
-      // Volviendo, la capa tapa la ciudad: el motor arranca ya y, si tarda, se vuelve sin él
-      marcarVuelo('vuelta');
-      arrancar();
-      Promise.race([primerFrame, espera(4000)]).then(() => volver(vuelveDe));
-      return;
-    }
     const cuandoLibre = () =>
       'requestIdleCallback' in window ? requestIdleCallback(arrancar, { timeout: 2000 }) : setTimeout(arrancar, 200);
     if (document.readyState === 'complete') cuandoLibre();

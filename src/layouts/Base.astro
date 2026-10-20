@@ -16,15 +16,17 @@ interface Props {
   noindex?: boolean;
   /** La cabecera empieza transparente sobre el hero a pantalla completa (portada y 404) */
   cabeceraSobreHero?: boolean;
-  /** Es la portada de la ciudad: al volver de una ficha, el destello sale cubriendo */
+  /** Es la portada de la ciudad: al volver de una ficha, su ventana encoge hasta el edificio */
   portada?: boolean;
   /** Una sola pantalla, sin scroll ni pie (la portada) */
   pantallaCompleta?: boolean;
+  /** La página tiene una ventana (#ventana-destino) a la que llega la que sale de la ciudad */
+  ventanaDestino?: boolean;
 }
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
-const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false } = Astro.props;
+const { title, description = t('meta.description'), image = `/og/${lang}/index.png`, imageAlt = t('meta.title'), noindex = false, cabeceraSobreHero = false, portada = false, pantallaCompleta = false, ventanaDestino = false } = Astro.props;
 const fullTitle = title ? `${title} · JettaDev` : t('meta.title');
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image, Astro.site);
@@ -44,57 +46,55 @@ const ogImage = new URL(image, Astro.site);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href={fuente} as="font" type="font/woff2" crossorigin />
     <script is:inline>
-      // Antes del primer pintado: clase .js y, si se viene de la ciudad o se vuelve a ella, el
-      // destello ya cubriendo la página (ver src/lib/destello.ts).
+      // Antes del primer pintado: clase .js y la transición «la ventana sale» (src/lib/salida.ts):
+      // si se llega desde la ciudad, la ventana de esta página recibe el nombre de la que sale de
+      // la fachada; si se vuelve a la portada, su ventana en el póster recibe el de esta página.
       (() => {
         const html = document.documentElement;
         html.classList.add('js');
         try {
           const s = sessionStorage;
           const ruta = (p) => p.replace(/(.)\/$/, '$1');
-          addEventListener('pagehide', () => {
-            s.setItem('ciudad:anterior', ruta(location.pathname));
-            // Al volver a la ciudad, la capa crecerá desde la ventana de esta página
-            const r = document.querySelector('[data-destello-destino]')?.getBoundingClientRect();
-            const dentro = (v, max) => Math.round(Math.min(Math.max(v, 0), max));
-            if (r) s.setItem('ciudad:origen', JSON.stringify({ x: dentro(r.left + r.width / 2, innerWidth), y: dentro(r.top + r.height / 2, innerHeight) }));
-            else s.removeItem('ciudad:origen');
-          });
-          const origen = () => {
-            const o = JSON.parse(s.getItem('ciudad:origen') || 'null') || { x: innerWidth / 2, y: innerHeight / 2 };
-            html.style.setProperty('--destello-x', o.x + 'px');
-            html.style.setProperty('--destello-y', o.y + 'px');
-          };
-          // Atrás con bfcache: este script no vuelve a ejecutarse, pero la capa también crece desde allí
-          addEventListener('pageshow', (e) => e.persisted && html.hasAttribute('data-destello') && origen());
-          // Volviendo a la ciudad (Atrás o el logo), la página que se deja se queda quieta mientras la
-          // capa crece encima: su título y su ventana no deben irse con su nombre de view transition,
-          // porque en la portada no existen y desaparecerían de la instantánea
+          addEventListener('pagehide', () => s.setItem('ciudad:anterior', ruta(location.pathname)));
+          // Volviendo a la ciudad (Atrás o el logo) desde la página a la que se llegó desde ella: su
+          // ventana vuelve al edificio. Nada más vuela (el título no existe en la portada)
           addEventListener('pageswap', (e) => {
             const url = e.activation && e.viewTransition ? new URL(e.activation.entry.url) : null;
             const inicio = location.pathname.startsWith('/en/') ? '/en/' : '/';
             const desde = JSON.parse(s.getItem('ciudad:desde') || 'null');
             if (!url || url.pathname !== inicio || !desde || desde.href !== ruta(location.pathname)) return;
             document.querySelectorAll('.vt-titulo, [data-vt]').forEach((el) => el.style.setProperty('view-transition-name', 'none'));
+            const ventana = document.querySelector('[data-ventana-destino]');
+            if (ventana && ventana.getBoundingClientRect().bottom > 0) ventana.style.setProperty('view-transition-name', 'salida');
           });
-          // Mientras dura la view transition de llegada, data-transicion (la ciudad espera a que acabe
-          // para recoger la capa: si no, se recogería mientras la transición la hace crecer)
+          // Mientras dura una view transition, data-transicion (la ciudad espera a que acabe)
           addEventListener('pagereveal', (e) => {
             const vt = e.viewTransition;
-            if (!vt) return;
+            if (!vt) {
+              delete html.dataset.llegada;
+              return;
+            }
             html.dataset.transicion = '';
-            vt.finished.finally(() => delete html.dataset.transicion);
+            vt.finished.finally(() => {
+              delete html.dataset.transicion;
+              delete html.dataset.llegada;
+            });
           });
           const llegada = s.getItem('ciudad:llegada');
           s.removeItem('ciudad:llegada');
-          if (llegada && llegada === ruta(location.pathname)) html.dataset.destello = 'llegada';
+          if (llegada && llegada === ruta(location.pathname)) html.dataset.llegada = '';
           if (html.hasAttribute('data-portada')) {
             const desde = JSON.parse(s.getItem('ciudad:desde') || 'null');
             s.removeItem('ciudad:desde');
-            if (desde && s.getItem('ciudad:anterior') === desde.href && !location.hash) {
-              html.dataset.destello = 'regreso';
+            // De dónde se viene: lo escribe el pagehide de la página anterior o, si aún no ha llegado, el referrer
+            const referrer = document.referrer ? ruta(new URL(document.referrer).pathname) : '';
+            if (desde && (s.getItem('ciudad:anterior') === desde.href || referrer === desde.href) && !location.hash) {
               html.dataset.regreso = desde.slug;
-              origen();
+              // Su sitio en el póster (el de los dos encuadres que se vea) recibe la ventana
+              const id = JSON.stringify(desde.slug);
+              const estilo = document.createElement('style');
+              estilo.textContent = '.ventana-poster[data-id=' + id + '], [data-rotulo=' + id + ']:not([data-rotulo="#apps"]) { view-transition-name: salida; }';
+              document.head.append(estilo);
             }
           }
         } catch {}
@@ -115,6 +115,10 @@ const ogImage = new URL(image, Astro.site);
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={imageAlt} />
+    {/* La view transition espera a que esté la ventana de destino (está más abajo en el HTML) */}
+    {ventanaDestino && <link rel="expect" href="#ventana-destino" blocking="render" />}
+    {/* En la portada, los sitios del póster (adonde vuelve la ventana) */}
+    {portada && <link rel="expect" href="#sitios-poster" blocking="render" />}
     <slot name="head" />
   </head>
   <body class:list={['flex flex-col', pantallaCompleta ? 'h-dvh overflow-hidden' : 'min-h-dvh']}>
@@ -129,13 +133,6 @@ const ogImage = new URL(image, Astro.site);
       <slot />
     </main>
     {!pantallaCompleta && <Footer />}
-    <div class="destello" aria-hidden="true" data-destello-capa></div>
-    <script>
-      // Llegada desde la ciudad: el destello se recoge sobre la ventana de la página (la portada de
-      // la ficha, la primera app del catálogo, el titular de Sobre mí o de Contacto)
-      import { centroDe, retirar } from '../lib/destello';
-      if (document.documentElement.dataset.destello === 'llegada') retirar(centroDe(document.querySelector('[data-destello-destino]')));
-    </script>
     <script>
       // Entrada escalonada: cada hijo de [data-reveal] recibe su orden y el bloque se marca al verse.
       // Con data-reveal="cada" (textos largos) cada hijo entra por su cuenta al llegar a él.

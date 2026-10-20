@@ -1,7 +1,7 @@
 // Motor de «La ciudad»: monta la escena en un canvas y la controla.
 // Se carga diferido desde la portada; no depende de Astro.
 
-import { Raycaster, Vector2, type BufferGeometry, type Material, type Mesh } from 'three';
+import { Mesh, Raycaster, Vector2, Vector3, type BufferGeometry, type Material } from 'three';
 import { gsap } from 'gsap';
 import { CamaraCiudad } from './camara';
 import { crearDetalles, trazarDetalles } from './detalles';
@@ -65,8 +65,17 @@ export interface Ciudad {
   resaltar(id: string | null): void;
   /** Vuela hasta un objetivo (mismos ids que `alPasar`); se resuelve con la cámara pegada a él. */
   volarA(id: string): Promise<void>;
-  /** Arranca pegada al objetivo y vuelve al reposo. */
-  volverDe(id: string): Promise<void>;
+  /** Vuelve al reposo: pegada al objetivo al empezar o, con `desdeDondeEste`, desde donde esté la cámara. */
+  volverDe(id: string, desdeDondeEste?: boolean): Promise<void>;
+  /** Se acerca hasta que el objetivo tiene buen tamaño en pantalla (la ventana sale de ahí). */
+  acercarA(id: string): Promise<void>;
+  /**
+   * Rectángulo del objetivo en pantalla (píxeles CSS, relativo al canvas). Con `ampliar`, uno
+   * 16:10 centrado en él y esa vez más ancho: el trozo de ciudad que sale de los sitios.
+   */
+  rectEnPantalla(id: string, ampliar?: number): { x: number; y: number; ancho: number; alto: number } | null;
+  /** Recorte del canvas recién pintado (el rectángulo de `rectEnPantalla` con el mismo `ampliar`). */
+  recorte(id: string, ampliar?: number): HTMLCanvasElement | null;
   /** Deja la cámara pegada al objetivo, como al final de `volarA`, o a una fracción del vuelo. */
   situarEn(id: string, progreso?: number): void;
   /** Centro de un objetivo (o de su rótulo) en píxeles CSS, relativo al canvas. */
@@ -162,6 +171,8 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   // --- Ventanales, escaparate, estudio y solar: resaltar, buscar y tocar ----------------------
   const objetivos: Objetivo[] = [...ventanales.lista, escaparate.objetivo, estudio.objetivo, solar.objetivo];
   const porId = new Map(objetivos.map((o) => [o.id, o]));
+  // El gato no se pulsa como un sitio, pero su etiqueta («Miau») se coloca igual
+  porId.set('#gato', { id: '#gato', posicion: gato.posicion, tamano: { ancho: 1, alto: 1 }, brillo: 0, toque: new Mesh() });
   /** 0 lejos, 1 con la cámara a su distancia de llegada (misma cuenta que la captura de los ventanales). */
   const cercania = (o: Objetivo) => Math.min(1, Math.max(0, (14 - camara.camara.position.distanceTo(o.posicion)) / 11.5));
   const toques = objetivos.map((o) => o.toque);
@@ -386,6 +397,21 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     return o;
   };
 
+  /** Rectángulo de un objetivo en un lienzo de `ancho` × `alto` (CSS o píxeles reales). */
+  const rectDe = (id: string, ancho: number, alto: number, ampliar?: number) => {
+    const o = porId.get(id);
+    if (!o) return null;
+    const esquinas = [-1, 1].flatMap((a) => [-1, 1].map((b) => o.posicion.clone().add(new Vector3((a * o.tamano.ancho) / 2, (b * o.tamano.alto) / 2, 0)).project(camara.camara)));
+    const xs = esquinas.map((p) => (p.x * 0.5 + 0.5) * ancho);
+    const ys = esquinas.map((p) => (-p.y * 0.5 + 0.5) * alto);
+    const r = { x: Math.min(...xs), y: Math.min(...ys), ancho: Math.max(...xs) - Math.min(...xs), alto: Math.max(...ys) - Math.min(...ys) };
+    if (!ampliar) return r;
+    // 16:10 alrededor del objetivo, como las imágenes de las páginas de los sitios
+    const w = Math.max(r.ancho * ampliar, r.alto * ampliar * 1.6);
+    const h = w / 1.6;
+    return { x: r.x + r.ancho / 2 - w / 2, y: r.y + r.alto / 2 - h / 2, ancho: w, alto: h };
+  };
+
   return {
     get nivel() {
       return nivel;
@@ -399,7 +425,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       gsap.killTweensOf(o);
       return reducido ? Promise.resolve() : camara.volarA(o);
     },
-    volverDe: (id) => {
+    volverDe: (id, desdeDondeEste) => {
       const o = objetivo(id);
       gsap.killTweensOf(o);
       if (reducido) {
@@ -407,7 +433,30 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
         o.brillo = 0;
         return Promise.resolve();
       }
-      return camara.volverDe(o);
+      return camara.volverDe(o, desdeDondeEste);
+    },
+    acercarA: (id) => {
+      const o = objetivo(id);
+      resaltado = null;
+      canvas.style.cursor = '';
+      gsap.killTweensOf(o);
+      // Qué parte del ancho ocupa al llegar: en vertical, casi todo
+      const vertical = camara.camara.aspect < 1;
+      // Los sitios se ven con algo de calle alrededor (sale un trozo de ciudad 16:10 más ancho que ellos)
+      const fraccion = id === '#apps' ? (vertical ? 0.5 : 0.26) : id.startsWith('#') ? (vertical ? 0.32 : 0.16) : vertical ? 0.78 : 0.36;
+      return reducido ? Promise.resolve() : camara.acercarA(o, fraccion);
+    },
+    rectEnPantalla: (id, ampliar) => rectDe(id, canvas.clientWidth, canvas.clientHeight, ampliar),
+    recorte: (id, ampliar) => {
+      const r = rectDe(id, canvas.width, canvas.height, ampliar);
+      if (!r) return null;
+      // Se pinta y se copia en la misma tarea: después el búfer del canvas ya no es legible
+      pintor.pintar();
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(r.ancho));
+      c.height = Math.max(1, Math.round(r.alto));
+      c.getContext('2d')!.drawImage(canvas, r.x, r.y, r.ancho, r.alto, 0, 0, c.width, c.height);
+      return c;
     },
     situarEn: (id, progreso) => {
       const o = objetivo(id);

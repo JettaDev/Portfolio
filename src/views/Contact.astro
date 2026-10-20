@@ -1,6 +1,6 @@
 ---
 // Contacto: el solar «Tu proyecto aquí» de la ciudad lleva aquí. Su imagen es la escena real
-// (npm run poster), con el rótulo del cartel en HTML encima, y es donde se recoge el destello.
+// (npm run poster), con el rótulo del cartel en HTML encima, y es adonde vuela el solar al llegar desde la ciudad.
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import solar from '../assets/ciudad/sitios/contacto.webp';
@@ -13,7 +13,7 @@ const t = useT(lang);
 const cartel = posiciones.contacto;
 ---
 
-<Base title={t('nav.contact')} description={t('contact.description')}>
+<Base title={t('nav.contact')} description={t('contact.description')} ventanaDestino>
   <section class="bg-musgo py-12 lg:py-20">
     <div class="contenedor grid gap-10 md:grid-cols-12 md:items-center md:gap-12">
       <div class="md:col-span-6">
@@ -32,7 +32,7 @@ const cartel = posiciones.contacto;
           </div>
         </div>
       </div>
-      <div class="relative overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" data-destello-destino>
+      <div class="relative overflow-hidden rounded-ventana bg-bosque-hondo md:col-span-6" id="ventana-destino" data-ventana-destino>
         <Image src={solar} alt={t('contact.alt')} widths={[640, 960, 1280, 1600]} sizes="(min-width: 76rem) 36rem, (min-width: 48rem) 50vw, 100vw" loading="eager" class="aspect-[16/10] w-full object-cover" />
         <!-- El texto del cartel, como en la ciudad: HTML encima (el alt ya lo cuenta) -->
         <span

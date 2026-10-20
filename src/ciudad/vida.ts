@@ -21,7 +21,6 @@ import {
 } from 'three';
 
 const ARRIBA = new Vector3(0, 1, 0);
-import { COLORES } from './escena';
 import { ruido } from './semilla';
 import { HUECO, type Trazado } from './trazado';
 import type { Huecos } from './ventanas';

@@ -76,12 +76,15 @@ const centro = (page, encuadre = 'ancho', id) =>
     { encuadre, id },
   );
 
-/** Espera a que la ciudad esté en reposo: sin vuelo y sin destello. */
+/** Espera a que la ciudad esté en reposo: sin vuelo ni transición en curso. */
 async function enReposo(page, max = 8000) {
   const t0 = Date.now();
   while (Date.now() - t0 < max) {
     const ok = await page
-      .evaluate(() => !document.querySelector('[data-ciudad]')?.dataset.vuelo && !document.documentElement.dataset.destello)
+      .evaluate(() => {
+        const h = document.documentElement.dataset;
+        return !document.querySelector('[data-ciudad]')?.dataset.vuelo && h.llegada === undefined && h.regreso === undefined && h.transicion === undefined;
+      })
       .catch(() => false);
     if (ok) return true;
     await page.waitForTimeout(100);
@@ -101,7 +104,7 @@ for (const [lang, ruta] of [['es', '/'], ['en', '/en/']]) {
       await page.mouse.click(p.x, p.y);
       await page.waitForURL('**/apps/**', { timeout: 8000 });
       assert.equal(sinBarra(new URL(page.url()).pathname), sinBarra(p.href));
-      assert.ok(await enReposo(page), 'el destello se retira en la ficha');
+      assert.ok(await enReposo(page), 'la ventana llega a la ficha');
       await page.goBack({ waitUntil: 'commit' });
       assert.ok(await enReposo(page), 'la ciudad vuelve al reposo');
       assert.equal(await page.evaluate(() => document.activeElement?.dataset.slug), p.href.split('/').pop(), 'el foco vuelve al enlace de la app');
@@ -137,11 +140,11 @@ for (const [lang, ruta] of [['es', '/'], ['en', '/en/']]) {
         const p = await centro(page, 'ancho', id);
         await page.mouse.click(p.x, p.y);
         await page.waitForURL((u) => sinBarra(u.pathname) === destino, { timeout: 8000 });
-        assert.ok(await enReposo(page), `el destello se retira en ${destino}`);
+        assert.ok(await enReposo(page), `la ventana llega a ${destino}`);
         await page.click('header a[translate="no"]');
         await page.waitForURL((u) => u.pathname === ruta, { timeout: 8000 });
         assert.ok(await enReposo(page), `la ciudad vuelve al reposo desde ${destino}`);
-        assert.equal(await page.evaluate(() => document.documentElement.dataset.destello), undefined);
+        assert.equal(await page.evaluate(() => document.documentElement.dataset.regreso), undefined);
       }
       assert.deepEqual(errores, []);
       await ctx.close();

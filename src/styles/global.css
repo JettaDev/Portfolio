@@ -115,61 +115,48 @@ header[data-header] {
   }
 }
 
-/* Destello: capa caléndula sólida entre la ciudad y la ficha (src/lib/destello.ts). Va por encima
-   de todo, también de la cabecera durante la view transition (por eso lleva nombre propio). */
-.destello {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: var(--color-calendula);
-  pointer-events: none;
-  visibility: hidden;
+/* «La ventana sale» (src/lib/salida.ts): la ventana que se despega de la fachada en la ciudad y
+   la de su página llevan el mismo nombre, `salida`, y la view transition entre documentos la
+   lleva de un sitio a otro. Al llegar desde la ciudad, la ventana de la página recibe el nombre
+   antes del primer pintado (data-llegada lo pone el <head>); al volver, se lo da pageswap. */
+html[data-llegada] [data-ventana-destino] {
+  view-transition-name: salida !important;
 }
-html[data-destello] .destello {
-  visibility: visible;
-  view-transition-name: destello;
-}
-/* Mientras la capa cubre, nada más se transforma: los grupos que solo existen en la página nueva
-   se pintan encima de todos y asomarían por delante del destello. */
-html[data-destello] .vt-titulo,
-html[data-destello] [data-vt] {
+/* Mientras viaja la ventana, ningún otro elemento vuela: el resto de la página aparece */
+html[data-llegada] .vt-titulo,
+html[data-llegada] [data-vt]:not([data-ventana-destino]) {
   view-transition-name: none !important;
 }
-/* Solo cuenta la capa en vivo, que es la que se recoge */
-::view-transition-old(destello) {
-  animation: none;
-  opacity: 0;
+::view-transition-group(salida) {
+  animation-duration: 0.62s;
+  animation-timing-function: cubic-bezier(0.25, 0.9, 0.25, 1);
+  z-index: 50;
 }
-::view-transition-new(destello) {
-  animation: none;
+/* La ventana de la ciudad y la de la página son la misma. La vieja (con su captura) aguanta casi
+   todo el viaje: la nueva es en vivo y su imagen puede tardar un poco en llegar */
+::view-transition-old(salida) {
+  animation: 0.62s linear both salida-aguanta;
 }
-/* Llegada: la página vieja estaba cubierta del todo. Su instantánea (la captura a pantalla
-   completa) no debe asomar mientras la capa se recoge, ni fundirse con la nueva. */
-html[data-destello='llegada']::view-transition-old(root) {
-  animation: none;
-  opacity: 0;
+::view-transition-new(salida) {
+  animation: 0.3s ease-out both salida-dentro;
 }
-html[data-destello='llegada']::view-transition-new(root) {
-  animation: none;
+@keyframes salida-aguanta {
+  0%,
+  65% { opacity: 1; }
+  100% { opacity: 0; }
 }
-/* Vuelta a la ciudad: la página que se deja se queda quieta y la capa crece desde su ventana
-   como un círculo, igual que en la ida. La ciudad no se ve hasta que la capa la cubre. */
-html[data-destello]:not([data-destello='llegada'])::view-transition-old(root) {
-  animation: none;
+/* La ciudad (oscurecida) se va y la página aparece detrás de la ventana mientras viaja */
+html[data-llegada]::view-transition-old(root) {
+  animation: 0.3s ease-out both salida-fuera;
 }
-html[data-destello]:not([data-destello='llegada'])::view-transition-new(root) {
-  animation: none;
-  opacity: 0;
+html[data-llegada]::view-transition-new(root) {
+  animation: 0.42s 0.12s ease-out both salida-dentro;
 }
-html[data-destello]:not([data-destello='llegada'])::view-transition-group(*) {
-  animation-duration: 0.38s;
+@keyframes salida-fuera {
+  to { opacity: 0; }
 }
-::view-transition-new(destello):only-child {
-  animation: 0.38s cubic-bezier(0.55, 0, 0.8, 0.45) both destello-crece;
-}
-@keyframes destello-crece {
-  from { clip-path: circle(0 at var(--destello-x, 50%) var(--destello-y, 50%)); }
-  to { clip-path: circle(150vmax at var(--destello-x, 50%) var(--destello-y, 50%)); }
+@keyframes salida-dentro {
+  from { opacity: 0; }
 }
 
 /* Entrada de las partes de cada sección: título, texto e imagen escalonados al aparecer.

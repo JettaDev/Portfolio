@@ -10,14 +10,18 @@ interface Props {
   decorativa?: boolean;
   /** Marco en el color de la app, como el ventanal de su edificio en la ciudad (forma parte de la ventana al transformarse) */
   marco?: boolean;
+  /** Es la ventana a la que llega la que sale de la ciudad (src/lib/salida.ts) */
+  destino?: boolean;
 }
-const { domain, hue = '#7fe0a6', class: className, name, decorativa = false, marco = false } = Astro.props;
+const { domain, hue = '#7fe0a6', class: className, name, decorativa = false, marco = false, destino = false } = Astro.props;
 ---
 
 <div
   class:list={[marco ? 'rounded-[calc(var(--radius-ventana)+0.375rem)] bg-(--hue) p-1.5 sm:p-2' : 'overflow-hidden rounded-ventana bg-bosque-hondo', className]}
   style={`--hue:${hue}${name ? `; view-transition-name:${name}; view-transition-class:ventana` : ''}`}
   data-vt={name}
+  id={destino ? 'ventana-destino' : undefined}
+  data-ventana-destino={destino || undefined}
 >
   <div class:list={marco ? 'overflow-hidden rounded-ventana bg-bosque-hondo' : 'contents'}>
     <div class="flex items-center gap-3 bg-musgo px-4 py-2.5">

@@ -8,6 +8,7 @@ import Gallery from '../components/Gallery.astro';
 import NewTab from '../components/NewTab.astro';
 import type { App } from '../lib/apps';
 import { getLang, useT, localePath, pagePath } from '../i18n/utils';
+import { TAMANOS } from '../lib/ciudad';
 
 interface Props {
   app: App;
@@ -26,7 +27,7 @@ const fachadaApp = fachada(app.slug);
 const fachadaSiguiente = next && fachada(next.slug);
 ---
 
-<Base title={d.title} description={d.summary} image={`/og/${lang}/${app.slug}.png`} imageAlt={`${d.title}: ${d.tagline}`}>
+<Base title={d.title} description={d.summary} image={`/og/${lang}/${app.slug}.png`} imageAlt={`${d.title}: ${d.tagline}`} ventanaDestino>
   <article style={`--hue:${d.hue}`}>
     <header class="contenedor pt-12 pb-10 lg:pt-20 lg:pb-12">
       <h1 style={`view-transition-name:titulo-${app.slug}`} class="vt-titulo text-[clamp(3rem,10vw,8rem)] leading-[0.9] font-bold tracking-[-0.04em] [font-variation-settings:'opsz'_96]" translate="no">
@@ -68,10 +69,10 @@ const fachadaSiguiente = next && fachada(next.slug);
          la pantalla bajo la cabecera. -->
     <div class="group/portada relative overflow-hidden bg-bosque-hondo pt-10 pb-16 data-abierta:py-4 sm:pt-14 sm:pb-24 sm:data-abierta:py-4 lg:pt-16 lg:pb-28 lg:data-abierta:py-4" data-banda-portada>
       {fachadaApp && (
-        <Image src={fachadaApp} alt="" widths={[800, 1280, 1920]} sizes="100vw" loading="eager" class="absolute inset-0 size-full object-cover" />
+        <Image src={fachadaApp} alt="" widths={[800, 1280, 1920]} sizes={TAMANOS.fachada} loading="eager" class="absolute inset-0 size-full object-cover" />
       )}
       <div class="contenedor relative group-data-abierta/portada:max-w-none">
-        <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`} marco class="mx-auto max-w-[56rem] group-data-abierta/portada:max-w-none">
+        <BrowserFrame domain={d.domain} hue={d.hue} name={`ventana-${app.slug}`} marco destino class="mx-auto max-w-[56rem] group-data-abierta/portada:max-w-none">
           {d.demo && (
             <button
               slot="acciones"
@@ -87,8 +88,8 @@ const fachadaSiguiente = next && fachada(next.slug);
               {t('apps.tryHere')}
             </button>
           )}
-          <div id="portada" class="aspect-[16/10] bg-bosque-hondo group-data-abierta/portada:aspect-auto group-data-abierta/portada:h-[calc(100dvh-11rem)]" data-destello-destino data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
-            <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes="(min-width: 58rem) 55rem, 100vw" loading="eager" class="size-full object-cover object-top" />
+          <div id="portada" class="aspect-[16/10] bg-bosque-hondo group-data-abierta/portada:aspect-auto group-data-abierta/portada:h-[calc(100dvh-11rem)]" data-demo-title={`${t('apps.demoFrame')}: ${d.title}`}>
+            <Image src={d.cover} alt={d.coverAlt} widths={[800, 1280, 1600]} sizes={TAMANOS.portada} loading="eager" class="size-full object-cover object-top" />
           </div>
         </BrowserFrame>
       </div>
