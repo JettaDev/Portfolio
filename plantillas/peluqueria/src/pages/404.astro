@@ -1,0 +1,16 @@
+---
+import Base from '../layouts/Base.astro';
+import config from '../../config.ts';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<Base titulo={`${config.textos.titulo404} · ${config.negocio.nombre}`} conJsonLd={false}>
+  <div class="envoltura no-encontrada">
+    <svg class="no-encontrada__arco" viewBox="0 0 120 150" aria-hidden="true" focusable="false">
+      <path d="M8 146V60a52 52 0 0 1 104 0v86Z" />
+      <path d="M30 120 82 40M48 132l40-62" />
+    </svg>
+    <h1 class="titulo-seccion">{config.textos.titulo404}</h1>
+    <p class="entradilla">{config.textos.texto404}</p>
+    <p><a class="boton boton--primario boton--grande" href={base}>{config.textos.volver404}</a></p>
+  </div>
+</Base>

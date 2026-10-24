@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Atelier Malva
+ORG:Atelier Malva
+TEL;TYPE=WORK,VOICE:+34949000102
+TEL;TYPE=CELL:+34649000102
+EMAIL;TYPE=WORK:cita@ejemplo.es
+ADR;TYPE=WORK:;;Avenida de las Malvas\, 14;Guadalajara;Guadalajara;19003;ES
+URL:https://ejemplo.es/
+END:VCARD

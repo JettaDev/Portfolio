@@ -1,0 +1,54 @@
+---
+// Carta de servicios por familia: nombre, duración y precio. Una lista impresa, no tarjetas.
+import { formatearDuracion } from '@comun/enlaces.ts';
+import { precioTexto } from '../lib/formato.ts';
+import config from '../../config.ts';
+
+const c = config;
+const t = c.textos;
+const familias = c.catalogo.categorias
+  .map((cat) => ({ ...cat, items: c.catalogo.items.filter((i) => i.categoria === cat.id) }))
+  .filter((f) => f.items.length);
+---
+<section id="servicios" class="servicios seccion" aria-labelledby="t-servicios">
+  <div class="envoltura servicios__rejilla">
+    <div class="servicios__cabeza">
+      <h2 id="t-servicios" class="titulo-seccion">{c.catalogo.titulo}</h2>
+      <p class="entradilla">{t.serviciosEntradilla}</p>
+      <nav class="servicios__indice" aria-label={t.indiceFamilias}>
+        <ul>
+          {familias.map((f) => (
+            <li><a href={`#familia-${f.id}`}>{f.nombre}<span class="servicios__cuenta">{f.items.length}</span></a></li>
+          ))}
+        </ul>
+      </nav>
+      <p class="servicios__llamada">
+        {t.serviciosLlamada} <a class="enlace-flecha" href="#reserva">{t.ctaCita}</a>
+      </p>
+    </div>
+
+    <div class="servicios__familias">
+      {familias.map((f) => (
+        <section id={`familia-${f.id}`} class="familia" aria-labelledby={`t-familia-${f.id}`}>
+          <header class="familia__cabeza">
+            <h3 id={`t-familia-${f.id}`} class="familia__nombre">{f.nombre}</h3>
+            {f.descripcion && <p class="familia__desc">{f.descripcion}</p>}
+          </header>
+          <ul class="carta" role="list">
+            {f.items.map((i) => (
+              <li class="carta__fila">
+                <div class="carta__que">
+                  <span class="carta__nombre">{i.nombre}</span>
+                  {i.destacado && <span class="sello">{t.destacado}</span>}
+                  {i.descripcion && <span class="carta__desc">{i.descripcion}</span>}
+                </div>
+                <span class="carta__dur">{formatearDuracion(i.duracionMin)}</span>
+                <span class="carta__precio">{precioTexto(i.precio, i.desde, t.gratis)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  </div>
+</section>

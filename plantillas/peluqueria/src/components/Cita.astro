@@ -1,0 +1,180 @@
+---
+// «Pide tu cita»: el anillo de tiempo. Servicios (casillas nativas) → día y franja → profesional y nombre.
+// El anillo se llena con la duración; el total en € y en tiempo se anuncia con aria-live.
+// No envía nada: construye el mensaje y abre WhatsApp (o el correo) con él.
+import { formatearDuracion } from '@comun/enlaces.ts';
+import { iniciales, precioTexto } from '../lib/formato.ts';
+import config from '../../config.ts';
+
+const c = config;
+const t = c.textos;
+const familias = c.catalogo.categorias
+  .map((cat) => ({ ...cat, items: c.catalogo.items.filter((i) => i.categoria === cat.id) }))
+  .filter((f) => f.items.length);
+
+// Marcas del dial: una cada 15 min, más larga cada hora.
+const marcas = Array.from({ length: Math.round(c.extra.anilloMaxMin / 15) }, (_, i) => ({
+  angulo: (i * 15 * 360) / c.extra.anilloMaxMin,
+  hora: (i * 15) % 60 === 0,
+}));
+
+// Lo que necesita el script del navegador (sin datos que no use).
+const datos = {
+  servicios: c.catalogo.items.map(({ id, nombre, precio, desde, duracionMin }) => ({ id, nombre, precio, desde, duracionMin })),
+  franjas: c.horario.franjas,
+  cierres: c.horario.cierres ?? [],
+  extra: c.extra,
+  canal: c.formulario.canal,
+  saludo: c.formulario.saludo,
+  contacto: { whatsapp: c.contacto.whatsapp, email: c.contacto.email },
+  textos: t,
+};
+---
+<section id="reserva" class="cita seccion" aria-labelledby="t-cita">
+  <div class="envoltura">
+    <div class="cita__cabeza">
+      <h2 id="t-cita" class="titulo-seccion">{t.citaTitulo}</h2>
+      <p class="entradilla">{t.citaEntradilla}</p>
+    </div>
+
+    <form class="cita__form" novalidate data-cita data-datos={JSON.stringify(datos)}>
+      <div class="cita__pasos">
+        <!-- 1. Servicios -->
+        <fieldset class="paso" id="paso-servicios" aria-describedby="error-servicios">
+          <legend class="paso__titulo"><span class="paso__num" aria-hidden="true">1</span>{t.paso1}</legend>
+
+          <fieldset class="pestanas" data-pestanas hidden>
+            <legend class="sr">{t.familiaEtiqueta}</legend>
+            {familias.map((f, i) => (
+              <label class="pestana">
+                <input type="radio" name="familia" value={f.id} checked={i === 0} />
+                <span class="pestana__caja"><span>{f.nombre}</span><span class="pestana__cuenta" data-cuenta={f.id} aria-hidden="true"></span></span>
+              </label>
+            ))}
+          </fieldset>
+
+          {familias.map((f) => (
+            <fieldset class="grupo" data-familia={f.id}>
+              <legend class="grupo__nombre">{f.nombre}</legend>
+              <ul class="opciones" role="list">
+                {f.items.map((i) => (
+                  <li>
+                    <label class="opcion">
+                      <input type="checkbox" name="servicio" value={i.id} />
+                      <span class="opcion__caja">
+                        <span class="casilla" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" /></svg></span>
+                        <span class="opcion__nombre">{i.nombre}</span>
+                        <span class="opcion__dur">{formatearDuracion(i.duracionMin)}</span>
+                        <span class="opcion__precio">{precioTexto(i.precio, i.desde, t.gratis)}</span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          ))}
+          <p class="error" id="error-servicios" data-error="servicios" hidden>{t.errorServicios}</p>
+        </fieldset>
+
+        <!-- 2. Día y franja -->
+        <fieldset class="paso" id="paso-dia">
+          <legend class="paso__titulo"><span class="paso__num" aria-hidden="true">2</span>{t.paso2}</legend>
+          <fieldset class="subpaso" aria-describedby="error-dia">
+            <legend class="subpaso__titulo">{t.diaTitulo}</legend>
+            <div class="dias" data-dias>
+              <p class="pista">{t.sinScript}</p>
+            </div>
+            <p class="error" id="error-dia" data-error="dia" hidden>{t.errorDia}</p>
+          </fieldset>
+          <fieldset class="subpaso" aria-describedby="error-franja">
+            <legend class="subpaso__titulo">{t.franjaTitulo}</legend>
+            <div class="franjas" data-franjas>
+              <p class="pista">{t.eligeDia}</p>
+            </div>
+            <p class="error" id="error-franja" data-error="franja" hidden>{t.errorFranja}</p>
+          </fieldset>
+        </fieldset>
+
+        <!-- 3. Profesional y nombre -->
+        <fieldset class="paso" id="paso-quien">
+          <legend class="paso__titulo"><span class="paso__num" aria-hidden="true">3</span>{t.paso3}</legend>
+          {c.equipo.length > 0 && (
+            <fieldset class="subpaso">
+              <legend class="subpaso__titulo">{t.profesionalTitulo}</legend>
+              <div class="profesionales">
+                <label class="profesional">
+                  <input type="radio" name="profesional" value="" checked />
+                  <span class="profesional__caja">
+                    <span class="profesional__arco profesional__arco--libre" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="16" cy="12" r="1.6" /></svg>
+                    </span>
+                    <span class="profesional__nombre">{t.profesionalIndiferente}</span>
+                    <span class="profesional__rol">{t.profesionalIndiferenteDetalle}</span>
+                  </span>
+                </label>
+                {c.equipo.map((p) => (
+                  <label class="profesional">
+                    <input type="radio" name="profesional" value={p.nombre} />
+                    <span class="profesional__caja">
+                      <span class="profesional__arco" aria-hidden="true">{iniciales(p.nombre)}</span>
+                      <span class="profesional__nombre">{p.nombre}</span>
+                      <span class="profesional__rol">{p.rol}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          <div class="campo">
+            <label class="subpaso__titulo" for="cita-nombre">{t.nombreEtiqueta}</label>
+            <input id="cita-nombre" name="nombre" type="text" autocomplete="name" required aria-describedby="error-nombre" />
+            <p class="error" id="error-nombre" data-error="nombre" hidden>{t.errorNombre}</p>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="cita__resumen">
+        <div class="anillo" data-anillo>
+          <div class="anillo__dial">
+            <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+              <g class="anillo__marcas">
+                {marcas.map((m) => (
+                  <line x1="60" y1={m.hora ? 2.5 : 4} x2="60" y2="7.5" transform={`rotate(${m.angulo} 60 60)`} class:list={{ hora: m.hora }} />
+                ))}
+              </g>
+              <circle class="anillo__pista" cx="60" cy="60" r="47" pathLength="100" />
+              <g class="anillo__segmentos" transform="rotate(-90 60 60)">
+                {c.catalogo.items.map((i) => (
+                  <circle cx="60" cy="60" r="47" pathLength="100" data-segmento={i.id} />
+                ))}
+              </g>
+            </svg>
+          </div>
+          <p class="anillo__datos" aria-live="polite" aria-atomic="true">
+            <span class="anillo__precio" data-precio></span>
+            <span class="anillo__dur" data-dur>{c.extra.textoAnillo}</span>
+            <span class="anillo__cuenta" data-cuenta-total></span>
+          </p>
+        </div>
+
+        <div class="resumen">
+          <p class="resumen__vacio" data-vacio>{t.resumenVacio}</p>
+          <ul class="resumen__lista" data-lista role="list"></ul>
+        </div>
+
+        <div class="cita__envio">
+          <button type="submit" class="boton boton--primario boton--grande boton--ancho">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4.2A8 8 0 1 1 8.4 19L4 20Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /></svg>
+            {c.formulario.canal === 'whatsapp' ? t.enviar : t.enviarCorreo}
+          </button>
+          <p class="nota">{t.notaEnvio}</p>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+  import { iniciarCita } from '../scripts/cita.ts';
+  iniciarCita();
+</script>

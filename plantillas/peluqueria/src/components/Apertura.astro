@@ -1,0 +1,46 @@
+---
+// Apertura: qué es, dónde está y cómo pedir cita, junto al espejo en arco.
+import Espejo from './Espejo.astro';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+---
+<section class="apertura" aria-labelledby="t-apertura">
+  <div class="envoltura apertura__rejilla">
+    <div class="apertura__texto">
+      <p class="antetitulo">{c.textos.antetitulo}</p>
+      <h1 id="t-apertura" class="apertura__titular">{c.textos.titular}</h1>
+      <p class="apertura__entradilla">{c.textos.entradilla}</p>
+      <div class="apertura__acciones">
+        <a class="boton boton--primario boton--grande" href="#reserva">{c.textos.ctaCita}</a>
+        <a class="boton boton--linea boton--grande" href="#servicios">{c.textos.ctaPrecios}</a>
+      </div>
+      <a class="apertura__direccion" href={c.contacto.mapsUrl} target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 20" aria-hidden="true"><path d="M8 19s6.5-6.6 6.5-11a6.5 6.5 0 0 0-13 0C1.5 12.4 8 19 8 19Z" fill="none" stroke="currentColor" stroke-width="1.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" /></svg>
+        <span>{d.calle} · {d.localidad}</span>
+      </a>
+    </div>
+    <div class="apertura__espejo" data-espejo>
+      <Espejo />
+    </div>
+  </div>
+</section>
+
+<script>
+  // El reflejo se desplaza un poco con el puntero (solo con ratón y sin movimiento reducido).
+  const caja = document.querySelector<HTMLElement>('[data-espejo]');
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (caja && !quieto && matchMedia('(pointer: fine)').matches) {
+    let pendiente = 0;
+    caja.closest('section')?.addEventListener('pointermove', (ev) => {
+      if (pendiente) return;
+      pendiente = requestAnimationFrame(() => {
+        pendiente = 0;
+        const r = caja.getBoundingClientRect();
+        const x = (ev.clientX - (r.left + r.width / 2)) / r.width;
+        caja.style.setProperty('--reflejo-x', `${(x * -14).toFixed(1)}px`);
+      });
+    });
+  }
+</script>
