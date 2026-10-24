@@ -1,0 +1,37 @@
+---
+// Pie: datos del negocio, enlaces legales y «Añadir a contactos».
+import Marca from './Marca.astro';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const redes = [
+  ['Instagram', c.redes.instagram],
+  ['Facebook', c.redes.facebook],
+  ['TikTok', c.redes.tiktok],
+  ['Reseñas', c.redes.resenas],
+].filter(([, url]) => url) as [string, string][];
+---
+<footer class="pie">
+  <div class="envoltura pie__rejilla">
+    <div class="pie__marca">
+      <Marca class="pie__logo" />
+      <p class="pie__nombre">{c.negocio.nombre}</p>
+      <p>{c.negocio.eslogan}</p>
+    </div>
+    <address class="pie__datos">
+      <span>{d.calle}</span>
+      <span>{d.codigoPostal} {d.localidad}</span>
+      <a href={enlaceTelefono(c.contacto.telefono)}>{c.contacto.telefonoVisible}</a>
+      <a href={`mailto:${c.contacto.email}`}>{c.contacto.email}</a>
+    </address>
+    <ul class="pie__enlaces">
+      <li><a href={`${base}contacto.vcf`} download>Añadir a contactos</a></li>
+      <li><a href={`${base}aviso-legal/`}>Aviso legal</a></li>
+      <li><a href={`${base}privacidad/`}>Privacidad</a></li>
+      {redes.map(([n, url]) => <li><a href={url} target="_blank" rel="noopener">{n}</a></li>)}
+    </ul>
+  </div>
+</footer>

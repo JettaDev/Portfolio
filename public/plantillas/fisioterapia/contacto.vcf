@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Clínica Eje
+ORG:Clínica Eje
+TEL;TYPE=WORK,VOICE:+34949000104
+TEL;TYPE=CELL:+34649000104
+EMAIL;TYPE=WORK:citas@ejemplo.es
+ADR;TYPE=WORK:;;Paseo del Eje\, 21;Guadalajara;Guadalajara;19004;ES
+URL:https://ejemplo.es/
+END:VCARD

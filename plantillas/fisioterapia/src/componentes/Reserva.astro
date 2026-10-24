@@ -1,0 +1,145 @@
+---
+// Pedir cita y ubicación. El formulario pide SOLO nombre, teléfono, especialidad, días y franja:
+// ni síntomas ni texto libre (son datos de salud). Monta el mensaje con construirMensaje()
+// y lo abre en WhatsApp o en el correo (scripts/cita.ts). No se guarda nada.
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { DIAS, NOMBRE_DIA, horarioAgrupado } from '@comun/horario.ts';
+import { enlaceTelefono, enlaceWhatsApp } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
+// Días con consulta, sacados del horario.
+const dias = DIAS.filter((dia) => c.horario.franjas.some((f) => f.dias.includes(dia)));
+// Franjas «mañana» y «tarde» a partir de las horas de apertura.
+const franjas = Object.values(
+  c.horario.franjas.reduce<Record<string, { id: string; nombre: string; abre: string; cierra: string }>>((acc, f) => {
+    const id = f.abre < '14:30' ? 'manana' : 'tarde';
+    const prev = acc[id];
+    acc[id] = {
+      id,
+      nombre: id === 'manana' ? 'Mañana' : 'Tarde',
+      abre: prev && prev.abre < f.abre ? prev.abre : f.abre,
+      cierra: prev && prev.cierra > f.cierra ? prev.cierra : f.cierra,
+    };
+    return acc;
+  }, {}),
+).sort((a, b) => a.abre.localeCompare(b.abre));
+const sinCero = (h: string) => h.replace(/^0/, '');
+const textoFranja = (f: { abre: string; cierra: string }) => `${sinCero(f.abre)}–${sinCero(f.cierra)}`;
+---
+<section class="reserva" id="reserva" aria-labelledby="t-reserva">
+  <div class="envoltura reserva__rejilla">
+    <div class="reserva__form">
+      <h2 id="t-reserva">{c.textos.reservaTitulo}</h2>
+      <p class="entradilla">{c.textos.reservaEntradilla}</p>
+
+      <p class="aviso-salud" id="aviso-salud">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8.5" /><path d="M10 9v5M10 6.2v.1" /></svg>
+        <span>{c.extra.avisoSalud}</span>
+      </p>
+
+      <form
+        class="cita"
+        novalidate
+        data-cita
+        data-canal={c.formulario.canal}
+        data-whatsapp={c.contacto.whatsapp}
+        data-email={c.contacto.email}
+        data-saludo={c.formulario.saludo}
+        data-asunto={`Cita en ${c.negocio.nombre}`}
+        aria-describedby="aviso-salud"
+      >
+        <div class="campo">
+          <label for="cita-nombre">Nombre</label>
+          <input id="cita-nombre" name="nombre" type="text" autocomplete="name" required maxlength="60" aria-describedby="cita-nombre-error" />
+          <p class="campo__error" id="cita-nombre-error" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="cita-tel">Teléfono</label>
+          <input id="cita-tel" name="telefono" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" aria-describedby="cita-tel-ayuda cita-tel-error" />
+          <p class="campo__ayuda" id="cita-tel-ayuda">Para confirmarte la cita.</p>
+          <p class="campo__error" id="cita-tel-error" hidden></p>
+        </div>
+
+        <div class="campo campo--ancho">
+          <label for="cita-esp">Especialidad</label>
+          <span class="selector">
+            <select id="cita-esp" name="especialidad">
+              <option value="">{c.textos.especialidadNoSe}</option>
+              {c.catalogo.items.map((i) => <option value={i.id}>{i.nombre}</option>)}
+            </select>
+          </span>
+        </div>
+
+        <fieldset class="campo campo--ancho" aria-describedby="cita-dias-error">
+          <legend>Días que te vienen bien</legend>
+          <div class="fichas">
+            {dias.map((dia) => (
+              <label class="ficha">
+                <input type="checkbox" name="dias" value={dia} data-nombre={NOMBRE_DIA[dia].toLowerCase()} />
+                <span>{NOMBRE_DIA[dia]}</span>
+              </label>
+            ))}
+          </div>
+          <p class="campo__error" id="cita-dias-error" hidden></p>
+        </fieldset>
+
+        <fieldset class="campo campo--ancho" aria-describedby="cita-franja-error">
+          <legend>¿Mañana o tarde?</legend>
+          <div class="fichas fichas--franja">
+            {franjas.map((f) => (
+              <label class="ficha ficha--franja">
+                <input type="radio" name="franja" value={f.id} data-texto={`${f.nombre.toLowerCase()} (${textoFranja(f)})`} />
+                <span><strong>{f.nombre}</strong> {textoFranja(f)}</span>
+              </label>
+            ))}
+          </div>
+          <p class="campo__error" id="cita-franja-error" hidden></p>
+        </fieldset>
+
+        <div class="cita__enviar campo--ancho">
+          <button class="boton boton--primario boton--grande" type="submit">{c.textos.reservaBoton}</button>
+          <p class="campo__ayuda">
+            Se abrirá {c.formulario.canal === 'whatsapp' ? 'WhatsApp' : 'tu correo'} con el mensaje listo; tú decides si lo envías.
+            ¿Prefieres hablar? <a href={enlaceTelefono(c.contacto.telefono)}>{c.contacto.telefonoVisible}</a>.
+          </p>
+        </div>
+      </form>
+    </div>
+
+    <aside class="ubicacion" aria-labelledby="t-ubicacion">
+      <h2 id="t-ubicacion">{c.textos.ubicacionTitulo}</h2>
+      <p class="ubicacion__dir">
+        <span>{d.calle}</span>
+        <span>{d.codigoPostal} {d.localidad}</span>
+      </p>
+      {c.contacto.comoLlegar && <p class="ubicacion__pista">{c.contacto.comoLlegar}</p>}
+      <div class="ubicacion__acciones">
+        <a class="boton boton--linea" href={c.contacto.mapsUrl} target="_blank" rel="noopener">Abrir en Google Maps</a>
+        <a class="boton boton--linea" href={enlaceTelefono(c.contacto.telefono)}>Llamar · {c.contacto.telefonoVisible}</a>
+        {c.contacto.whatsapp && <a class="boton boton--linea" href={enlaceWhatsApp(c.contacto.whatsapp, c.formulario.saludo)}>WhatsApp</a>}
+        <a class="boton boton--linea" href={`${base}contacto.vcf`} download>Añadir a contactos</a>
+      </div>
+
+      <div class="horario" id="horario">
+        <h3>Horario</h3>
+        <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} porDefecto="Consulta el horario" class="horario__estado" />
+        <dl>
+          {horarioAgrupado(c.horario.franjas).map((f) => (
+            <div><dt>{f.dias}</dt><dd>{f.horas}</dd></div>
+          ))}
+        </dl>
+        {c.horario.nota && <p class="horario__nota">{c.horario.nota}</p>}
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script>
+  import { iniciarCita } from '../scripts/cita.ts';
+  iniciarCita();
+</script>
