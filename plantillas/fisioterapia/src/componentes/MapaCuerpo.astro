@@ -1,0 +1,99 @@
+---
+// «¿Dónde te duele?»: figura a línea con un botón por zona y, al lado, la misma lista en texto.
+// Al elegir una zona se resaltan las especialidades que la tratan (ver scripts/mapa.ts).
+// Privacidad: la zona solo sirve para navegar. No se guarda ni se añade al mensaje de cita.
+import { AREAS, CABEZA, MARCAS, MEDIA, VISTA, reflejar } from '../figura.ts';
+import { formatearDuracion, formatearPrecio } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+const zonas = c.extra.zonas;
+const items = c.catalogo.items;
+const cuantas = (id: string) => items.filter((i) => i.zonas.includes(id as never)).length;
+const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(2)}%`;
+// Marcas de regla del eje, cada 20 unidades.
+const marcasRegla = Array.from({ length: Math.floor(VISTA.alto / 20) + 1 }, (_, i) => i * 20);
+---
+<section class="mapa" id="donde-duele" aria-labelledby="t-mapa" data-mapa>
+  <div class="mapa__cabeza">
+    <h2 id="t-mapa">{c.textos.mapaTitulo}</h2>
+    <p>{c.textos.mapaAyuda}</p>
+  </div>
+
+  <div class="mapa__lamina">
+    <div class="figura" role="group" aria-label="Zonas sobre la figura">
+      <svg class="figura__dibujo" viewBox={`0 0 ${VISTA.ancho} ${VISTA.alto}`} aria-hidden="true" focusable="false">
+        <g class="figura__regla">
+          <line x1="120" y1="0" x2="120" y2={VISTA.alto} />
+          {marcasRegla.map((y) => <line x1={y % 100 === 0 ? 112 : 116} y1={y} x2={y % 100 === 0 ? 128 : 124} y2={y} />)}
+        </g>
+        <g class="figura__areas">
+          {zonas.map((z) => (
+            <g data-area={z.id}>
+              {(AREAS[z.id] ?? []).flatMap((e) => [
+                <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} />,
+                ...(e.simetrica ? [<ellipse cx={reflejar(e.cx)} cy={e.cy} rx={e.rx} ry={e.ry} />] : []),
+              ])}
+            </g>
+          ))}
+        </g>
+        <g class="figura__silueta">
+          <ellipse cx={CABEZA.cx} cy={CABEZA.cy} rx={CABEZA.rx} ry={CABEZA.ry} />
+          <path d={MEDIA} />
+          <path d={MEDIA} transform={`translate(${VISTA.ancho} 0) scale(-1 1)`} />
+        </g>
+      </svg>
+      {zonas.filter((z) => MARCAS[z.id]).map((z, i) => {
+        const m = MARCAS[z.id];
+        return (
+          <button
+            type="button"
+            class="marca"
+            data-zona={z.id}
+            data-lado={m.lado}
+            aria-pressed="false"
+            style={`--x:${pct(m.x, VISTA.ancho)};--y:${pct(m.y, VISTA.alto)};--i:${i}`}
+          >
+            <span class="marca__punto" aria-hidden="true"></span>
+            <span class="marca__nombre">{z.nombre}</span>
+          </button>
+        );
+      })}
+    </div>
+
+    <div class="zonas">
+      <p class="zonas__titulo" id="t-zonas">Elige la zona</p>
+      <ul class="zonas__lista" aria-labelledby="t-zonas">
+        {zonas.map((z) => (
+          <li>
+            <button type="button" class="zona" data-zona={z.id} aria-pressed="false">
+              <span>{z.nombre}</span>
+              <span class="zona__n"><span class="sr">: </span>{cuantas(z.id)}<span class="sr"> especialidades</span></span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="resultado">
+      <p class="resultado__estado" aria-live="polite" data-resultado-estado>{c.textos.mapaVacio}</p>
+      <ul class="resultado__lista">
+        {items.map((i) => (
+          <li data-resultado={i.id} data-zonas={i.zonas.join(' ')} hidden>
+            <a href={`#esp-${i.id}`} data-ver={i.id}>
+              <span class="resultado__nombre">{i.nombre}</span>
+              <span class="resultado__datos">{formatearDuracion(i.sesionMin)} · {formatearPrecio(i.precio, i.desde)}</span>
+              <span class="resultado__ver" aria-hidden="true">Ver especialidad</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <p class="mapa__pie" aria-hidden="true">Vista frontal · {zonas.length} zonas</p>
+  </div>
+</section>
+
+<script>
+  import { iniciarMapa } from '../scripts/mapa.ts';
+  iniciarMapa();
+</script>

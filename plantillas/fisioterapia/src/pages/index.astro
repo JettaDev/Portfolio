@@ -1,0 +1,43 @@
+---
+// Portada de la clínica: presentación y mapa del cuerpo, especialidades, primera visita,
+// equipo, preguntas y pedir cita. Todo sale de config.ts.
+import Base from '../layouts/Base.astro';
+import MapaCuerpo from '../componentes/MapaCuerpo.astro';
+import Especialidades from '../componentes/Especialidades.astro';
+import PrimeraVisita from '../componentes/PrimeraVisita.astro';
+import Equipo from '../componentes/Equipo.astro';
+import Preguntas from '../componentes/Preguntas.astro';
+import Reserva from '../componentes/Reserva.astro';
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+---
+<Base portada>
+  <div class="inicio envoltura">
+    <div class="inicio__texto">
+      <p class="antetitulo">{c.textos.antetitulo}</p>
+      <h1>{c.textos.titular}</h1>
+      <p class="entradilla">{c.textos.entradilla}</p>
+      <div class="inicio__acciones">
+        <a class="boton boton--primario boton--grande" href="#reserva">{c.accionPrincipal.texto}</a>
+        <a class="boton boton--linea boton--grande" href={enlaceTelefono(c.contacto.telefono)}>
+          Llamar <span class="inicio__tel">{c.contacto.telefonoVisible}</span>
+        </a>
+      </div>
+      <p class="inicio__donde">
+        <a href={c.contacto.mapsUrl} target="_blank" rel="noopener">{d.calle}, {d.localidad}</a>
+        <a href="#horario" class="inicio__estado"><EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} /></a>
+      </p>
+    </div>
+    <MapaCuerpo />
+  </div>
+
+  <Especialidades />
+  <PrimeraVisita />
+  <Equipo />
+  <Preguntas />
+  <Reserva />
+</Base>

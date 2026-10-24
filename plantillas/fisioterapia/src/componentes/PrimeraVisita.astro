@@ -1,0 +1,22 @@
+---
+// «Tu primera visita, paso a paso»: los pasos de extra.primeraVisita sobre una línea (el eje).
+import config from '../../config.ts';
+const c = config;
+const pasos = c.extra.primeraVisita;
+---
+{pasos.length > 0 && (
+  <section class="visita" id="primera-visita" aria-labelledby="t-visita">
+    <div class="envoltura">
+      <h2 id="t-visita">{c.textos.visitaTitulo}</h2>
+      <ol class="visita__pasos">
+        {pasos.map((p, n) => (
+          <li class="paso">
+            <span class="paso__num" aria-hidden="true">{String(n + 1).padStart(2, '0')}</span>
+            <h3>{p.titulo}</h3>
+            <p>{p.texto}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+)}

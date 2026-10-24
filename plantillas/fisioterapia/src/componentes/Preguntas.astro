@@ -1,0 +1,18 @@
+---
+// Preguntas frecuentes con <details> nativos: funcionan con teclado y sin JS.
+import config from '../../config.ts';
+const c = config;
+---
+{c.faq.length > 0 && (
+  <section class="faq envoltura" id="preguntas" aria-labelledby="t-faq">
+    <h2 id="t-faq">{c.textos.faqTitulo}</h2>
+    <div class="faq__lista">
+      {c.faq.map((q) => (
+        <details class="pregunta">
+          <summary><span>{q.pregunta}</span><span class="pregunta__signo" aria-hidden="true"></span></summary>
+          <p>{q.respuesta}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+)}

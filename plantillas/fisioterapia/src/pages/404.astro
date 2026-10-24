@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+import config from '../../config.ts';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<Base titulo={`Página no encontrada · ${config.negocio.nombre}`} conJsonLd={false}>
+  <div class="no-encontrada envoltura">
+    <svg viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+      <path d="M40 4v72" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 5" fill="none" />
+      <circle cx="40" cy="40" r="16" stroke="currentColor" stroke-width="1.5" fill="none" />
+      <circle cx="40" cy="40" r="4" fill="var(--c-acento)" />
+    </svg>
+    <h1>Esta página no existe</h1>
+    <p>Puede que el enlace esté mal escrito o que la página se haya movido.</p>
+    <a class="boton boton--primario" href={base}>Volver al inicio</a>
+  </div>
+</Base>

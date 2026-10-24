@@ -1,0 +1,67 @@
+---
+// Especialidades en lenguaje llano: qué es, para qué sirve, zonas, duración y precio orientativo.
+// El mapa del cuerpo filtra esta lista (data-zonas) y muestra la barra de filtro.
+import { formatearDuracion, formatearPrecio } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+const nombreZona = new Map(c.extra.zonas.map((z) => [z.id, z.nombre]));
+const grupos = c.catalogo.categorias
+  .map((cat) => ({ ...cat, items: c.catalogo.items.filter((i) => i.categoria === cat.id) }))
+  .filter((g) => g.items.length);
+const listaZonas = (ids: string[]) => {
+  // «Cuello · hombro · codo y muñeca»: solo la primera en mayúscula.
+  return ids
+    .map((id, i) => {
+      const t = nombreZona.get(id as never) ?? id;
+      return i ? t.toLowerCase() : t;
+    })
+    .join(' · ');
+};
+---
+<section class="especialidades envoltura" id="especialidades" aria-labelledby="t-especialidades">
+  <div class="especialidades__lado">
+    <h2 id="t-especialidades" tabindex="-1">{c.catalogo.titulo}</h2>
+    <p class="entradilla">{c.textos.especialidadesEntradilla}</p>
+    <div class="filtro" data-filtro hidden>
+      <p>
+        Lo que trata la zona <strong data-filtro-zona></strong>:
+        <span data-filtro-cuenta></span>
+      </p>
+      <button type="button" class="boton boton--linea" data-filtro-quitar>Ver todas</button>
+    </div>
+  </div>
+
+  <div class="especialidades__lista">
+    {grupos.map((g) => (
+      <div class="grupo" data-grupo>
+        <div class="grupo__cabeza">
+          <h3>{g.nombre}</h3>
+          {g.descripcion && <p>{g.descripcion}</p>}
+        </div>
+        <ul class="grupo__items">
+          {g.items.map((i) => (
+            <li class="esp" id={`esp-${i.id}`} data-esp={i.id} data-zonas={i.zonas.join(' ')}>
+              <div class="esp__principal">
+                <h4 tabindex="-1">{i.nombre}</h4>
+                <p class="esp__quees">{i.queEs}</p>
+              </div>
+              <div class="esp__detalle">
+                {i.descripcion && <p><span class="etiqueta">Para qué</span>{i.descripcion}</p>}
+                <p><span class="etiqueta">Zonas</span>{listaZonas(i.zonas)}</p>
+              </div>
+              <div class="esp__datos">
+                <dl>
+                  <div><dt>Sesión</dt><dd>{formatearDuracion(i.sesionMin)}</dd></div>
+                  <div><dt>Precio</dt><dd>{formatearPrecio(i.precio, i.desde)}</dd></div>
+                </dl>
+                <a class="esp__pedir" href="#reserva" data-pedir={i.id}>Pedir cita<span class="sr"> de {i.nombre}</span></a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+    <p class="especialidades__nota">Precios por sesión, orientativos. Te confirmamos el importe al darte la cita.</p>
+  </div>
+</section>

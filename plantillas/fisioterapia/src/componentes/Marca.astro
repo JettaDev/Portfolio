@@ -1,0 +1,16 @@
+---
+// Marca del logo: un eje vertical con una articulación. Si el config trae `logo.svg`, se usa ese.
+import config from '../../config.ts';
+interface Props { class?: string }
+const { class: clase } = Astro.props;
+const svg = config.negocio.logo.svg;
+---
+{svg ? (
+  <span class={clase} aria-hidden="true" set:html={svg} />
+) : (
+  <svg class={clase} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <path d="M16 3v26" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+    <circle cx="16" cy="16" r="6.5" stroke="currentColor" stroke-width="2" fill="none" />
+    <circle cx="16" cy="16" r="2.4" fill="var(--c-acento)" />
+  </svg>
+)}
