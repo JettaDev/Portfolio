@@ -26,7 +26,7 @@ plantillas/
     componentes/          Cabeza (SEO), Demo, BarraAcciones, EstadoHorario, TextoLegal
     comun.test.ts         pruebas (node --test)
   _base/                  esqueleto mínimo del que parte cada plantilla
-  _indice/                página índice de las demos (public/plantillas/index.html)
+  _indice/                /plantillas/ redirige a /negocios/, donde el portfolio presenta las demos
   restaurante/ peluqueria/ autoescuela/ fisioterapia/
     config.ts             ← ÚNICO archivo que se edita por cliente
     README.md             qué tiene la plantilla y checklist de adaptación
@@ -36,7 +36,7 @@ plantillas/
   build.mjs               compila hacia ../public/plantillas/<slug>/
   verificar.mjs           capturas, axe, enlaces, terceros, datos reales y Lighthouse
   exportar.mjs            saca una plantilla a una carpeta independiente para un cliente
-  indice.mjs              miniaturas y og.png del índice de demos (_indice/)
+  indice.mjs              capturas 16:10 de las demos para el portfolio (src/assets/plantillas/)
   CHECKLIST-CALIDAD.md    lo que debe cumplir cada plantilla antes de darla por buena
   PLANTILLA-README.md     modelo del README de cada plantilla
 ```
@@ -66,7 +66,7 @@ npm test                         # pruebas de _comun
 node build.mjs [slug]            # compila hacia ../public/plantillas/<slug>/
 node verificar.mjs <slug>        # verificación completa (tras el build; Lighthouse ×3, mediana)
 node exportar.mjs <slug> <dest>  # carpeta independiente para un cliente
-node indice.mjs                  # miniaturas del índice (tras el build; luego otro build para copiarlas)
+node indice.mjs                  # capturas de las demos para /negocios/ y /apps/ (tras el build)
 ```
 
 Dentro de cada plantilla: `npm run dev`, `npm run build`, `npm run comprobar`.

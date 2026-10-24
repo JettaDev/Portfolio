@@ -1,5 +1,5 @@
-// Trazado de la ciudad: la calle, la manzana del centro (tienda con escaparate, estudio y solar),
-// los edificios, los huecos de ventana y los ventanales de las apps.
+// Trazado de la ciudad: la calle, la manzana del centro (tienda con escaparate, estudio y solar, y
+// el bajo comercial de las webs para negocios), los edificios, los huecos de ventana y los ventanales de las apps.
 // Es puro (sin three ni DOM) y determinista: con la misma semilla sale siempre la misma ciudad.
 
 import { aleatorio, ruido, SEMILLA } from './semilla';
@@ -62,6 +62,9 @@ const ALTO_CARTEL = 5.4;
 /** Plantas de la tienda que ocupa el comercio: el escaparate y la banda del rótulo encima. */
 const PLANTAS_COMERCIO = 2;
 
+/** Plantillas de negocio expuestas en el bajo comercial. */
+export const LOCALES_NEGOCIOS = 4;
+
 /** Las apps solo van en las tres primeras filas, que se ven en todos los niveles de calidad. */
 const FILAS_DE_PROYECTO = 3;
 /** Distancia máxima al centro de los edificios con app, por fila (crece si no caben). */
@@ -123,6 +126,17 @@ export interface Escaparate extends Rectangulo {
   toldo: { y: number; ancho: number; vuelo: number };
 }
 
+/**
+ * El bajo comercial del lote de la izquierda: cuatro escaparates pequeños, uno por plantilla de
+ * negocio, cada uno con su toldo. Lleva a la página de las webs para negocios.
+ */
+export interface Negocios extends Rectangulo {
+  edificio: number;
+  /** Cuántos escaparates (uno por plantilla). */
+  locales: number;
+  toldo: { y: number; vuelo: number };
+}
+
 /** Obra en marcha (apps en desarrollo): grúa en la azotea y andamio bajo el ventanal. */
 export interface Obra {
   slug: string;
@@ -172,6 +186,7 @@ export interface Trazado {
   escaparate: Escaparate;
   estudio: Estudio;
   solar: Solar;
+  negocios: Negocios;
   obras: Obra[];
   /** Mitad del ancho que ocupan los sitios del barrio, con margen: sirve para encuadrar. */
   mitadAncho: number;
@@ -276,6 +291,7 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
   const derechaManzana = m.solar.x + m.solar.ancho / 2 + m.separacion;
   let tienda = -1;
   let loteSolar = -1;
+  let loteNegocios = -1;
   FILAS.forEach((f, fila) => {
     let x = -ANCHO_CIUDAD - azar() * 3;
     while (x < ANCHO_CIUDAD) {
@@ -289,7 +305,7 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
         if (ancho >= 2.4) edificios.push({ x: x + ancho / 2, z: CALLE.fachada - fondo / 2, ancho, fondo, alto, fila });
         const lote = (l: { x: number; ancho: number; fondo: number }, alto: number, vacio?: boolean): number =>
           edificios.push({ x: l.x, z: CALLE.fachada - l.fondo / 2, ancho: l.ancho, fondo: l.fondo, alto, fila, ...(vacio ? { vacio } : {}) }) - 1;
-        lote(m.lote, m.lote.alto);
+        loteNegocios = lote(m.lote, m.lote.alto);
         tienda = lote(m.tienda, altoPara(m.tienda.plantas));
         loteSolar = lote(m.solar, 0, true);
         x = derechaManzana;
@@ -329,6 +345,22 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
     ancho: VENTANAL.ancho,
     alto: VENTANAL.alto,
     edificio: tienda,
+  };
+
+  // --- Bajo comercial de las webs para negocios: la planta baja del lote de la izquierda ------
+  const ln = edificios[loteNegocios];
+  for (let c = 0; c < rejilla(ln).columnas; c++) reservados.add(`${loteNegocios}:${c}:0`);
+  const altoNegocios = 1.3;
+  const negocios: Negocios = {
+    x: ln.x,
+    y: 0.45 + altoNegocios / 2,
+    z: fachada(ln) + 0.03,
+    // Algo más estrecho que el lote: no ensancha el encuadre (el cartel del solar llega igual de lejos)
+    ancho: ln.ancho - 0.8,
+    alto: altoNegocios,
+    edificio: loteNegocios,
+    locales: LOCALES_NEGOCIOS,
+    toldo: { y: 0.45 + altoNegocios + 0.1, vuelo: 0.45 },
   };
 
   // --- Edificios con app ------------------------------------------------------
@@ -442,8 +474,9 @@ export function trazarCiudad(apps: AppEnCiudad[], semilla = SEMILLA): Trazado {
     Math.abs(estudio.x) + estudio.ancho / 2,
     Math.abs(escaparate.x) + escaparate.ancho / 2,
     Math.abs(solar.cartel.x) + solar.cartel.ancho / 2,
+    Math.abs(negocios.x) + negocios.ancho / 2,
   ];
   const mitadAncho = Math.max(...extremos) + MARGEN;
   const frente = Math.max(CALLE.fachada, ...proyectos.map((p) => p.z));
-  return { edificios, huecos, proyectos, calle, tienda, escaparate, estudio, solar, obras, mitadAncho, frente, cortes };
+  return { edificios, huecos, proyectos, calle, tienda, escaparate, estudio, solar, negocios, obras, mitadAncho, frente, cortes };
 }

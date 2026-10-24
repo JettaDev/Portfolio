@@ -2,13 +2,16 @@
 // Catálogo de apps: el escaparate de la ciudad lleva aquí. Cada fila es la ventana de su app.
 import Base from '../layouts/Base.astro';
 import AppRow from '../components/AppRow.astro';
-import Plantillas from '../components/Plantillas.astro';
+import PlantillaRow from '../components/PlantillaRow.astro';
 import { getApps } from '../lib/apps';
-import { getLang, useT } from '../i18n/utils';
+import { getPlantillas } from '../lib/plantillas';
+import { getLang, useT, pagePath } from '../i18n/utils';
 
 const lang = getLang(Astro.url);
 const t = useT(lang);
 const apps = await getApps(lang);
+const plantillas = getPlantillas();
+const nota = t('negocios.note');
 ---
 
 <Base title={t('apps.title')} description={t('apps.description')} ventanaDestino>
@@ -21,5 +24,17 @@ const apps = await getApps(lang);
       {apps.map((app, i) => <AppRow app={app} reverse={i % 2 === 1} destino={i === 0} />)}
     </div>
   </section>
-  <Plantillas />
+
+  <!-- Webs para negocios: las cuatro demos de plantillas/, con la misma fila que las apps -->
+  <section id="negocios" class="scroll-mt-20 py-24 lg:py-36" aria-labelledby="negocios-titulo">
+    <header class="contenedor pb-16 lg:pb-24" data-reveal>
+      <h2 id="negocios-titulo" class="text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none font-bold tracking-[-0.03em]">{t('apps.negocios')}</h2>
+      <p class="mt-6 max-w-[44ch] text-xl text-pretty text-liquen">{t('apps.negociosLead')}</p>
+      {nota && <p class="mt-3 text-sm text-helecho">{nota}</p>}
+      <a href={pagePath(lang, 'negocios')} class="boton boton-secundario mt-8">{t('apps.negociosMas')}</a>
+    </header>
+    <div class="contenedor flex flex-col gap-24 lg:gap-36">
+      {plantillas.map((p, i) => <PlantillaRow plantilla={p} reverse={(apps.length + i) % 2 === 1} nivel="h3" />)}
+    </div>
+  </section>
 </Base>

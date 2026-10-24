@@ -2,6 +2,7 @@
 
 import {
   AdditiveBlending,
+  CanvasTexture,
   Color,
   DataTexture,
   DoubleSide,
@@ -16,7 +17,6 @@ import {
   UniformsLib,
   UniformsUtils,
   Vector3,
-  type CanvasTexture,
   type Object3D,
   type Texture,
 } from 'three';
@@ -131,7 +131,7 @@ export function crearHuecos(trazado: Trazado, fijas: ReadonlySet<number> = new S
 
 /** Lo que se puede señalar en la ciudad: los ventanales, el escaparate, el estudio y el solar. */
 export interface Objetivo {
-  /** Slug de la app, o el sitio del barrio (#apps, #sobre-mi, #contacto). */
+  /** Slug de la app, o el sitio del barrio (#apps, #sobre-mi, #contacto, #negocios). */
   id: string;
   posicion: Vector3;
   /** Lo que mide en la fachada: decide a qué distancia se queda la cámara al volar hasta él. */
@@ -511,6 +511,147 @@ export function crearEscaparate(trazado: Trazado, datos: DatosVentana[], captura
       uniforms.calida.value.setScalar(0);
       tarjetas.forEach((t) => (t.visible = false));
       piezas.forEach((p) => (p.visible = false));
+      charco.visible = false;
+    },
+  };
+}
+
+// --- Bajo comercial de las webs para negocios -------------------------------------------
+
+type Silueta = 'mesa' | 'espejo' | 'senal' | 'camilla';
+
+/**
+ * Los cuatro locales, de izquierda a derecha: restaurante, peluquería, autoescuela y fisioterapia.
+ * `luz`: el interior; `toldo`: el color de su marca; `silueta`: lo que se ve dentro a contraluz.
+ */
+const LOCALES: { luz: string; toldo: string; silueta: Silueta }[] = [
+  { luz: '#f2c590', toldo: '#7a1f2b', silueta: 'mesa' },
+  { luz: '#ecc9d8', toldo: '#6b4466', silueta: 'espejo' },
+  { luz: '#f3dc8a', toldo: '#0b4f9c', silueta: 'senal' },
+  { luz: '#c6e6d4', toldo: '#2f5e4e', silueta: 'camilla' },
+];
+/** Luz del interior en reposo: tenue (por debajo del umbral del bloom), algo más viva que los bajos de la calle. */
+const LUZ_LOCAL = 0.5;
+
+/** El interior de un local: luz más clara arriba, suelo en sombra y su silueta a contraluz. */
+function texturaLocal(local: (typeof LOCALES)[number]): CanvasTexture {
+  const W = 96;
+  const H = 224;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const luz = new Color(local.luz);
+  const css = (k: number) => `rgb(${[luz.r, luz.g, luz.b].map((v) => Math.round(Math.min(1, v * k) * 255)).join(',')})`;
+  const fondo = g.createLinearGradient(0, 0, 0, H);
+  fondo.addColorStop(0, css(1));
+  fondo.addColorStop(0.75, css(0.62));
+  g.fillStyle = fondo;
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = css(0.22);
+  g.fillRect(0, H * 0.84, W, H * 0.16);
+
+  // Silueta a contraluz
+  g.fillStyle = g.strokeStyle = 'rgba(20, 14, 10, 0.55)';
+  g.lineWidth = 4;
+  const suelo = H * 0.84;
+  if (local.silueta === 'mesa') {
+    g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, 46); g.stroke();
+    g.beginPath(); g.arc(W / 2, 58, 16, Math.PI, 0); g.fill();
+    g.fillRect(16, suelo - 46, W - 32, 7);
+    g.fillRect(26, suelo - 40, 5, 40); g.fillRect(W - 31, suelo - 40, 5, 40);
+    g.fillRect(4, suelo - 30, 10, 30); g.fillRect(W - 14, suelo - 30, 10, 30);
+  } else if (local.silueta === 'espejo') {
+    g.lineWidth = 5;
+    g.beginPath(); g.moveTo(26, suelo - 70); g.lineTo(26, 70); g.arc(W / 2, 70, W / 2 - 26, Math.PI, 0); g.lineTo(W - 26, suelo - 70); g.closePath(); g.stroke();
+    g.fillRect(30, suelo - 44, W - 60, 10);
+    g.fillRect(36, suelo - 64, W - 72, 22);
+    g.fillRect(W / 2 - 3, suelo - 34, 6, 34);
+  } else if (local.silueta === 'senal') {
+    g.fillRect(W / 2 - 3, 96, 6, suelo - 96);
+    g.beginPath(); g.arc(W / 2, 78, 26, 0, Math.PI * 2); g.fill();
+    g.fillStyle = css(0.9);
+    g.beginPath(); g.arc(W / 2, 78, 15, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(20, 14, 10, 0.55)';
+    g.fillRect(10, suelo - 22, W - 20, 12);
+  } else {
+    g.fillRect(8, suelo - 50, W - 16, 10);
+    g.fillRect(16, suelo - 40, 5, 40); g.fillRect(W - 21, suelo - 40, 5, 40);
+    g.fillRect(W - 24, 60, 4, suelo - 110);
+    g.beginPath(); g.arc(W - 22, 60, 12, Math.PI * 0.9, Math.PI * 2.1); g.fill();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}
+
+export interface Negocios {
+  objetivo: Objetivo;
+  objetos: Object3D[];
+  actualizar(): void;
+  apagar(): void;
+}
+
+/**
+ * El bajo comercial: un marco oscuro con cuatro escaparates pequeños (uno por plantilla), cada uno
+ * con su interior a contraluz y un toldo de su color. Encima, el rótulo HTML «Webs para negocios».
+ */
+export function crearNegocios(trazado: Trazado, halo: CanvasTexture): Negocios {
+  const n = trazado.negocios;
+  const posicion = new Vector3(n.x, n.y, n.z);
+  const oscuro = new MeshBasicMaterial({ color: '#0b1a12', toneMapped: false });
+  const marco = new Mesh(new PlaneGeometry(n.ancho + 0.16, n.alto + 0.16), oscuro);
+  marco.position.copy(posicion).z -= 0.005;
+
+  const hueco = 0.08;
+  const ancho = (n.ancho - hueco * (n.locales - 1)) / n.locales;
+  const vidrios: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
+  const toldos: Mesh<PlaneGeometry, MeshBasicMaterial>[] = [];
+  for (let i = 0; i < n.locales; i++) {
+    const local = LOCALES[i % LOCALES.length];
+    const x = n.x - n.ancho / 2 + ancho / 2 + i * (ancho + hueco);
+    const vidrio = new Mesh(new PlaneGeometry(ancho, n.alto), new MeshBasicMaterial({ map: texturaLocal(local), toneMapped: false }));
+    vidrio.material.color.setScalar(LUZ_LOCAL);
+    vidrio.position.set(x, n.y, n.z);
+    // Toldo de su color, inclinado hacia la calle
+    const toldo = new Mesh(new PlaneGeometry(ancho + 0.04, n.toldo.vuelo), new MeshBasicMaterial({ color: local.toldo, side: DoubleSide }));
+    toldo.rotation.x = -Math.PI / 2 + 0.55;
+    toldo.position.set(x, n.toldo.y - (n.toldo.vuelo / 2) * Math.sin(0.55), n.z + (n.toldo.vuelo / 2) * Math.cos(0.55));
+    vidrios.push(vidrio);
+    toldos.push(toldo);
+  }
+
+  // La luz de los cuatro locales cae sobre la acera
+  const charco = new Mesh(
+    new PlaneGeometry(n.ancho * 1.5, 1.8),
+    new MeshBasicMaterial({ map: halo, color: '#b39a7a', transparent: true, opacity: 0.12, depthWrite: false, blending: AdditiveBlending }),
+  );
+  charco.rotation.x = -Math.PI / 2;
+  charco.position.set(n.x, 0.13, n.z + 0.9);
+
+  const toque = new Mesh(new PlaneGeometry(n.ancho + 0.4, n.alto + 0.8), new MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  toque.position.set(n.x, n.y + 0.2, n.z + 0.6);
+
+  const rotulo = new Vector3(n.x, n.toldo.y + 0.5, n.z);
+  const objetivo: Objetivo = { id: '#negocios', posicion, tamano: { ancho: n.ancho, alto: n.alto }, rotulo, brillo: 0, toque };
+  toque.userData.objetivo = objetivo;
+  let apagado = false;
+  return {
+    objetivo,
+    objetos: [marco, ...vidrios, ...toldos, charco, toque],
+    actualizar: () => {
+      if (apagado) return;
+      const b = Math.min(objetivo.brillo, 1);
+      for (const v of vidrios) v.material.color.setScalar(LUZ_LOCAL * (1 + b * 0.35));
+      charco.material.opacity = 0.12 + b * 0.1;
+    },
+    apagar: () => {
+      apagado = true;
+      for (const v of vidrios) {
+        v.material.map = null;
+        v.material.color.set(COLORES.apagada);
+        v.material.needsUpdate = true;
+      }
       charco.visible = false;
     },
   };

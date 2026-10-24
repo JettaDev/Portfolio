@@ -76,7 +76,7 @@ function azoteaLibre(t: Trazado, i: number): boolean {
 export function trazarDetalles(t: Trazado, semilla: number): Detalles {
   const r = (...n: number[]) => ruido(semilla ^ 0xdec0, ...n);
   const d: Detalles = { cornisas: [], depositos: [], antenas: [], aires: [], balcones: [], comercios: [] };
-  const especiales = new Set([t.tienda, ...t.proyectos.map((p) => p.edificio), ...t.obras.map((o) => o.edificio)]);
+  const especiales = new Set([t.tienda, t.negocios.edificio, ...t.proyectos.map((p) => p.edificio), ...t.obras.map((o) => o.edificio)]);
 
   t.edificios.forEach((e, i) => {
     if (e.vacio) return;

@@ -14,7 +14,7 @@ import { Pintor, NIVELES } from './render';
 import { MedidorFps, detectarNivel, nivelInferior, type Nivel, type NivelVivo } from './rendimiento';
 import { SEMILLA } from './semilla';
 import { trazarCiudad, type Encuadre } from './trazado';
-import { crearEscaparate, crearEstudio, crearHuecos, crearVentanales, type DatosVentana, type Objetivo } from './ventanas';
+import { crearEscaparate, crearEstudio, crearHuecos, crearNegocios, crearVentanales, type DatosVentana, type Objetivo } from './ventanas';
 
 export type { DatosVentana } from './ventanas';
 export type { Nivel } from './rendimiento';
@@ -42,7 +42,7 @@ export interface OpcionesCiudad {
   encendida?: string;
   /**
    * El puntero entra o sale de algo señalable: un ventanal (su slug), el escaparate (`#apps`),
-   * el estudio (`#sobre-mi`) o el solar (`#contacto`).
+   * el estudio (`#sobre-mi`), el solar (`#contacto`) o el bajo comercial de las webs para negocios (`#negocios`).
    */
   alPasar?: (id: string | null) => void;
   /** Clic o toque sobre algo señalable (mismos ids que `alPasar`). */
@@ -117,6 +117,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   const solar = crearSolar(trazado, halo);
   const estudio = crearEstudio(trazado, halo);
   const escaparate = crearEscaparate(trazado, datos, ventanales.capturas, halo);
+  const negocios = crearNegocios(trazado, halo);
   // Los neones de los bajos se escriben con la fuente de la página
   await document.fonts?.load('700 40px "Bricolage Grotesque Variable"').catch(() => {});
   const detalles = crearDetalles(trazarDetalles(trazado, semilla), halo);
@@ -128,15 +129,16 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     ...trazado.calle.farolas.map((x) => ({ x, color: COLORES.farola, fuerza: 1 })),
     ...trazado.proyectos.map((p) => ({ x: p.x, color: COLORES.calendula, fuerza: 0.55 })),
     { x: trazado.escaparate.x, color: '#f0d7a8', fuerza: 0.5 },
+    { x: trazado.negocios.x, color: '#e8c9a0', fuerza: 0.35 },
   ];
   const ambiente = crearAmbiente(escena, trazado, halo, reflejos, { gotas: { alto: 1400, medio: 700, bajo: 300 }[nivel] });
   ambiente.clima(opciones.clima ?? 'despejado');
   if (opciones.hora !== undefined) ambiente.hora(opciones.hora);
   const gato = crearGato(trazado);
   escena.add(detalles.objeto, vida.objeto, ambiente.objeto, gato.objeto);
-  escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos);
+  escena.add(edificios, calle.objeto, huecos.malla, ...ventanales.objetos, ...obras.objetos, solar.objeto, ...estudio.objetos, ...escaparate.objetos, ...negocios.objetos);
   if (opciones.apagon) {
-    [calle, huecos, obras, solar, estudio, escaparate, detalles, vida, gato].forEach((parte) => parte.apagar());
+    [calle, huecos, obras, solar, estudio, escaparate, negocios, detalles, vida, gato].forEach((parte) => parte.apagar());
     ventanales.apagar(opciones.encendida);
   }
   await ceder();
@@ -171,7 +173,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
   await ceder();
 
   // --- Ventanales, escaparate, estudio y solar: resaltar, buscar y tocar ----------------------
-  const objetivos: Objetivo[] = [...ventanales.lista, escaparate.objetivo, estudio.objetivo, solar.objetivo];
+  const objetivos: Objetivo[] = [...ventanales.lista, escaparate.objetivo, estudio.objetivo, solar.objetivo, negocios.objetivo];
   const porId = new Map(objetivos.map((o) => [o.id, o]));
   // El gato no se pulsa como un sitio, pero su etiqueta («Miau») se coloca igual
   porId.set('#gato', { id: '#gato', posicion: gato.posicion, tamano: { ancho: 1, alto: 1 }, brillo: 0, toque: new Mesh() });
@@ -342,8 +344,9 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
     estudio.actualizar();
     solar.actualizar();
     escaparate.actualizar();
+    negocios.actualizar();
     // Cerca de un ventanal (o de otro sitio) el bloom se atenúa: lo que llena la pantalla no deslumbra
-    const revelado = Math.max(ventanales.actualizar(camara.camara.position, tiempo), ...[escaparate, estudio, solar].map((s) => cercania(s.objetivo)));
+    const revelado = Math.max(ventanales.actualizar(camara.camara.position, tiempo), ...[escaparate, estudio, solar, negocios].map((s) => cercania(s.objetivo)));
     pintor.atenuarBloom(1 - revelado);
     pintor.pintar();
 
@@ -446,7 +449,7 @@ export async function montarCiudad(canvas: HTMLCanvasElement, datos: DatosVentan
       // Qué parte del ancho ocupa al llegar: en vertical, casi todo
       const vertical = camara.camara.aspect < 1;
       // Los sitios se ven con algo de calle alrededor (sale un trozo de ciudad 16:10 más ancho que ellos)
-      const fraccion = id === '#apps' ? (vertical ? 0.5 : 0.26) : id.startsWith('#') ? (vertical ? 0.32 : 0.16) : vertical ? 0.78 : 0.36;
+      const fraccion = id === '#apps' ? (vertical ? 0.5 : 0.26) : id === '#negocios' ? (vertical ? 0.42 : 0.2) : id.startsWith('#') ? (vertical ? 0.32 : 0.16) : vertical ? 0.78 : 0.36;
       return reducido ? Promise.resolve() : camara.acercarA(o, fraccion);
     },
     rectEnPantalla: (id, ampliar) => rectDe(id, canvas.clientWidth, canvas.clientHeight, ampliar),

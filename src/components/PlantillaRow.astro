@@ -1,0 +1,50 @@
+---
+// Una web para negocios en el catálogo: misma composición que la fila de una app (AppRow), con la
+// captura de la demo en su ventana. No hay ficha: el botón abre la demo.
+import { Image } from 'astro:assets';
+import BrowserFrame from './BrowserFrame.astro';
+import { demoDe, type Plantilla } from '../lib/plantillas';
+import { getLang, useT } from '../i18n/utils';
+
+interface Props {
+  plantilla: Plantilla;
+  /** Imagen a la derecha: las filas alternan el lado */
+  reverse?: boolean;
+  /** Título de la fila: h2 en su propia página, h3 dentro de la sección de Apps */
+  nivel?: 'h2' | 'h3';
+}
+const { plantilla: p, reverse = false, nivel = 'h2' } = Astro.props;
+const lang = getLang(Astro.url);
+const t = useT(lang);
+const href = demoDe(p);
+const Titulo = nivel;
+---
+
+<article class="grid items-center gap-10 md:grid-cols-12 md:gap-12" style={`--hue:${p.hue}`}>
+  <a href={href} hreflang="es" class:list={['group block md:col-span-7', reverse && 'md:order-2']} tabindex="-1" aria-hidden="true">
+    <BrowserFrame domain={`jettadev / plantillas / ${p.slug}`} hue={p.hue} class="transition-transform duration-500 ease-salida group-hover:-translate-y-1.5">
+      <Image src={p.captura} alt="" widths={[480, 640, 960, 1280]} sizes="(min-width: 48rem) 40rem, 100vw" class="aspect-[16/10] w-full object-cover object-top" />
+    </BrowserFrame>
+  </a>
+
+  <div class:list={['md:col-span-5', reverse && 'md:order-1']} data-reveal>
+    <Titulo class="text-[clamp(2.25rem,4vw,3.5rem)] leading-none font-bold tracking-[-0.03em]" translate="no">
+      <a href={href} hreflang="es" class="decoration-(--hue) decoration-[3px] underline-offset-[8px] hover:underline">{p.nombre}</a>
+    </Titulo>
+    <p class="mt-4 flex items-center gap-2 text-helecho">
+      <span class="size-2 rounded-full bg-(--hue)" aria-hidden="true"></span>{p.tipo[lang]}
+    </p>
+    <p class="mt-6 text-xl text-pretty text-liquen">{p.frase[lang]}</p>
+    <p class="mt-3 max-w-[48ch] text-lg text-liquen/80">{p.resumen[lang]}</p>
+
+    <ul class="mt-6 flex flex-wrap gap-2" aria-label={t('negocios.incluye')}>
+      {p.incluye[lang].map((s) => <li class="rounded-md bg-musgo px-2.5 py-1 text-sm text-liquen">{s}</li>)}
+    </ul>
+
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a href={href} hreflang="es" class="boton boton-principal">
+        {t('negocios.verDemo')}<span class="sr-only">: {p.nombre}</span>
+      </a>
+    </div>
+  </div>
+</article>

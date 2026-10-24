@@ -93,7 +93,7 @@ const ogImage = new URL(image, Astro.site);
               // Su sitio en el póster (el de los dos encuadres que se vea) recibe la ventana
               const id = JSON.stringify(desde.slug);
               const estilo = document.createElement('style');
-              estilo.textContent = '.ventana-poster[data-id=' + id + '], [data-rotulo=' + id + ']:not([data-rotulo="#apps"]) { view-transition-name: salida; }';
+              estilo.textContent = '.ventana-poster[data-id=' + id + '], [data-rotulo=' + id + ']:not([data-rotulo="#apps"]):not([data-rotulo="#negocios"]) { view-transition-name: salida; }';
               document.head.append(estilo);
             }
           }

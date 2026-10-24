@@ -49,13 +49,13 @@ const datos = await getCiudad('es');
     alPrimerFrame: () => {
       estado.primerFrame = performance.now();
       // Posiciones relativas (0–1) de cada ventanal, para los enlaces del póster sin WebGL
-      // También el escaparate (#apps), el estudio (#sobre-mi) y el cartel del solar (#contacto)
-      const ventanas = [...datos.map(({ slug }) => slug), '#apps', '#sobre-mi', '#contacto'].map((slug) => {
+      // También el escaparate (#apps), el estudio (#sobre-mi), el cartel del solar (#contacto) y el bajo comercial (#negocios)
+      const ventanas = [...datos.map(({ slug }) => slug), '#apps', '#sobre-mi', '#contacto', '#negocios'].map((slug) => {
         const p = ciudad.enPantalla(slug)!;
         const r = ciudad.enPantalla(slug, 'rotulo')!;
         const relativo = (q: { x: number; y: number }) => ({ x: q.x / canvas.clientWidth, y: q.y / canvas.clientHeight });
-        // El rótulo del escaparate va encima del toldo, no en el centro del cristal
-        return { slug, ...relativo(p), ...(slug === '#apps' ? { rx: relativo(r).x, ry: relativo(r).y } : {}) };
+        // Los rótulos del escaparate y del bajo comercial van encima del toldo, no en el centro del cristal
+        return { slug, ...relativo(p), ...(slug === '#apps' || slug === '#negocios' ? { rx: relativo(r).x, ry: relativo(r).y } : {}) };
       });
       Object.assign(window, { poster: { ventanas } });
     },

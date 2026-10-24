@@ -1,6 +1,7 @@
 ---
 // La portada: el barrio de noche, a pantalla completa. Cada ventana encendida es una app; el
-// escaparate de la tienda lleva al catálogo, el estudio de encima a Sobre mí y el solar a Contacto.
+// escaparate de la tienda lleva al catálogo, el estudio de encima a Sobre mí, el solar a Contacto y
+// el bajo comercial de la izquierda (cuatro locales) a las webs para negocios.
 // El póster (misma escena, misma semilla) se pinta al instante y el motor 3D se descarga después
 // y se funde encima. Sin WebGL, los sitios del póster son enlaces.
 import { getImage } from 'astro:assets';
@@ -16,7 +17,7 @@ const lang = getLang(Astro.url);
 const t = useT(lang);
 const ventanas = await getCiudad(lang);
 // Los sitios del barrio que no son apps, con su página
-const sitios = { '#apps': pagePath(lang, 'apps'), '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact') };
+const sitios = { '#apps': pagePath(lang, 'apps'), '#sobre-mi': pagePath(lang, 'about'), '#contacto': pagePath(lang, 'contact'), '#negocios': pagePath(lang, 'negocios') };
 
 const [ancho, alto] = await Promise.all([
   getImage({ src: posterAncho, widths: [1500, 2200, 3000], format: 'webp' }),
@@ -45,6 +46,8 @@ const enLosPosters = (id: string, rotulo = false) => {
 const rotulos = [
   { id: '#apps' as const, texto: t('ciudad.escaparate'), estilo: enLosPosters('#apps', true) },
   { id: '#contacto' as const, texto: t('ciudad.solar'), estilo: enLosPosters('#contacto') },
+  // En móvil, el rótulo corto: el largo se juntaría con el del escaparate
+  { id: '#negocios' as const, texto: t('ciudad.negocios'), corto: t('ciudad.negociosCorto'), estilo: enLosPosters('#negocios', true) },
 ];
 ---
 
@@ -84,12 +87,12 @@ const rotulos = [
         )}
       </>
     ))}
-    {(['#apps', '#sobre-mi'] as const).map((id) => enLosPosters(id) && (
-      <a href={sitios[id]} tabindex="-1" class="ventana-poster sitio en-los-dos" style={enLosPosters(id)} data-id={id}>{id === '#apps' ? t('ciudad.escaparate') : t('nav.about')}</a>
+    {(['#apps', '#sobre-mi', '#negocios'] as const).map((id) => enLosPosters(id) && (
+      <a href={sitios[id]} tabindex="-1" class="ventana-poster sitio en-los-dos" style={enLosPosters(id)} data-id={id}>{id === '#apps' ? t('ciudad.escaparate') : id === '#negocios' ? t('ciudad.negocios') : t('nav.about')}</a>
     ))}
   </div>
 
-  <!-- Rótulos del escaparate y del cartel del solar: son HTML (no hay texto 3D) y enlaces reales -->
+  <!-- Rótulos del escaparate, del cartel del solar y del bajo comercial: son HTML (no hay texto 3D) y enlaces reales -->
   {rotulos.map((r) => r.estilo && (
     <a
       href={sitios[r.id]}
@@ -97,7 +100,14 @@ const rotulos = [
       style={r.estilo}
       data-rotulo={r.id}
     >
-      {r.texto}
+      {'corto' in r ? (
+        <>
+          <span class="sm:hidden">{r.corto}</span>
+          <span class="hidden sm:inline">{r.texto}</span>
+        </>
+      ) : (
+        r.texto
+      )}
     </a>
   ))}
 
@@ -356,8 +366,8 @@ const rotulos = [
     const velo = new Velo(raiz.querySelector<HTMLElement>('[data-velo]')!);
     const plantillaVentana = raiz.querySelector<HTMLElement>('[data-plantilla-ventana] > *')!;
     const plantillaRecorte = raiz.querySelector<HTMLElement>('[data-plantilla-recorte] > *')!;
-    /** Lo que sale de los sitios (escaparate, estudio y solar): un trozo de calle alrededor. */
-    const ampliar = (id: string) => (id === '#apps' ? 1.6 : id.startsWith('#') ? 2.8 : undefined);
+    /** Lo que sale de los sitios (escaparate, estudio, solar y bajo comercial): un trozo de calle alrededor. */
+    const ampliar = (id: string) => (id === '#apps' ? 1.6 : id === '#negocios' ? 2 : id.startsWith('#') ? 2.8 : undefined);
     /** Rectángulo de lo que sale en la pantalla (el canvas puede no empezar en 0,0). */
     const enVentana = (id: string): Rect | null => {
       const r = ciudad?.rectEnPantalla(id, ampliar(id));

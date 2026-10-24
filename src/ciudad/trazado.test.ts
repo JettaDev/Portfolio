@@ -5,6 +5,7 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import {
   CALLE,
   CAMARA,
+  HUECO,
   MANZANA,
   PARALLAX,
   distanciaCamara,
@@ -269,6 +270,44 @@ describe('detalles de los edificios', () => {
     const especiales = [t.tienda, ...t.proyectos.map((p) => p.edificio)].map((i) => t.edificios[i]);
     for (const c of [...d.comercios, ...d.balcones]) {
       for (const e of especiales) expect(Math.abs(c.x - e.x) < e.ancho / 2 && e.fila === 0).toBe(false);
+    }
+  });
+});
+
+describe('bajo comercial de las webs para negocios', () => {
+  it('ocupa la planta baja del lote de la izquierda, sin huecos detrás ni comercio decorativo', () => {
+    for (const n of CANTIDADES) {
+      const t = trazarCiudad(apps(n));
+      const e = t.edificios[t.negocios.edificio];
+      expect(e.x).toBe(MANZANA.lote.x);
+      expect(t.negocios.x - t.negocios.ancho / 2).toBeGreaterThan(e.x - e.ancho / 2);
+      expect(t.negocios.x + t.negocios.ancho / 2).toBeLessThan(e.x + e.ancho / 2);
+      const debajo = t.huecos.filter((h) => h.fila === 0 && Math.abs(h.x - e.x) < e.ancho / 2 && h.y - HUECO.alto / 2 < t.negocios.toldo.y);
+      expect(debajo).toEqual([]);
+      expect(trazarDetalles(t, SEMILLA).comercios.some((c) => Math.abs(c.x - e.x) < 0.01)).toBe(false);
+    }
+  });
+
+  it('no se cruza con el ventanal de la app de encima ni ensancha el encuadre', () => {
+    for (const n of CANTIDADES) {
+      const t = trazarCiudad(apps(n));
+      for (const p of t.proyectos.filter((p) => p.edificio === t.negocios.edificio)) {
+        expect(p.y - p.alto / 2).toBeGreaterThan(t.negocios.toldo.y + 0.5);
+      }
+      const cartel = Math.abs(t.solar.cartel.x) + t.solar.cartel.ancho / 2;
+      expect(Math.abs(t.negocios.x) + t.negocios.ancho / 2).toBeLessThanOrEqual(cartel + 1e-9);
+    }
+  });
+
+  it('se ve entero en reposo en todos los aspectos', () => {
+    const t = trazarCiudad(apps(2));
+    for (const aspecto of Object.values(ASPECTOS)) {
+      const camara = camaraEnReposo(t, aspecto);
+      for (const v of esquinas({ ...t.negocios, y: t.negocios.y, alto: t.negocios.alto })) {
+        const p = v.clone().project(camara);
+        expect(Math.abs(p.x)).toBeLessThan(1);
+        expect(Math.abs(p.y)).toBeLessThan(1);
+      }
     }
   });
 });

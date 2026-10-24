@@ -13,8 +13,8 @@
 //   og/sitio.webp       fondos de las imágenes Open Graph (1600×630; npm run og les pone el
 //   og/<slug>.webp      texto encima): la ciudad entera, y la ciudad apagada con solo el
 //                       ventanal de esa app encendido y la cámara a medio camino de él
-//   sitios/<id>.webp    el estudio y el solar vistos de cerca (1600×1000), para las páginas de
-//                       Sobre mí y Contacto; sitios.json guarda dónde cae el cartel del solar
+//   sitios/<id>.webp    el estudio, el solar y el bajo comercial vistos de cerca (1600×1000), para
+//                       Sobre mí, Contacto y Negocios; sitios.json guarda dónde cae cada uno
 //   fachadas/<slug>.webp  el edificio de cada app a medio vuelo, recortado con su ventanal en el
 //                       centro: el fondo de la portada de su ficha, donde la ventana del
 //                       navegador tapa el ventanal (npm run poster -- --fachadas: solo estas)
@@ -132,10 +132,10 @@ try {
   writeFileSync(join(salida, 'poster.json'), JSON.stringify(posiciones, null, 2) + '\n');
   console.log('src/assets/ciudad/poster.json');
 
-  // El estudio y el solar de cerca, a medio vuelo: la imagen de Sobre mí y de Contacto
+  // El estudio, el solar y el bajo comercial de cerca, a medio vuelo: la imagen de su página
   const SITIO = { width: 1600, height: 1000 };
   const sitios = {};
-  for (const [nombre, id, acercar] of [['sobre-mi', '#sobre-mi', 0.6], ['contacto', '#contacto', 0.5]]) {
+  for (const [nombre, id, acercar] of [['sobre-mi', '#sobre-mi', 0.6], ['contacto', '#contacto', 0.5], ['negocios', '#negocios', 0.55]]) {
     const r = await pintar(SITIO, `nivel=alto&encuadre=ancho&encendida=${encodeURIComponent(id)}&acercar=${acercar}`, id);
     await guardar(r.png, join(salida, `sitios/${nombre}.webp`), 90);
     sitios[nombre] = r.medida;

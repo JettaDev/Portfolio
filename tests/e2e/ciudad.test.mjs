@@ -55,8 +55,8 @@ async function pagina(contexto = ESCRITORIO) {
 const viva = (page) => page.waitForSelector('[data-ciudad][data-estado="vivo"]', { timeout: 20_000 });
 
 /**
- * Centro en pantalla de algo de la ciudad (la primera app, o `id`: un slug, #apps, #sobre-mi o
- * #contacto), con la misma cuenta que el CSS de los enlaces del póster.
+ * Centro en pantalla de algo de la ciudad (la primera app, o `id`: un slug, #apps, #sobre-mi,
+ * #contacto o #negocios), con la misma cuenta que el CSS de los enlaces del póster.
  */
 const centro = (page, encuadre = 'ancho', id) =>
   page.evaluate(
@@ -117,7 +117,7 @@ for (const [lang, ruta] of [['es', '/'], ['en', '/en/']]) {
       await page.goto(url(ruta), { waitUntil: 'load' });
       await viva(page);
       const slugs = await page.evaluate(() => JSON.parse(document.querySelector('[data-datos-ciudad]').textContent).map((d) => d.slug));
-      const esperados = [...slugs, '#apps', '#contacto'];
+      const esperados = [...slugs, '#apps', '#contacto', '#negocios'];
       const vistos = new Set();
       for (let i = 0; i < 20 && vistos.size < esperados.length; i++) {
         await page.keyboard.press('Tab');
@@ -131,9 +131,11 @@ for (const [lang, ruta] of [['es', '/'], ['en', '/en/']]) {
       await ctx.close();
     });
 
-    test('escaparate, estudio y solar llevan a su página con vuelo, y el logo vuelve a la ciudad', async () => {
+    test('escaparate, estudio, solar y bajo comercial llevan a su página con vuelo, y el logo vuelve a la ciudad', async () => {
       const { ctx, page, errores } = await pagina();
-      const paginas = lang === 'es' ? { '#apps': '/apps', '#sobre-mi': '/sobre-mi', '#contacto': '/contacto' } : { '#apps': '/en/apps', '#sobre-mi': '/en/about', '#contacto': '/en/contact' };
+      const paginas = lang === 'es'
+        ? { '#apps': '/apps', '#sobre-mi': '/sobre-mi', '#contacto': '/contacto', '#negocios': '/negocios' }
+        : { '#apps': '/en/apps', '#sobre-mi': '/en/about', '#contacto': '/en/contact', '#negocios': '/en/businesses' };
       for (const [id, destino] of Object.entries(paginas)) {
         await page.goto(url(ruta), { waitUntil: 'load' });
         await viva(page);
@@ -226,7 +228,7 @@ describe('sin WebGL', () => {
     await page.goto(B + '/', { waitUntil: 'load' });
     await page.waitForTimeout(2500);
     assert.equal(await page.evaluate(() => document.querySelector('[data-ciudad]').dataset.estado), 'poster');
-    for (const [id, destino] of [[undefined, null], ['#apps', '/apps'], ['#sobre-mi', '/sobre-mi'], ['#contacto', '/contacto']]) {
+    for (const [id, destino] of [[undefined, null], ['#apps', '/apps'], ['#sobre-mi', '/sobre-mi'], ['#contacto', '/contacto'], ['#negocios', '/negocios']]) {
       await page.goto(B + '/', { waitUntil: 'load' });
       const p = await centro(page, 'ancho', id);
       await page.mouse.click(p.x, p.y);
