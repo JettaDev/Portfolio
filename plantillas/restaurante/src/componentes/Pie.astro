@@ -1,0 +1,115 @@
+---
+// Pie en tinta: dónde, reservas, horario resumido, legal y «Añadir a contactos» (vCard).
+import { horarioAgrupado } from '@comun/horario.ts';
+import { enlaceCorreo, enlaceTelefono } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import Marca from './Marca.astro';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const anio = new Date().getFullYear();
+---
+<footer class="pie">
+  <div class="pie__dentro">
+    <div class="pie__marca">
+      <Marca grande />
+      <p>{c.negocio.eslogan}</p>
+    </div>
+
+    <section class="pie__col" aria-labelledby="pie-donde">
+      <h2 id="pie-donde">Dónde</h2>
+      <address>{d.calle}<br />{d.codigoPostal} {d.localidad}</address>
+      <a class="pie__enlace" href={c.contacto.mapsUrl} target="_blank" rel="noopener"><Icono id="i-pin" />Abrir en el mapa</a>
+    </section>
+
+    <section class="pie__col" aria-labelledby="pie-reservas">
+      <h2 id="pie-reservas">Reservas</h2>
+      <a class="pie__enlace" href={enlaceTelefono(c.contacto.telefono)}><Icono id="i-telefono" />{c.contacto.telefonoVisible}</a>
+      <a class="pie__enlace" href={enlaceCorreo(c.contacto.email)}>{c.contacto.email}</a>
+      <a class="pie__enlace" href={`${base}contacto.vcf`} download><Icono id="i-contacto" />Añadir a contactos</a>
+    </section>
+
+    <section class="pie__col" aria-labelledby="pie-horario">
+      <h2 id="pie-horario">{c.textos.horarioTitulo}</h2>
+      <dl class="pie__horario">
+        {horarioAgrupado(c.horario.franjas).map((f) => (
+          <div><dt>{f.dias}</dt><dd>{f.horas}</dd></div>
+        ))}
+      </dl>
+    </section>
+
+    <div class="pie__legal">
+      <span>© {anio} {c.legal.titular}</span>
+      <a href={`${base}aviso-legal/`}>Aviso legal</a>
+      <a href={`${base}privacidad/`}>Privacidad</a>
+    </div>
+  </div>
+</footer>
+
+<style is:global>
+  .pie {
+    background: var(--c-texto);
+    color: var(--c-fondo);
+    font-size: 0.9375rem;
+  }
+  .pie__dentro {
+    display: grid;
+    gap: 2rem;
+    max-width: var(--ancho);
+    margin: 0 auto;
+    padding: 3rem var(--margen) 1.5rem;
+  }
+  .pie .marca__antes { color: var(--c-papel-oscuro); }
+  .pie__marca p { margin: 0.75rem 0 0; max-width: 24ch; color: var(--c-papel-oscuro); }
+  .pie h2 {
+    margin: 0 0 0.5rem;
+    font: 700 0.75rem/1 var(--f-texto);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-papel-oscuro);
+  }
+  .pie address { font-style: normal; margin-bottom: 0.25rem; }
+  .pie__col { display: grid; align-content: start; justify-items: start; }
+  .pie__enlace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    color: inherit;
+    text-underline-offset: 0.25em;
+    text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  }
+  .pie__enlace:hover { text-decoration-color: currentColor; }
+  .pie__enlace .icono { width: 1.1rem; height: 1.1rem; }
+  .pie__horario { margin: 0; display: grid; gap: 0.35rem; }
+  .pie__horario div { display: flex; gap: 0.75rem; }
+  .pie__horario dt { min-width: 5.5rem; font-weight: 600; }
+  .pie__horario dd { margin: 0; font-variant-numeric: lining-nums tabular-nums; }
+  .pie__legal {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed color-mix(in srgb, var(--c-fondo) 30%, transparent);
+    color: var(--c-papel-oscuro);
+    font-size: 0.875rem;
+  }
+  .pie__legal a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+  }
+  .pie :focus-visible { outline-color: var(--c-fondo); }
+
+  @media (min-width: 900px) {
+    .pie__dentro {
+      grid-template-columns: 1.4fr 1fr 1fr 1.1fr;
+      padding-top: 4rem;
+    }
+    .pie__legal { grid-column: 1 / -1; }
+  }
+</style>

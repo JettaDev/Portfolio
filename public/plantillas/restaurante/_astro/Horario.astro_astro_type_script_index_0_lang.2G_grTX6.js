@@ -1,0 +1,1 @@
+import{r as e}from"./horario.DsFd9zcS.js";var t=document.querySelector(`[data-tabla-horario] tr[data-dia="${e().dia}"]`);t&&(t.dataset.hoy=``);

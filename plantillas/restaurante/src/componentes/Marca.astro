@@ -1,0 +1,55 @@
+---
+// Logotipo: el SVG del config si lo hay; si no, un aro de trébede dibujado y el texto del logo.
+import config from '../../config.ts';
+
+interface Props {
+  grande?: boolean;
+}
+const { grande = false } = Astro.props;
+const { logo, nombre } = config.negocio;
+// «Mesón La Trébede» con logo «La Trébede» → «Mesón» va como antetítulo pequeño.
+const antes = nombre.endsWith(logo.texto) ? nombre.slice(0, -logo.texto.length).trim() : '';
+---
+<span class:list={['marca', { 'marca--grande': grande }]}>
+  {logo.svg ? (
+    <span class="marca__svg" set:html={logo.svg} />
+  ) : (
+    <svg class="marca__glifo" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <ellipse cx="20" cy="15" rx="15" ry="5" />
+        <path d="M7 17.5 5 33M33 17.5 35 33M20 20v15" />
+        <path d="M14 8.5c-1.5-2 .8-3.2-.4-5.5M20 8c-1.5-2 .8-3.2-.4-5.5M26 8.5c-1.5-2 .8-3.2-.4-5.5" stroke="var(--c-primario)" stroke-width="1.8" />
+      </g>
+    </svg>
+  )}
+  <span class="marca__texto">
+    {antes && <span class="marca__antes">{antes}</span>}
+    <span class="marca__nombre">{logo.texto}</span>
+  </span>
+</span>
+
+<style is:global>
+  .marca {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    line-height: 1;
+  }
+  .marca__glifo, .marca__svg { width: 2.1rem; height: 2.1rem; flex: none; }
+  .marca__svg svg { width: 100%; height: 100%; }
+  .marca__texto { display: grid; gap: 0.2rem; }
+  .marca__antes {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--c-primario);
+  }
+  .marca__nombre {
+    font-family: var(--f-titular);
+    font-size: 1.375rem;
+    letter-spacing: -0.01em;
+  }
+  .marca--grande .marca__glifo { width: 3rem; height: 3rem; }
+  .marca--grande .marca__nombre { font-size: 2rem; }
+</style>

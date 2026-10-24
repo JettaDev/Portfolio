@@ -1,0 +1,100 @@
+---
+// Portada: qué es y dónde está + menú del día, la casa, la carta, la comanda, grupos, preguntas y horario.
+import Base from '../layouts/Base.astro';
+import Icono from '../componentes/Icono.astro';
+import MenuDelDia from '../componentes/MenuDelDia.astro';
+import Presentacion from '../componentes/Presentacion.astro';
+import Carta from '../componentes/Carta.astro';
+import Comanda from '../componentes/Comanda.astro';
+import Grupos from '../componentes/Grupos.astro';
+import Preguntas from '../componentes/Preguntas.astro';
+import Horario from '../componentes/Horario.astro';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+
+// Numeración de comanda de las secciones que existen (si una lista del config está vacía, desaparece).
+const secciones = ['casa', 'carta', 'reserva', ...(c.extra.menusGrupo.length ? ['grupos'] : []), ...(c.faq.length ? ['faq'] : []), 'horario'];
+const n = (s: string) => String(secciones.indexOf(s) + 1).padStart(2, '0');
+---
+<Base portada>
+  <section class="portada" aria-labelledby="t-portada">
+    <div class="envoltura portada__rejilla">
+      <div class="portada__texto">
+        <p class="antetitulo">{c.textos.antetitulo}</p>
+        <h1 id="t-portada">{c.textos.titular}</h1>
+        <p class="portada__entradilla">{c.textos.entradilla}</p>
+        <a class="portada__direccion" href={c.contacto.mapsUrl} target="_blank" rel="noopener">
+          <Icono id="i-pin" />
+          <span>{d.calle} · {d.localidad}</span>
+        </a>
+        <div class="portada__acciones">
+          <a class="boton boton--primario" href="#reserva">{c.accionPrincipal.texto}</a>
+          <a class="boton" href="#carta">Ver {c.catalogo.titulo.toLowerCase()}</a>
+        </div>
+      </div>
+      <MenuDelDia />
+    </div>
+    <div class="mantel" aria-hidden="true"></div>
+  </section>
+
+  <Presentacion n={n('casa')} />
+  <Carta n={n('carta')} />
+  <Comanda n={n('reserva')} />
+  <Grupos n={n('grupos')} />
+  <Preguntas n={n('faq')} />
+  <Horario n={n('horario')} />
+</Base>
+
+<style is:global>
+  .portada { position: relative; padding-top: 2rem; }
+  .portada__rejilla { display: grid; gap: 2.5rem; padding-bottom: 3.5rem; }
+  .portada h1 {
+    font-size: clamp(2.375rem, 1.6rem + 3.6vw, 4.75rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    max-width: 14ch;
+  }
+  .portada__entradilla {
+    margin: 1.25rem 0 0;
+    max-width: 46ch;
+    font-size: 1.125rem;
+    color: var(--c-texto-suave);
+  }
+  .portada__direccion {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    margin-top: 1rem;
+    font-weight: 600;
+    color: var(--c-texto);
+    text-decoration-color: var(--c-borde);
+    text-decoration-thickness: 2px;
+  }
+  .portada__direccion:hover { text-decoration-color: var(--c-primario); }
+  .portada__direccion .icono { color: var(--c-primario); }
+  .portada__acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+
+  /* Borde de mantel de cuadros, en el color del vino y muy suave. */
+  .mantel {
+    height: 18px;
+    background:
+      repeating-linear-gradient(90deg, color-mix(in srgb, var(--c-primario) 22%, transparent) 0 9px, transparent 9px 18px),
+      repeating-linear-gradient(0deg, color-mix(in srgb, var(--c-primario) 22%, transparent) 0 9px, transparent 9px 18px);
+    border-block: 1px solid color-mix(in srgb, var(--c-primario) 30%, transparent);
+  }
+
+  @media (min-width: 900px) {
+    .portada { padding-top: 4.5rem; }
+    .portada__rejilla {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 4.5fr);
+      gap: 4rem;
+      align-items: center;
+      padding-bottom: 5.5rem;
+    }
+    .portada__entradilla { font-size: 1.25rem; }
+    .portada__acciones { margin-top: 2rem; }
+  }
+</style>

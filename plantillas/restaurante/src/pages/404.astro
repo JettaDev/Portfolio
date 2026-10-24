@@ -1,0 +1,52 @@
+---
+// 404 propia: un ticket de comanda anulado.
+import Base from '../layouts/Base.astro';
+import config from '../../config.ts';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<Base titulo={`Página no encontrada · ${config.negocio.nombre}`}>
+  <div class="envoltura no-hay">
+    <div class="ticket-sombra no-hay__papel">
+      <div class="ticket no-hay__ticket">
+        <p class="no-hay__casa">{config.negocio.nombre}</p>
+        <p class="no-hay__codigo" aria-hidden="true">404</p>
+        <h1>Esta mesa no existe</h1>
+        <div class="perforado"></div>
+        <p>La página que buscas se ha retirado de la carta o nunca estuvo en ella.</p>
+        <p class="no-hay__sello" aria-hidden="true">Anulada</p>
+      </div>
+    </div>
+    <div class="no-hay__acciones">
+      <a class="boton boton--primario" href={base}>Volver al inicio</a>
+      <a class="boton" href={`${base}#carta`}>Ver {config.catalogo.titulo.toLowerCase()}</a>
+    </div>
+  </div>
+</Base>
+
+<style is:global>
+  .no-hay { display: grid; justify-items: center; gap: 2rem; padding-block: 4rem 6rem; text-align: center; }
+  .no-hay__papel { width: min(100%, 24rem); transform: rotate(-1.5deg); }
+  .no-hay__ticket { position: relative; padding-inline: 2rem; }
+  .no-hay__casa { margin: 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--c-texto-suave); }
+  .no-hay__codigo { margin: 0.5rem 0 0; font: 400 4.5rem/1 var(--f-titular); color: var(--c-primario); }
+  .no-hay h1 { margin-top: 0.5rem; font-size: 1.75rem; }
+  .no-hay__ticket p:not([class]) { margin: 0; color: var(--c-texto-suave); }
+  .no-hay__sello {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    margin: 0;
+    padding: 0.2rem 0.8rem;
+    border: 3px solid var(--c-primario);
+    border-radius: 4px;
+    color: var(--c-primario);
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.25;
+    transform: translate(-50%, -50%) rotate(-14deg);
+    pointer-events: none;
+  }
+  .no-hay__acciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+</style>

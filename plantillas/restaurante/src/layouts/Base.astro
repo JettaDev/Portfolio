@@ -1,0 +1,60 @@
+---
+// Layout de la plantilla: <head> con SEO y fuentes, aviso de demo, cabecera, pie y barra fija en móvil.
+// Lo marcado con «contrato» no debe faltar (ver plantillas/README.md).
+import Cabeza from '@comun/componentes/Cabeza.astro';
+import Demo from '@comun/componentes/Demo.astro';
+import BarraAcciones from '@comun/componentes/BarraAcciones.astro';
+import { jsonLd } from '@comun/seo.ts';
+import Cabecera from '../componentes/Cabecera.astro';
+import Pie from '../componentes/Pie.astro';
+import Iconos from '../componentes/Iconos.astro';
+import config from '../../config.ts';
+import serifUrl from '@fontsource/young-serif/files/young-serif-latin-400-normal.woff2?url';
+import sansUrl from '@fontsource-variable/public-sans/files/public-sans-latin-wght-normal.woff2?url';
+import '../estilos/global.css';
+
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  /** Solo la portada lleva JSON-LD. */
+  portada?: boolean;
+}
+const { titulo, descripcion, portada = false } = Astro.props;
+const c = config;
+
+// JSON-LD propio: el común más lo del restaurante (cocina, reservas y carta).
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const raiz = new URL(base, Astro.site ?? c.meta.url).href;
+const datos = {
+  ...jsonLd({ ...c, meta: { ...c.meta, url: raiz } }),
+  ...(c.extra.servesCuisine?.length ? { servesCuisine: c.extra.servesCuisine } : {}),
+  acceptsReservations: true,
+  hasMenu: `${raiz}#carta`,
+};
+
+// Solo el subconjunto latino; la del titular se precarga.
+const UNICODE = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+const fuentes = `
+@font-face{font-family:'Young Serif';font-style:normal;font-weight:400;font-display:swap;src:url(${serifUrl}) format('woff2');unicode-range:${UNICODE}}
+@font-face{font-family:'Public Sans Variable';font-style:normal;font-weight:100 900;font-display:swap;src:url(${sansUrl}) format('woff2-variations');unicode-range:${UNICODE}}`;
+---
+<!doctype html>
+<html lang="es" data-demo={String(c.demo)}>
+  <head>
+    <Cabeza config={c} titulo={titulo} descripcion={descripcion} conJsonLd={false} />
+    <link rel="preload" href={serifUrl} as="font" type="font/woff2" crossorigin />
+    <style set:html={fuentes}></style>
+    {portada && <script type="application/ld+json" set:html={JSON.stringify(datos)} />}
+  </head>
+  <body class="con-barra">
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Demo demo={c.demo} nombre={c.negocio.nombre} /> {/* contrato */}
+    <Iconos alergenos={portada} />
+    <Cabecera />
+    <main id="contenido" tabindex="-1">
+      <slot />
+    </main>
+    <Pie />
+    <BarraAcciones config={c} ancla={`${base}#reserva`} /> {/* contrato */}
+  </body>
+</html>

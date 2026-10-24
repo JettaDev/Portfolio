@@ -1,0 +1,584 @@
+---
+// La comanda: formulario de reserva y, al lado (debajo en móvil), un ticket que se va «imprimiendo».
+// No envía nada a ningún servidor: arma el mensaje con construirMensaje() y lo abre con abrir().
+import { enlaceTelefono, formatearPrecio } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+const x = c.extra;
+const canal = c.formulario.canal === 'whatsapp' && c.contacto.whatsapp ? 'WhatsApp' : 'correo';
+// «34649000101» → «649 000 101» para el pie del ticket.
+const waVisible = c.contacto.whatsapp.replace(/^34/, '').replace(/(\d{3})(?=\d)/g, '$1 ');
+const destino = canal === 'WhatsApp' ? waVisible : c.contacto.email;
+
+const datos = {
+  franjas: c.horario.franjas,
+  cierres: c.horario.cierres ?? [],
+  ultimaMesa: x.ultimaMesaMin,
+  umbral: x.umbralGrupo,
+  max: x.maxPersonas,
+  menus: x.menusGrupo.map((m) => `${m.nombre} (${formatearPrecio(m.precio)} por persona)`),
+  saludo: c.formulario.saludo,
+  canal: c.formulario.canal,
+  contacto: { whatsapp: c.contacto.whatsapp, email: c.contacto.email },
+};
+const masPersonas = c.textos.reservaMasPersonas.replace('{max}', String(x.maxPersonas));
+---
+<section id="reserva" class="reserva seccion" aria-labelledby="t-reserva">
+  <div class="envoltura reserva__rejilla">
+    <div class="reserva__intro">
+      <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.reservaAntetitulo}</p>
+      <h2 id="t-reserva" class="titulo-seccion">{c.textos.reservaTitulo}</h2>
+      <p class="entradilla">{c.textos.reservaEntradilla}</p>
+    </div>
+
+    <form class="comanda" data-comanda>
+      <div class="campo campo--personas">
+        <label for="c-personas">Personas</label>
+        <div class="pasos">
+          <button type="button" class="pasos__boton" data-paso="-1" aria-controls="c-personas" aria-label="Una persona menos"><Icono id="i-menos" /></button>
+          <input id="c-personas" name="personas" type="number" inputmode="numeric" min="1" max={x.maxPersonas} value="2" required aria-describedby="c-personas-ayuda" />
+          <button type="button" class="pasos__boton" data-paso="1" aria-controls="c-personas" aria-label="Una persona más"><Icono id="i-mas" /></button>
+        </div>
+        <p class="ayuda" id="c-personas-ayuda">
+          Desde {x.umbralGrupo}, comanda de grupo con menú cerrado. {masPersonas} <a href={enlaceTelefono(c.contacto.telefono)}>{c.contacto.telefonoVisible}</a>
+        </p>
+      </div>
+
+      <div class="campo">
+        <label for="c-dia">Día</label>
+        <input id="c-dia" name="dia" type="date" required aria-describedby="c-dia-aviso" />
+        <p class="aviso" id="c-dia-aviso" aria-live="polite" data-aviso-dia></p>
+      </div>
+
+      <div class="campo">
+        <label for="c-hora">Hora</label>
+        <select id="c-hora" name="hora" required disabled>
+          <option value="">Primero, el día</option>
+        </select>
+      </div>
+
+      <div class="campo campo--ancho">
+        <label for="c-nombre">A nombre de</label>
+        <input id="c-nombre" name="nombre" type="text" autocomplete="name" maxlength="60" required />
+      </div>
+
+      <fieldset class="grupo campo--ancho" data-grupo hidden disabled>
+        <legend>Comanda de grupo</legend>
+        <div class="campo">
+          <label for="c-celebracion">Celebración</label>
+          <select id="c-celebracion" name="celebracion" required>
+            <option value="">Elige una</option>
+            {x.celebraciones.map((t) => <option>{t}</option>)}
+          </select>
+        </div>
+        <div class="grupo__menus" role="radiogroup" aria-labelledby="c-menus-titulo">
+          <p class="grupo__titulo" id="c-menus-titulo">Menú de grupo</p>
+          {x.menusGrupo.map((m, i) => (
+            <label class="opcion">
+              <input type="radio" name="menu" value={i} required />
+              <span class="opcion__nombre">{m.nombre}</span>
+              <span class="opcion__precio">{formatearPrecio(m.precio)}<small> / persona</small></span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div class="campo campo--ancho">
+        <label for="c-nota">Nota <span class="opcional">(opcional)</span></label>
+        <textarea id="c-nota" name="nota" rows="3" maxlength="240" placeholder="Trona, una alergia, encargar el asado…"></textarea>
+      </div>
+
+      <div class="comanda__enviar campo--ancho">
+        <button type="submit" class="boton boton--papel">Enviar comanda<Icono id="i-flecha" /></button>
+        <p class="ayuda">Se abre {canal} con el resumen. {c.textos.reservaNota}</p>
+      </div>
+    </form>
+
+    <div class="impresora" data-impresora>
+      <div class="impresora__ranura" aria-hidden="true"></div>
+      <div class="impresora__papel">
+        <div class="ticket-sombra" data-ticket-papel>
+          <div class="ticket ct" data-ticket>
+            <p class="ct__casa">{c.negocio.nombre}</p>
+            <p class="ct__titulo" data-ct-titulo>Comanda</p>
+            <p class="ct__sello" aria-hidden="true">Grupo</p>
+            <div class="perforado"></div>
+            <dl class="ct__lineas" aria-live="polite" aria-label="Resumen de la comanda">
+              <div data-l="personas"><dt>Personas</dt><dd>2</dd></div>
+              <div data-l="dia"><dt>Día</dt><dd data-vacio>—</dd></div>
+              <div data-l="hora"><dt>Hora</dt><dd data-vacio>—</dd></div>
+              <div data-l="nombre"><dt>Nombre</dt><dd data-vacio>—</dd></div>
+              <div data-l="celebracion" hidden><dt>Celebración</dt><dd data-vacio>—</dd></div>
+              <div data-l="menu" hidden><dt>Menú</dt><dd data-vacio>—</dd></div>
+              <div data-l="nota" hidden><dt>Nota</dt><dd></dd></div>
+            </dl>
+            <div class="perforado"></div>
+            <p class="ct__pie">Se envía por {canal}<br /><span>{destino}</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="application/json" id="comanda-datos" set:html={JSON.stringify(datos)} />
+</section>
+
+<script>
+  import { abrir } from '@comun/cliente/demo.ts';
+  import { construirMensaje, enlaceFormulario } from '@comun/enlaces.ts';
+  import { NOMBRE_DIA, ahoraEnMadrid } from '@comun/horario.ts';
+  import type { Cierre, Franja } from '@comun/tipos.ts';
+  import { cierreDe, diaDeFecha, fechaCorta, fechaLarga, sumarDias, turnosDelDia } from '../lib/fechas.ts';
+
+  interface Datos {
+    franjas: Franja[];
+    cierres: Cierre[];
+    ultimaMesa: number;
+    umbral: number;
+    max: number;
+    menus: string[];
+    saludo: string;
+    canal: 'whatsapp' | 'email';
+    contacto: { whatsapp: string; email: string };
+  }
+
+  const form = document.querySelector<HTMLFormElement>('[data-comanda]');
+  const datosEl = document.getElementById('comanda-datos');
+  if (form && datosEl) {
+    const d = JSON.parse(datosEl.textContent ?? '{}') as Datos;
+    const $ = <T extends Element>(s: string) => document.querySelector<T>(s)!;
+    const personas = $<HTMLInputElement>('#c-personas');
+    const dia = $<HTMLInputElement>('#c-dia');
+    const hora = $<HTMLSelectElement>('#c-hora');
+    const nombre = $<HTMLInputElement>('#c-nombre');
+    const nota = $<HTMLTextAreaElement>('#c-nota');
+    const celebracion = $<HTMLSelectElement>('#c-celebracion');
+    const grupo = $<HTMLFieldSetElement>('[data-grupo]');
+    const avisoDia = $<HTMLElement>('[data-aviso-dia]');
+    const ticket = $<HTMLElement>('[data-ticket]');
+    const titulo = $<HTMLElement>('[data-ct-titulo]');
+
+    // Fechas válidas: de hoy (en Madrid) a dos meses vista.
+    const hoy = ahoraEnMadrid();
+    dia.min = hoy.iso;
+    dia.max = sumarDias(hoy.iso, 60);
+
+    // ── Ticket: cada línea se «imprime» la primera vez que tiene valor ──
+    const linea = (clave: string, valor: string, visible = true) => {
+      const fila = ticket.querySelector<HTMLElement>(`[data-l="${clave}"]`)!;
+      const dd = fila.querySelector('dd')!;
+      fila.hidden = !visible;
+      const vacio = !valor;
+      const texto = vacio ? '—' : valor;
+      if (dd.textContent === texto) return;
+      dd.textContent = texto;
+      dd.toggleAttribute('data-vacio', vacio);
+      if (!vacio) {
+        dd.classList.remove('tinta');
+        void dd.offsetWidth; // reinicia la animación
+        dd.classList.add('tinta');
+      }
+    };
+
+    const nPersonas = () => Math.min(d.max, Math.max(1, Math.round(Number(personas.value) || 1)));
+    const esGrupo = () => nPersonas() >= d.umbral;
+    const menuElegido = () => form.querySelector<HTMLInputElement>('input[name="menu"]:checked');
+
+    const pintarGrupo = () => {
+      const g = esGrupo();
+      grupo.hidden = !g;
+      grupo.disabled = !g;
+      ticket.toggleAttribute('data-es-grupo', g);
+      titulo.textContent = g ? 'Comanda de grupo' : 'Comanda';
+      linea('celebracion', celebracion.value, g);
+      const m = menuElegido();
+      linea('menu', m ? d.menus[Number(m.value)].replace(/ \(.*/, '') : '', g);
+    };
+
+    const pintarPersonas = () => {
+      const n = Number(personas.value);
+      for (const b of form.querySelectorAll<HTMLButtonElement>('[data-paso]')) {
+        b.disabled = Number(b.dataset.paso) < 0 ? n <= 1 : n >= d.max;
+      }
+      linea('personas', personas.validity.valid ? String(n) : '');
+      pintarGrupo();
+    };
+
+    // Rellena las horas del día elegido y avisa si ese día cierra.
+    const pintarDia = () => {
+      const iso = dia.value;
+      hora.replaceChildren();
+      const vacia = (t: string) => hora.append(new Option(t, ''));
+      let aviso = '';
+      if (!iso) {
+        vacia('Primero, el día');
+      } else if (dia.validity.rangeUnderflow || dia.validity.rangeOverflow) {
+        aviso = dia.validity.rangeUnderflow ? 'Esa fecha ya ha pasado.' : 'Solo se reserva desde la web con dos meses de antelación como mucho.';
+        vacia('Elige otro día');
+      } else {
+        const cierre = cierreDe(iso, d.cierres);
+        const dsem = diaDeFecha(iso);
+        const turnos = cierre ? [] : turnosDelDia(d.franjas, dsem, d.ultimaMesa, iso === hoy.iso ? ahoraEnMadrid().minutos + 30 : -1);
+        if (cierre) aviso = `Ese día cerramos por ${cierre.motivo}. Elige otro, por favor.`;
+        else if (!turnosDelDia(d.franjas, dsem, 0).length) {
+          const nombre = NOMBRE_DIA[dsem].toLowerCase();
+          aviso = `Los ${nombre.endsWith('s') ? nombre : `${nombre}s`} cerramos. Elige otro día, por favor.`;
+        }
+        else if (!turnos.length) aviso = 'Hoy ya no quedan horas para reservar desde la web. Llámanos o elige otro día.';
+        if (!turnos.length) vacia('Ese día no hay horas');
+        else {
+          vacia('Elige la hora');
+          for (const t of turnos) {
+            const og = document.createElement('optgroup');
+            og.label = t.nombre;
+            for (const h of t.horas) og.append(new Option(h, h));
+            hora.append(og);
+          }
+        }
+      }
+      hora.disabled = hora.options.length <= 1;
+      dia.setCustomValidity(aviso);
+      avisoDia.textContent = aviso;
+      avisoDia.hidden = !aviso;
+      linea('dia', iso && !aviso ? fechaCorta(iso) : '');
+      linea('hora', '');
+    };
+
+    // Texto libre: el ticket se actualiza al dejar de teclear (evita anunciar cada letra).
+    let espera = 0;
+    const tecleo = () => {
+      clearTimeout(espera);
+      espera = window.setTimeout(() => {
+        linea('nombre', nombre.value.trim());
+        linea('nota', nota.value.trim(), !!nota.value.trim());
+      }, 450);
+    };
+
+    form.addEventListener('click', (ev) => {
+      const b = (ev.target as Element).closest<HTMLButtonElement>('[data-paso]');
+      if (!b) return;
+      personas.value = String(Math.min(d.max, Math.max(1, nPersonas() + Number(b.dataset.paso))));
+      pintarPersonas();
+    });
+    personas.addEventListener('input', pintarPersonas);
+    dia.addEventListener('change', pintarDia);
+    hora.addEventListener('change', () => linea('hora', hora.value));
+    nombre.addEventListener('input', tecleo);
+    nota.addEventListener('input', tecleo);
+    celebracion.addEventListener('change', pintarGrupo);
+    form.addEventListener('change', (ev) => (ev.target as HTMLInputElement).name === 'menu' && pintarGrupo());
+
+    // Desde «Grupos y celebraciones»: elegir un menú pasa la comanda a grupo.
+    document.addEventListener('click', (ev) => {
+      const a = (ev.target as Element).closest<HTMLElement>('[data-elegir-menu]');
+      if (!a) return;
+      if (!esGrupo()) personas.value = String(d.umbral);
+      pintarPersonas();
+      const radio = form.querySelector<HTMLInputElement>(`input[name="menu"][value="${a.dataset.elegirMenu}"]`);
+      if (radio) radio.checked = true;
+      pintarGrupo();
+    });
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      if (!form.reportValidity()) return;
+      const n = nPersonas();
+      const g = esGrupo();
+      const m = menuElegido();
+      const texto = construirMensaje(d.saludo, [
+        ['Personas', g ? `${n} (grupo)` : n],
+        ['Día', fechaLarga(dia.value)],
+        ['Hora', hora.value],
+        ['Nombre', nombre.value],
+        ['Celebración', g ? celebracion.value : ''],
+        ['Menú de grupo', g && m ? d.menus[Number(m.value)] : ''],
+        ['Nota', nota.value],
+      ]);
+      abrir(enlaceFormulario(d.canal, d.contacto, `Reserva de mesa · ${fechaCorta(dia.value)}`, texto));
+    });
+
+    // Si el navegador recordó valores al volver atrás, el ticket los refleja.
+    pintarPersonas();
+    if (dia.value) pintarDia();
+    linea('nombre', nombre.value.trim());
+    linea('nota', nota.value.trim(), !!nota.value.trim());
+
+    // El ticket sale de la impresora la primera vez que se ve.
+    const papel = $<HTMLElement>('[data-ticket-papel]');
+    if (matchMedia('(prefers-reduced-motion: no-preference)').matches && 'IntersectionObserver' in window) {
+      papel.classList.add('por-imprimir');
+      const io = new IntersectionObserver((entradas) => {
+        if (!entradas.some((e) => e.isIntersecting)) return;
+        papel.classList.replace('por-imprimir', 'imprimiendo');
+        io.disconnect();
+      }, { threshold: 0.1 });
+      io.observe($('[data-impresora]'));
+    }
+  }
+</script>
+
+<style is:global>
+  .reserva {
+    background: var(--c-primario);
+    color: var(--c-texto-sobre-primario);
+    --suave: color-mix(in srgb, var(--c-texto-sobre-primario) 86%, var(--c-primario));
+  }
+  .reserva :focus-visible { outline-color: var(--c-texto-sobre-primario); }
+  .reserva .antetitulo { color: var(--c-texto-sobre-primario); }
+  .reserva .entradilla { color: var(--suave); }
+  .reserva__rejilla {
+    display: grid;
+    gap: 2rem;
+  }
+
+  /* Formulario */
+  .comanda {
+    display: grid;
+    gap: 1.25rem 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .campo { display: grid; gap: 0.4rem; align-content: start; min-width: 0; }
+  .campo--personas, .campo--ancho { grid-column: 1 / -1; }
+  .comanda label, .grupo__titulo {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .opcional { font-weight: 500; letter-spacing: 0.04em; text-transform: none; color: var(--suave); }
+  .comanda input:not([type='radio']), .comanda select, .comanda textarea {
+    width: 100%;
+    min-height: 48px;
+    padding: 0.6rem 0.8rem;
+    border: 0;
+    border-bottom: 2px solid var(--c-texto);
+    border-radius: 3px 3px 0 0;
+    background: var(--c-superficie);
+    color: var(--c-texto);
+    font: 500 1.0625rem/1.3 var(--f-texto);
+    accent-color: var(--c-primario);
+  }
+  .comanda textarea { resize: vertical; min-height: 5.5rem; }
+  .comanda select:disabled { color: var(--c-texto-suave); background: var(--c-papel-oscuro); }
+  .comanda ::placeholder { color: var(--c-texto-suave); opacity: 1; }
+  .ayuda { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--suave); }
+  .ayuda a { color: inherit; font-weight: 600; }
+
+  .pasos { display: flex; align-items: stretch; width: fit-content; }
+  .pasos input {
+    width: 5rem !important;
+    border-radius: 0 !important;
+    text-align: center;
+    font: 600 1.375rem/1 var(--f-texto) !important;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .pasos input::-webkit-inner-spin-button, .pasos input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .pasos__boton {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    min-height: 52px;
+    border: 0;
+    border-bottom: 2px solid var(--c-texto);
+    background: var(--c-papel-oscuro);
+    color: var(--c-texto);
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  .pasos__boton:first-child { border-radius: 3px 0 0 0; }
+  .pasos__boton:last-child { border-radius: 0 3px 0 0; }
+  .pasos__boton:hover:not(:disabled) { background: var(--c-borde); }
+  .pasos__boton:disabled { color: var(--c-texto-suave); cursor: not-allowed; opacity: 0.6; }
+
+  .aviso {
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 4px solid var(--c-texto);
+    background: var(--c-papel-oscuro);
+    color: var(--c-texto);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .aviso:empty { display: none; }
+
+  .grupo {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 1rem 1rem 1.1rem;
+    border: 1.5px dashed color-mix(in srgb, var(--c-texto-sobre-primario) 55%, transparent);
+    border-radius: 3px;
+    min-width: 0;
+  }
+  .grupo[hidden] { display: none; }
+  .grupo legend {
+    padding: 0 0.5rem;
+    font: 400 1.25rem/1 var(--f-titular);
+  }
+  .grupo__menus { display: grid; gap: 0.5rem; }
+  .grupo__titulo { margin: 0; }
+  .opcion {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 52px;
+    padding: 0.6rem 0.9rem;
+    border-radius: 3px;
+    background: var(--c-superficie);
+    color: var(--c-texto);
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 2px transparent;
+    transition: box-shadow 0.15s;
+  }
+  .opcion input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--c-primario); flex: none; }
+  .opcion__precio { margin-left: auto; font: 400 1.125rem/1 var(--f-titular); white-space: nowrap; }
+  .opcion__precio small { font: 500 0.8125rem var(--f-texto); color: var(--c-texto-suave); }
+  .opcion:has(input:checked) { box-shadow: inset 0 0 0 3px var(--c-texto); }
+
+  .comanda__enviar { display: grid; gap: 0.6rem; margin-top: 0.25rem; }
+  .boton--papel {
+    justify-self: start;
+    min-height: 56px;
+    padding-inline: 1.75rem;
+    border-color: var(--c-superficie);
+    background: var(--c-superficie);
+    color: var(--c-texto);
+    font-size: 1.0625rem;
+    box-shadow: 0 4px 0 var(--c-texto);
+  }
+  .boton--papel:hover { background: var(--c-fondo); color: var(--c-texto); border-color: var(--c-fondo); }
+  .boton--papel:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--c-texto); }
+  .boton--papel .icono { transition: transform 0.2s ease; }
+  .boton--papel:hover .icono { transform: translateX(4px); }
+
+  /* Impresora y ticket de la comanda */
+  .impresora { position: relative; max-width: 22rem; width: 100%; justify-self: center; }
+  .impresora__ranura {
+    position: relative;
+    z-index: 2;
+    height: 14px;
+    margin: 0 -0.75rem;
+    border-radius: 8px;
+    background: var(--c-texto);
+    box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--c-texto) 60%, var(--c-primario));
+  }
+  .impresora__papel { margin-top: -6px; padding: 0 0.25rem; }
+  /* El ticket que sale de la impresora: arriba recto, abajo con dientes. */
+  .ct {
+    padding-top: 1.5rem;
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--diente)) 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--diente)) 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+  }
+  .ct__casa {
+    margin: 0;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--c-texto-suave);
+  }
+  .ct__titulo {
+    margin: 0.35rem 0 0;
+    text-align: center;
+    font: 400 1.75rem/1.1 var(--f-titular);
+  }
+  .ct__sello {
+    position: absolute;
+    top: 0.7rem;
+    left: 0.7rem;
+    margin: 0;
+    padding: 0.15rem 0.5rem;
+    border: 2px solid var(--c-primario);
+    border-radius: 3px;
+    color: var(--c-primario);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transform: rotate(-8deg) scale(1.6);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.3, 1.5, 0.5, 1), opacity 0.2s;
+  }
+  [data-es-grupo] > .ct__sello { opacity: 1; transform: rotate(-8deg) scale(1); }
+  .ct__lineas { margin: 0; display: grid; gap: 0.55rem; }
+  .ct__lineas > div { display: flex; align-items: baseline; gap: 0.5rem; }
+  .ct__lineas > div[hidden] { display: none; }
+  .ct__lineas dt {
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-texto-suave);
+  }
+  .ct__lineas > div::after {
+    content: '';
+    order: 1;
+    flex: 1;
+    min-width: 1rem;
+    border-bottom: 2px dotted var(--c-borde);
+    transform: translateY(-0.3em);
+  }
+  .ct__lineas dd {
+    order: 2;
+    flex: 0 1 auto;
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .ct__lineas dd[data-vacio] { color: var(--c-texto-suave); font-weight: 400; }
+  .ct__lineas [data-l='nota'] { display: grid; gap: 0.2rem; }
+  .ct__lineas [data-l='nota']::after { content: none; }
+  .ct__lineas [data-l='nota'] dd { text-align: left; font-weight: 500; }
+  .ct__pie {
+    margin: 0;
+    text-align: center;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--c-texto-suave);
+  }
+  .ct__pie span { font-weight: 700; color: var(--c-texto); letter-spacing: 0.04em; }
+
+  /* Animaciones de impresión (solo con movimiento permitido: las clases las pone el script) */
+  .por-imprimir { transform: translateY(-101%); clip-path: inset(100% -40px -60px -40px); }
+  .imprimiendo { animation: imprimir 1.2s steps(16, end) both; }
+  @keyframes imprimir {
+    from { transform: translateY(-101%); clip-path: inset(100% -40px -60px -40px); }
+    to { transform: translateY(0); clip-path: inset(0 -40px -60px -40px); }
+  }
+  .ct__lineas dd.tinta { animation: tinta 0.35s steps(8, end); }
+  @keyframes tinta {
+    from { clip-path: inset(0 0 0 100%); }
+    to { clip-path: inset(0 0 0 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ct__lineas dd.tinta { animation: none; }
+  }
+
+  @media (min-width: 900px) {
+    .reserva__rejilla {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+      grid-template-areas: 'intro impresora' 'form impresora';
+      gap: 2.5rem 6rem;
+      align-items: start;
+    }
+    .reserva__intro { grid-area: intro; }
+    .comanda { grid-area: form; }
+    .impresora { grid-area: impresora; position: sticky; top: 7rem; margin-top: 0.5rem; }
+  }
+
+</style>

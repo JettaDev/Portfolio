@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Mesón La Trébede
+ORG:Mesón La Trébede
+TEL;TYPE=WORK,VOICE:+34949000101
+TEL;TYPE=CELL:+34649000101
+EMAIL;TYPE=WORK:reservas@ejemplo.es
+ADR;TYPE=WORK:;;Calle del Horno Viejo\, 7;Guadalajara;Guadalajara;19001;ES
+URL:https://ejemplo.es/
+END:VCARD

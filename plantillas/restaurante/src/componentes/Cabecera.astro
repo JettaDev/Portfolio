@@ -1,0 +1,145 @@
+---
+// Cabecera compacta: logo, estado «Abierto · cierra a las…», navegación (escritorio), teléfono y «Reservar».
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import Marca from './Marca.astro';
+import config from '../../config.ts';
+
+const c = config;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const enlaces = [
+  ['#menu-del-dia', c.textos.menuDelDiaTitulo],
+  ['#carta', c.catalogo.titulo],
+  ['#grupos', 'Grupos'],
+  ['#horario', c.textos.horarioTitulo],
+];
+---
+<header class="cabecera">
+  <div class="cabecera__dentro">
+    <a class="cabecera__logo" href={base}>
+      <Marca /><span class="sr">, inicio</span>
+    </a>
+
+    <nav class="cabecera__nav" aria-label="Secciones">
+      <ul>
+        {enlaces.map(([ancla, texto]) => <li><a href={`${base}${ancla}`}>{texto}</a></li>)}
+      </ul>
+    </nav>
+
+    <a class="cabecera__estado" href={`${base}#horario`}>
+      <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} porDefecto="Ver horario" />
+    </a>
+
+    <a class="cabecera__tel" href={enlaceTelefono(c.contacto.telefono)}>
+      <Icono id="i-telefono" />
+      <span class="sr">Llamar al </span><span class="cabecera__numero">{c.contacto.telefonoVisible}</span>
+    </a>
+    <a class="boton boton--primario cabecera__reservar" href={`${base}#reserva`}>{c.accionPrincipal.texto}</a>
+  </div>
+</header>
+
+<style is:global>
+  .cabecera {
+    position: relative;
+    z-index: 20;
+    background: var(--c-fondo);
+    border-bottom: 1px solid var(--c-borde);
+  }
+  .cabecera__dentro {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'logo tel' 'estado estado';
+    align-items: center;
+    gap: 0 1rem;
+    max-width: var(--ancho);
+    margin: 0 auto;
+    padding: 0.5rem var(--margen) 0;
+  }
+  .cabecera__logo {
+    grid-area: logo;
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    color: var(--c-texto);
+    text-decoration: none;
+    justify-self: start;
+  }
+  .cabecera__nav { display: none; }
+  .cabecera__estado {
+    grid-area: estado;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    margin-top: 0.25rem;
+    border-top: 1px dashed var(--c-borde);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-texto-suave);
+    text-decoration: none;
+  }
+  .cabecera__estado::after {
+    content: 'Horario';
+    margin-left: auto;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-primario);
+  }
+  .cabecera__tel {
+    grid-area: tel;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 48px;
+    padding: 0 0.25rem;
+    font-weight: 600;
+    font-variant-numeric: lining-nums tabular-nums;
+    color: var(--c-texto);
+    text-decoration: none;
+  }
+  .cabecera__tel .icono { width: 1.25rem; height: 1.25rem; color: var(--c-primario); }
+  .cabecera__reservar { display: none; }
+
+  @media (min-width: 900px) {
+    .cabecera {
+      position: sticky;
+      top: 0;
+    }
+    .cabecera__dentro {
+      grid-template-columns: auto 1fr auto auto auto;
+      grid-template-areas: 'logo nav estado tel reservar';
+      gap: 1.75rem;
+      padding-block: 0.6rem;
+    }
+    .cabecera__nav { display: block; grid-area: nav; }
+    .cabecera__nav ul {
+      display: flex;
+      gap: 0.25rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .cabecera__nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 0.75rem;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: var(--c-texto);
+      text-decoration: none;
+      background: linear-gradient(currentColor, currentColor) no-repeat 50% calc(100% - 8px) / 0 1.5px;
+      transition: background-size 0.25s ease;
+    }
+    .cabecera__nav a:hover { background-size: calc(100% - 1.5rem) 1.5px; color: var(--c-primario); }
+    .cabecera__estado {
+      grid-area: estado;
+      margin: 0;
+      border: 0;
+    }
+    .cabecera__estado::after { content: none; }
+    .cabecera__reservar { display: inline-flex; grid-area: reservar; }
+  }
+</style>

@@ -1,0 +1,9 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*", "../_comun/**/*"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "paths": { "@comun/*": ["../_comun/*"] }
+  }
+}

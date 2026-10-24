@@ -1,0 +1,74 @@
+---
+// Preguntas frecuentes con <details> nativo (teclado y lector de pantalla sin JS).
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+---
+{c.faq.length > 0 && (
+  <section class="faq seccion" aria-labelledby="t-faq">
+    <div class="envoltura faq__rejilla">
+      <div>
+        <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.faqAntetitulo}</p>
+        <h2 id="t-faq" class="titulo-seccion">{c.textos.faqTitulo}</h2>
+      </div>
+      <div class="faq__lista">
+        {c.faq.map((p) => (
+          <details class="pregunta">
+            <summary><span>{p.pregunta}</span><span class="pregunta__signo" aria-hidden="true"></span></summary>
+            <p>{p.respuesta}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+)}
+
+<style is:global>
+  .faq { padding-top: 0; }
+  .faq__rejilla { display: grid; gap: 1.5rem; }
+  .faq__lista { border-top: 4px double var(--c-texto); }
+  .pregunta { border-bottom: 1px dashed var(--c-borde); }
+  .pregunta summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 56px;
+    padding: 0.75rem 0;
+    font-weight: 600;
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    cursor: pointer;
+    list-style: none;
+  }
+  .pregunta summary::-webkit-details-marker { display: none; }
+  .pregunta summary:hover { color: var(--c-primario); }
+  .pregunta__signo {
+    position: relative;
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+  }
+  .pregunta__signo::before, .pregunta__signo::after {
+    content: '';
+    position: absolute;
+    inset: 50% 25% auto;
+    height: 1.5px;
+    margin-top: -0.75px;
+    background: currentColor;
+    transition: transform 0.25s ease;
+  }
+  .pregunta__signo::after { transform: rotate(90deg); }
+  .pregunta[open] .pregunta__signo::after { transform: rotate(0deg); }
+  .pregunta p { margin: 0 0 1.25rem; max-width: 60ch; color: var(--c-texto-suave); }
+
+  @media (min-width: 900px) {
+    .faq__rejilla { grid-template-columns: 4fr 7fr; gap: 5rem; }
+  }
+</style>
