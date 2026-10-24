@@ -1,0 +1,50 @@
+---
+// Cabecera: logo, estado «abierto ahora», navegación (escritorio), teléfono y «Pedir cita».
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+interface Props {
+  portada: boolean;
+}
+const { portada } = Astro.props;
+const c = config;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+// En la portada, anclas locales; fuera de ella, a la portada.
+const a = (id: string) => (portada ? `#${id}` : `${base}#${id}`);
+const nav = [
+  { id: 'servicios', texto: c.textos.navPrecios },
+  ...(c.equipo.length ? [{ id: 'equipo', texto: c.textos.navEquipo }] : []),
+  { id: 'horario', texto: c.textos.navHorario },
+  ...(c.faq.length ? [{ id: 'preguntas', texto: c.textos.navDudas }] : []),
+];
+---
+<header class="cabecera">
+  <div class="cabecera__fila envoltura">
+    <a class="logo" href={base} aria-label={`${c.negocio.nombre}, inicio`}>
+      {c.negocio.logo.svg ? (
+        <span class="logo__svg" set:html={c.negocio.logo.svg} />
+      ) : (
+        <svg class="logo__arco" viewBox="0 0 20 26" aria-hidden="true">
+          <path d="M2 25V10a8 8 0 0 1 16 0v15Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M6.5 20 13 9.5M9.5 21.5l4.5-7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".55" />
+        </svg>
+      )}
+      <span class="logo__texto">{c.negocio.logo.texto}</span>
+    </a>
+
+    <nav class="cabecera__nav" aria-label="Secciones">
+      <ul>
+        {nav.map((n) => <li><a href={a(n.id)}>{n.texto}</a></li>)}
+      </ul>
+    </nav>
+
+    <a class="cabecera__estado" href={a('horario')}>
+      <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} />
+    </a>
+    <a class="cabecera__tel" href={enlaceTelefono(c.contacto.telefono)}>
+      <span class="sr">Llamar al </span>{c.contacto.telefonoVisible}
+    </a>
+    <a class="boton boton--primario cabecera__cita" href={a('reserva')}>{c.textos.ctaCita}</a>
+  </div>
+</header>

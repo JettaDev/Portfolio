@@ -1,0 +1,65 @@
+---
+// Ilustración: espejo de tocador en arco con su reflejo (una lámpara y una planta) y una repisa.
+// Decorativa (aria-hidden). Los colores salen de las variables del tema.
+---
+<svg class="espejo" viewBox="0 0 420 560" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="espejo-cristal" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" style="stop-color: var(--c-superficie)" />
+      <stop offset="0.55" style="stop-color: var(--c-acento); stop-opacity: 0.55" />
+      <stop offset="1" style="stop-color: var(--c-acento)" />
+    </linearGradient>
+    <clipPath id="espejo-recorte">
+      <path d="M86 500V214a124 124 0 0 1 248 0v286Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Marco: arco macizo y un filete interior -->
+  <path d="M62 506V214a148 148 0 0 1 296 0v292Z" style="fill: var(--c-primario)" />
+  <path d="M74 502V214a136 136 0 0 1 272 0v288" fill="none" style="stroke: var(--c-texto-sobre-primario)" stroke-width="1" opacity="0.35" />
+
+  <!-- Cristal -->
+  <path d="M86 500V214a124 124 0 0 1 248 0v286Z" fill="url(#espejo-cristal)" />
+
+  <g clip-path="url(#espejo-recorte)">
+    <!-- Reflejo: lámpara colgante -->
+    <g class="espejo__reflejo" fill="none" style="stroke: var(--c-primario)" stroke-width="1.4" opacity="0.4">
+      <path d="M250 60v120" />
+      <path d="M226 206a24 24 0 0 1 48 0Z" style="fill: var(--c-superficie)" />
+      <circle cx="250" cy="212" r="5" style="fill: var(--c-superficie)" />
+      <!-- Reflejo: ventana del fondo -->
+      <path d="M118 330V262a34 34 0 0 1 68 0v68Z" />
+      <path d="M152 228v102M118 292h68" />
+      <!-- Reflejo: planta en su maceta -->
+      <path d="M292 500v-56h40v56" />
+      <path d="M312 444c-4-34-24-52-48-60 6 26 22 46 48 60Z" />
+      <path d="M312 444c6-40 26-62 50-70-4 30-20 54-50 70Z" />
+      <path d="M312 444c-2-30 4-54 18-74 6 26 0 52-18 74Z" />
+    </g>
+    <!-- Destellos del cristal -->
+    <g class="espejo__brillo" style="fill: var(--c-superficie)">
+      <path d="M96 420 260 96h44L140 420Z" opacity="0.55" />
+      <path d="M156 470 322 146h16L172 470Z" opacity="0.45" />
+    </g>
+  </g>
+
+  <!-- Repisa -->
+  <rect x="18" y="506" width="384" height="12" rx="3" style="fill: var(--c-texto)" />
+  <path d="M40 518v30M380 518v30" style="stroke: var(--c-texto)" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Sobre la repisa: frasco, peine y tijeras -->
+  <g class="espejo__objetos">
+    <rect x="56" y="452" width="34" height="54" rx="10" style="fill: var(--c-acento); stroke: var(--c-texto)" stroke-width="1.5" />
+    <rect x="66" y="438" width="14" height="16" rx="2" style="fill: var(--c-texto)" />
+    <path d="M64 474h18" style="stroke: var(--c-texto)" stroke-width="1.2" opacity="0.5" />
+    <g style="stroke: var(--c-texto)" stroke-width="1.5" fill="none">
+      <rect x="262" y="490" width="96" height="12" rx="3" style="fill: var(--c-superficie)" />
+      <path d="M272 490v-9M282 490v-9M292 490v-9M302 490v-9M312 490v-9M322 490v-9M332 490v-9M342 490v-9" stroke-linecap="round" />
+    </g>
+    <g style="stroke: var(--c-texto)" stroke-width="1.6" fill="none" transform="rotate(-8 140 488)">
+      <circle cx="116" cy="494" r="8" />
+      <circle cx="116" cy="474" r="8" />
+      <path d="M123 490 176 470M123 478l53 18" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>

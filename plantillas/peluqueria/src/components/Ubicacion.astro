@@ -1,0 +1,70 @@
+---
+// Horario (como el rótulo de la puerta, en un arco) y cómo llegar: dirección, Maps, teléfono y vCard.
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono, enlaceWhatsApp } from '@comun/enlaces.ts';
+import { horarioAgrupado } from '@comun/horario.ts';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const filas = horarioAgrupado(c.horario.franjas).map((f) => ({
+  dias: f.dias,
+  horas: f.horas === 'Cerrado' ? c.textos.cerrado : f.horas.replace(/\b0(\d):/g, '$1:'),
+  cerrado: f.horas === 'Cerrado',
+}));
+---
+<section id="horario" class="ubicacion seccion" aria-labelledby="t-horario">
+  <div class="envoltura ubicacion__rejilla">
+    <h2 id="t-horario" class="titulo-seccion ubicacion__titulo">{c.textos.horarioTitulo}</h2>
+
+    <div class="rotulo">
+      <p class="rotulo__estado"><EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} /></p>
+      <table class="rotulo__tabla">
+        <caption class="sr">{c.textos.horarioCaption}</caption>
+        <tbody>
+          {filas.map((f) => (
+            <tr class:list={{ cerrado: f.cerrado }}>
+              <th scope="row">{f.dias}</th>
+              <td>{f.horas}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {c.horario.nota && <p class="rotulo__nota">{c.horario.nota}</p>}
+      {(c.horario.cierres ?? []).length > 0 && (
+        <ul class="rotulo__cierres" role="list">
+          {c.horario.cierres!.map((x) => <li>{x.motivo}: {x.desde === x.hasta ? x.desde : `${x.desde} – ${x.hasta}`}</li>)}
+        </ul>
+      )}
+    </div>
+
+    <div class="llegar">
+      <svg class="plano" viewBox="0 0 360 200" aria-hidden="true" focusable="false">
+        <path d="M-10 150C80 130 140 160 220 120S330 60 380 70" class="plano__calle plano__calle--ancha" />
+        <path d="M60 -10C70 60 90 120 70 210" class="plano__calle" />
+        <path d="M250 -10c-10 60 10 120 -20 210" class="plano__calle" />
+        <path d="M-10 40c90 20 200 0 380 30" class="plano__calle" />
+        <ellipse cx="300" cy="160" rx="46" ry="26" class="plano__parque" />
+        <g class="plano__pin" transform="translate(150 70)">
+          <path d="M-14 30V2a14 14 0 0 1 28 0v28Z" />
+          <circle cx="0" cy="6" r="4.5" />
+        </g>
+      </svg>
+      <address class="llegar__direccion">
+        <span class="llegar__calle">{d.calle}</span>
+        <span>{d.codigoPostal} {d.localidad}</span>
+      </address>
+      {c.contacto.comoLlegar && <p class="llegar__pista">{c.contacto.comoLlegar}</p>}
+      <div class="llegar__acciones">
+        <a class="boton boton--primario" href={c.contacto.mapsUrl} target="_blank" rel="noopener">{c.textos.comoLlegarBoton}</a>
+        <a class="boton boton--linea" href={enlaceTelefono(c.contacto.telefono)}>{c.textos.llamar} {c.contacto.telefonoVisible}</a>
+        {c.contacto.whatsapp && <a class="boton boton--linea" href={enlaceWhatsApp(c.contacto.whatsapp, c.formulario.saludo)}>WhatsApp</a>}
+      </div>
+      <ul class="llegar__mas" role="list">
+        <li><a href={`mailto:${c.contacto.email}`}>{c.contacto.email}</a></li>
+        <li><a href={`${base}contacto.vcf`} download>{c.textos.contactosGuardar}</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
