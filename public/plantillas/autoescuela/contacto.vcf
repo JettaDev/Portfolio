@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Autoescuela Rotonda
+ORG:Autoescuela Rotonda
+TEL;TYPE=WORK,VOICE:+34949000103
+TEL;TYPE=CELL:+34649000103
+EMAIL;TYPE=WORK:matricula@ejemplo.es
+ADR;TYPE=WORK:;;Calle de la Glorieta\, 3;Guadalajara;Guadalajara;19005;ES
+URL:https://ejemplo.es/
+END:VCARD

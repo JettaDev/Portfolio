@@ -1,0 +1,42 @@
+---
+// Cabecera: logo, menú de secciones (escritorio), teléfono y «Matricularme».
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+interface Props {
+  portada?: boolean;
+}
+const { portada = false } = Astro.props;
+const c = config;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+// En las páginas secundarias las anclas vuelven a la portada.
+const ir = (ancla: string) => (portada ? ancla : `${base}${ancla}`);
+const menu: [string, string][] = [
+  ['#permisos', c.catalogo.titulo],
+  ['#reserva', 'Precio'],
+  ['#ruta', 'Pasos'],
+  ['#test', 'Test'],
+  ['#horario', 'Horario'],
+];
+---
+<header class="cabecera">
+  <div class="cabecera__dentro">
+    <a class="logo" href={base}>
+      <span class="logo__disco" aria-hidden="true" set:html={c.negocio.logo.svg ?? ''} />
+      <span class="logo__texto">
+        <small>{c.textos.tipo}</small>
+        <span>{c.negocio.logo.texto}</span>
+      </span>
+    </a>
+    <nav class="cabecera__menu" aria-label="Secciones">
+      <ul>
+        {menu.map(([a, t]) => <li><a href={ir(a)}>{t}</a></li>)}
+      </ul>
+    </nav>
+    <a class="cabecera__tel" href={enlaceTelefono(c.contacto.telefono)}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z" /></svg>
+      <span><span class="solo-lector">Llamar al </span>{c.contacto.telefonoVisible}</span>
+    </a>
+    <a class="boton boton--obras cabecera__cta" href={ir('#reserva')}>{c.accionPrincipal.texto}</a>
+  </div>
+</header>

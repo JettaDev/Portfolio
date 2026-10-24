@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import TextoLegal from '@comun/componentes/TextoLegal.astro';
+import config from '../../config.ts';
+---
+<Base titulo={`Aviso legal · ${config.negocio.nombre}`} conJsonLd={false}>
+  <TextoLegal config={config} tipo="aviso-legal" />
+</Base>

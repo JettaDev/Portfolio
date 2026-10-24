@@ -1,0 +1,25 @@
+---
+// Preguntas frecuentes con <details> nativos (teclado y lector de pantalla sin JS).
+import Rotulo from './Rotulo.astro';
+import config from '../../config.ts';
+
+const c = config;
+---
+{c.faq.length > 0 && (
+  <section id="faq" class="seccion faq" aria-labelledby="t-faq">
+    <div class="seccion__cabeza">
+      <Rotulo id="t-faq" numero={6}>{c.textos.faqTitulo}</Rotulo>
+    </div>
+    <div class="faq__lista">
+      {c.faq.map((f) => (
+        <details>
+          <summary>
+            <span>{f.pregunta}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2.6" /></svg>
+          </summary>
+          <p>{f.respuesta}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+)}

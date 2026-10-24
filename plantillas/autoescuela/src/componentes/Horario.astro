@@ -1,0 +1,72 @@
+---
+// Horario de oficina y de clases, estado «abierto ahora» y ubicación con un plano esquemático (no es un mapa real).
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono, enlaceWhatsApp } from '@comun/enlaces.ts';
+import { horarioAgrupado } from '@comun/horario.ts';
+import Rotulo from './Rotulo.astro';
+import config from '../../config.ts';
+
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const tablas = [
+  { titulo: c.textos.horarioOficina, filas: horarioAgrupado(c.horario.franjas), estado: true },
+  { titulo: c.textos.horarioClases, filas: horarioAgrupado(c.extra.horarioClases), estado: false },
+];
+---
+<section id="horario" class="seccion horario" aria-labelledby="t-horario">
+  <div class="seccion__cabeza">
+    <Rotulo id="t-horario" numero={5}>{c.textos.horarioTitulo}</Rotulo>
+  </div>
+  <div class="horario__rejilla">
+    <div class="horario__tablas">
+      {tablas.map((t) => (
+        <div class="horario__bloque">
+          <h3>{t.titulo}</h3>
+          {t.estado && <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} porDefecto="Consulta el horario" class="horario__estado" />}
+          <dl>
+            {t.filas.map((f) => (
+              <div class:list={{ cerrado: f.horas === 'Cerrado' }}>
+                <dt>{f.dias}</dt>
+                <dd>{f.horas.replaceAll(' · ', ' y ')}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+      {c.horario.nota && <p class="horario__nota">{c.horario.nota}</p>}
+    </div>
+
+    <div class="ubicacion">
+      <svg class="ubicacion__plano" viewBox="0 0 320 200" aria-hidden="true" focusable="false">
+        <rect width="320" height="200" fill="var(--c-superficie)" />
+        <g fill="none" stroke="var(--c-borde)" stroke-width="30">
+          <path d="M-10 112H330M160 -10V210M40 210 125 140M200 85 290 -10" />
+        </g>
+        <g fill="none" stroke="var(--c-fondo)" stroke-width="24">
+          <path d="M-10 112H330M160 -10V210M40 210 125 140M200 85 290 -10" />
+        </g>
+        <circle cx="160" cy="112" r="40" fill="var(--c-fondo)" stroke="var(--c-borde)" stroke-width="3" />
+        <circle cx="160" cy="112" r="20" fill="var(--c-superficie)" stroke="var(--c-borde)" stroke-width="3" />
+        <path d="M-10 112H118M202 112H330M160 -10V70M160 154V210" fill="none" stroke="var(--c-borde)" stroke-width="2" stroke-dasharray="8 8" />
+        <g transform="translate(222 70)">
+          <path d="M0 0c-11-15-17-24-17-32a17 17 0 0 1 34 0c0 8-6 17-17 32z" fill="var(--c-primario)" />
+          <circle cy="-32" r="6.5" fill="var(--c-fondo)" />
+        </g>
+      </svg>
+      <div class="ubicacion__datos">
+        <address>
+          <strong>{d.calle}</strong><br />
+          {d.codigoPostal} {d.localidad}
+        </address>
+        {c.contacto.comoLlegar && <p>{c.contacto.comoLlegar}</p>}
+      </div>
+      <div class="ubicacion__acciones">
+        <a class="boton boton--azul" href={c.contacto.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>
+        <a class="boton boton--borde" href={enlaceTelefono(c.contacto.telefono)}>Llamar · {c.contacto.telefonoVisible}</a>
+        {c.contacto.whatsapp && <a class="boton boton--borde" href={enlaceWhatsApp(c.contacto.whatsapp, c.formulario.saludo)}>WhatsApp</a>}
+        <a class="boton boton--borde" href={`${base}contacto.vcf`} download>Añadir a contactos</a>
+      </div>
+    </div>
+  </div>
+</section>

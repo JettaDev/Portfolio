@@ -1,0 +1,44 @@
+---
+// «¿Qué carnet quieres?»: una placa por permiso. Cada placa lleva a la calculadora con ese permiso elegido.
+import { formatearPrecio } from '@comun/enlaces.ts';
+import Pictograma from './Pictograma.astro';
+import Rotulo from './Rotulo.astro';
+import { presupuesto } from '../lib/precio.ts';
+import config from '../../config.ts';
+
+const c = config;
+---
+<section id="permisos" class="seccion permisos" aria-labelledby="t-permisos">
+  <div class="seccion__cabeza">
+    <Rotulo id="t-permisos" numero={1}>{c.textos.permisosTitulo}</Rotulo>
+    <p class="seccion__entradilla">{c.textos.permisosEntradilla}</p>
+  </div>
+  <ul class="permisos__lista">
+    {c.catalogo.items.map((p) => {
+      const { total } = presupuesto(p, c.extra.tasaDGT, p.clasesRecomendadas);
+      return (
+        <li class:list={['placa', { 'placa--destacada': p.destacado }]}>
+          <a href="#reserva" data-permiso={p.id}>
+            <span class="placa__cabeza">
+              <span class="placa__codigo">{p.codigo}</span>
+              <Pictograma nombre={p.pictograma} class="placa__picto" />
+            </span>
+            <span class="placa__nombre">{p.nombre}</span>
+            <span class="placa__edad">Desde {p.edadMinima} años{p.requisito && ` ${p.requisito}`}</span>
+            <span class="placa__desc">{p.descripcion}</span>
+            <span class="placa__pie">
+              <span class="placa__precio">
+                <small>unos</small> {formatearPrecio(Math.round(total))}
+                <span class="solo-lector">, con {p.clasesRecomendadas} clases y la tasa de la DGT.</span>
+              </span>
+              <span class="placa__ir" aria-hidden="true">
+                Calcular
+                <svg viewBox="0 0 24 24"><path d="M4 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" /></svg>
+              </span>
+            </span>
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</section>

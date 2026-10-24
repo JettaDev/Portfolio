@@ -1,0 +1,71 @@
+---
+// Layout de la autoescuela: <head> con SEO y fuentes, aviso de demo, cabecera, pie con lo legal y barra fija en móvil.
+// Lo marcado con «contrato» no debe faltar (ver plantillas/README.md).
+import Cabeza from '@comun/componentes/Cabeza.astro';
+import Demo from '@comun/componentes/Demo.astro';
+import BarraAcciones from '@comun/componentes/BarraAcciones.astro';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import Cabecera from '../componentes/Cabecera.astro';
+import config from '../../config.ts';
+// Solo el subconjunto latino de cada fuente variable (un archivo por familia).
+import overpass from '@fontsource-variable/overpass/files/overpass-latin-wght-normal.woff2?url';
+import atkinson from '@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2?url';
+import '../estilos/global.css';
+
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  conJsonLd?: boolean;
+  /** En la portada la cabecera lleva el menú de secciones. */
+  portada?: boolean;
+}
+const { titulo, descripcion, conJsonLd, portada = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const c = config;
+const d = c.contacto.direccion;
+
+const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+// Overpass deja fuera el punto medio «·» (su glifo va pegado a la derecha) y lo dibuja Atkinson.
+const LATIN_SIN_PUNTO = LATIN.replace('U+0000-00FF', 'U+0000-00B6,U+00B8-00FF');
+const fuentes = `
+@font-face{font-family:'Overpass Variable';font-style:normal;font-display:swap;font-weight:100 900;src:url(${overpass}) format('woff2-variations');unicode-range:${LATIN_SIN_PUNTO}}
+@font-face{font-family:'Atkinson Hyperlegible Next Variable';font-style:normal;font-display:swap;font-weight:200 800;src:url(${atkinson}) format('woff2-variations');unicode-range:${LATIN}}`;
+---
+<!doctype html>
+<html lang="es" data-demo={String(c.demo)}>
+  <head>
+    <Cabeza config={c} titulo={titulo} descripcion={descripcion} conJsonLd={conJsonLd} /> {/* contrato */}
+    <link rel="preload" href={overpass} as="font" type="font/woff2" crossorigin />
+    <style set:html={fuentes}></style>
+  </head>
+  <body class="con-barra">
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Demo demo={c.demo} nombre={c.negocio.nombre} /> {/* contrato */}
+    <Cabecera portada={portada} />
+    <main id="contenido">
+      <slot />
+    </main>
+    <footer class="pie">
+      <div class="pie__dentro">
+        <div class="pie__marca">
+          <span class="logo__disco" aria-hidden="true" set:html={c.negocio.logo.svg ?? ''} />
+          <div>
+            <p class="pie__nombre">{c.negocio.nombre}</p>
+            <p>{c.negocio.eslogan}</p>
+          </div>
+        </div>
+        <address class="pie__datos">
+          <a href={c.contacto.mapsUrl} target="_blank" rel="noopener">{d.calle}<br />{d.codigoPostal} {d.localidad}</a>
+          <a href={enlaceTelefono(c.contacto.telefono)}>{c.contacto.telefonoVisible}</a>
+          <a href={`mailto:${c.contacto.email}`}>{c.contacto.email}</a>
+        </address>
+        <nav class="pie__legal" aria-label="Información legal">
+          <a href={`${base}aviso-legal/`}>Aviso legal</a>
+          <a href={`${base}privacidad/`}>Privacidad</a>
+          <a href={`${base}contacto.vcf`} download>Añadir a contactos</a>
+        </nav>
+      </div>
+    </footer>
+    <BarraAcciones config={c} ancla={portada ? '#reserva' : `${base}#reserva`} /> {/* contrato */}
+  </body>
+</html>

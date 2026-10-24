@@ -1,0 +1,74 @@
+---
+// Señal de tráfico dibujada a mano (rejilla 64 × 64): forma + pictograma. Decorativa: el texto de al lado la explica.
+import Pictograma, { type NombrePictograma } from './Pictograma.astro';
+
+type Forma = 'indicacion' | 'obligacion' | 'peligro' | 'stop' | 'prohibido';
+export type NombreSenal =
+  | 'documento' | 'libro' | 'pregunta' | 'volante' | 'examen' | 'carnet'
+  | 'stop' | 'glorieta' | 'autovia' | 'ciclista' | 'prohibido';
+
+interface Props {
+  nombre: NombreSenal;
+  class?: string;
+}
+const { nombre, class: clase } = Astro.props;
+
+// Qué forma lleva cada señal y qué dibujo va dentro.
+const tabla: Record<NombreSenal, [Forma, NombrePictograma?]> = {
+  documento: ['indicacion', 'documento'],
+  libro: ['indicacion', 'libro'],
+  pregunta: ['peligro', 'pregunta'],
+  volante: ['obligacion', 'volante'],
+  examen: ['peligro', 'coche'],
+  carnet: ['indicacion', 'carnet'],
+  stop: ['stop'],
+  glorieta: ['obligacion', 'glorieta'],
+  autovia: ['indicacion', 'autovia'],
+  ciclista: ['peligro', 'bici'],
+  prohibido: ['prohibido'],
+};
+const [forma, dibujo] = tabla[nombre];
+
+// Octógono regular para el STOP.
+const octo = (r: number) =>
+  Array.from({ length: 8 }, (_, i) => {
+    const a = ((22.5 + i * 45) * Math.PI) / 180;
+    return `${(32 + r * Math.cos(a)).toFixed(2)},${(32 + r * Math.sin(a)).toFixed(2)}`;
+  }).join(' ');
+---
+<svg class:list={['senal', `senal--${forma}`, clase]} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+  {forma === 'indicacion' && (
+    <>
+      <rect width="64" height="64" rx="9" fill="var(--c-primario)" />
+      <rect x="3.5" y="3.5" width="57" height="57" rx="6.5" fill="none" stroke="var(--c-texto-sobre-primario)" stroke-width="2.2" />
+      <g color="var(--c-texto-sobre-primario)"><Pictograma nombre={dibujo!} x={10} y={10} lado={44} /></g>
+    </>
+  )}
+  {forma === 'obligacion' && (
+    <>
+      <circle cx="32" cy="32" r="31.5" fill="var(--c-primario)" />
+      <circle cx="32" cy="32" r="28" fill="none" stroke="var(--c-texto-sobre-primario)" stroke-width="2" />
+      <g color="var(--c-texto-sobre-primario)"><Pictograma nombre={dibujo!} x={11} y={11} lado={42} /></g>
+    </>
+  )}
+  {forma === 'peligro' && (
+    <>
+      <path d="M32 4.5 61 57.5H3z" fill="var(--c-rojo)" stroke="var(--c-rojo)" stroke-width="5" stroke-linejoin="round" />
+      <path d="M32 17 50.5 51h-37z" fill="var(--c-fondo)" stroke="var(--c-fondo)" stroke-width="2" stroke-linejoin="round" />
+      <g color="var(--c-texto)"><Pictograma nombre={dibujo!} x={18} y={25} lado={28} /></g>
+    </>
+  )}
+  {forma === 'stop' && (
+    <>
+      <polygon points={octo(32)} fill="var(--c-rojo)" />
+      <polygon points={octo(28.5)} fill="none" stroke="var(--c-fondo)" stroke-width="2" />
+      <text x="32" y="38.5" text-anchor="middle" fill="var(--c-fondo)" font-family="var(--f-titular)" font-weight="800" font-size="17" letter-spacing="0.5">STOP</text>
+    </>
+  )}
+  {forma === 'prohibido' && (
+    <>
+      <circle cx="32" cy="32" r="31.5" fill="var(--c-rojo)" />
+      <rect x="11" y="26" width="42" height="12" rx="1.5" fill="var(--c-fondo)" />
+    </>
+  )}
+</svg>

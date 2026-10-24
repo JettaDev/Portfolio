@@ -1,0 +1,15 @@
+---
+// 404 propia: una señal de dirección prohibida y la vuelta a la portada.
+import Base from '../layouts/Base.astro';
+import Senal from '../componentes/Senal.astro';
+import config from '../../config.ts';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<Base titulo={`Página no encontrada · ${config.negocio.nombre}`} conJsonLd={false}>
+  <div class="no-encontrada">
+    <Senal nombre="prohibido" />
+    <h1>Por aquí no se pasa</h1>
+    <p>Esta página no existe o ha cambiado de sitio. Da la vuelta en la próxima glorieta.</p>
+    <a class="boton boton--azul" href={base}>Volver al inicio</a>
+  </div>
+</Base>
