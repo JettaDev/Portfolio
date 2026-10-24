@@ -10,6 +10,7 @@
 
 import { createReadStream, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { createGzip } from 'node:zlib';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -54,8 +55,11 @@ const servidor = createServer((req, res) => {
     res.writeHead(404, { 'content-type': TIPOS['.html'] });
     return existsSync(nf) ? createReadStream(nf).pipe(res) : res.end('404');
   }
-  res.writeHead(200, { 'content-type': TIPOS[extname(f)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
-  createReadStream(f).pipe(res);
+  const tipo = TIPOS[extname(f)] ?? 'application/octet-stream';
+  // Comprime texto con gzip, como hace Cloudflare en producción.
+  const comprimir = /text|javascript|json|svg|vcard/.test(tipo) && /gzip/.test(req.headers['accept-encoding'] ?? '');
+  res.writeHead(200, { 'content-type': tipo, 'cache-control': 'no-cache', ...(comprimir ? { 'content-encoding': 'gzip', vary: 'accept-encoding' } : {}) });
+  comprimir ? createReadStream(f).pipe(createGzip()).pipe(res) : createReadStream(f).pipe(res);
 });
 await new Promise((r) => servidor.listen(0, '127.0.0.1', r));
 const origen = `http://127.0.0.1:${servidor.address().port}`;
@@ -279,30 +283,37 @@ try {
   // ── Lighthouse (móvil, con la simulación por defecto) ────────────────────────
   if (conLighthouse) {
     const lh = join(raiz, 'node_modules', '.bin', 'lighthouse');
-    const json = join(salida, 'lighthouse.json');
-    rmSync(json, { force: true });
-    // Lighthouse a veces no sale tras cerrar Chrome: límite de tiempo y vale si escribió el informe.
-    const r = await promisify(execFile)(lh, [inicio, '--quiet', '--output=json', `--output-path=${json}`, '--only-categories=performance,accessibility,best-practices,seo', '--chrome-flags=--headless=new --no-sandbox'], { env: { ...process.env, CHROME_PATH: CHROME }, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL', maxBuffer: 64 << 20 }).catch((e) => e);
-    if (!existsSync(json)) A(`Lighthouse no pudo ejecutarse: ${(r.stderr || '').split('\n').slice(-3).join(' ')}`);
-    else {
+    const pasadas = Number(process.env.LH_PASADAS ?? 3);
+    const tandas = [];
+    for (let i = 0; i < pasadas; i++) {
+      const json = join(salida, `lighthouse-${i + 1}.json`);
+      rmSync(json, { force: true });
+      // Lighthouse a veces no sale tras cerrar Chrome: límite de tiempo y vale si escribió el informe.
+      const r = await promisify(execFile)(lh, [inicio, '--quiet', '--output=json', `--output-path=${json}`, '--only-categories=performance,accessibility,best-practices,seo', '--chrome-flags=--headless=new --no-sandbox'], { env: { ...process.env, CHROME_PATH: CHROME }, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL', maxBuffer: 64 << 20 }).catch((e) => e);
+      if (!existsSync(json)) { A(`Lighthouse (pasada ${i + 1}) no pudo ejecutarse: ${(r.stderr || '').split('\n').slice(-3).join(' ')}`); continue; }
       const informe = JSON.parse(readFileSync(json, 'utf8'));
       const cat = informe.categories;
       // El modo demo lleva noindex a propósito: se calcula también el SEO sin esa auditoría.
-      const seo = cat.seo.auditRefs.filter((a) => a.weight > 0);
-      const sinNoindex = seo.filter((a) => a.id !== 'is-crawlable');
+      const sinNoindex = cat.seo.auditRefs.filter((a) => a.weight > 0 && a.id !== 'is-crawlable');
       const puntua = (refs) => Math.round((100 * refs.reduce((s, a) => s + a.weight * (informe.audits[a.id].score ?? 1), 0)) / refs.reduce((s, a) => s + a.weight, 0));
-      const notas = {
+      tandas.push({
         rendimiento: Math.round(cat.performance.score * 100),
         accesibilidad: Math.round(cat.accessibility.score * 100),
         buenasPracticas: Math.round(cat['best-practices'].score * 100),
         seo: Math.round(cat.seo.score * 100),
         seoSinNoindexDemo: puntua(sinNoindex),
-      };
-      H(`Lighthouse móvil: ${JSON.stringify(notas)}`);
-      for (const [k, v] of Object.entries(notas)) if (k !== 'seo' && v < 90) E(`Lighthouse ${k} = ${v} (< 90)`);
-      const lcp = informe.audits['largest-contentful-paint']?.displayValue;
-      const cls = informe.audits['cumulative-layout-shift']?.displayValue;
-      H(`LCP ${lcp}, CLS ${cls}`);
+        lcp: informe.audits['largest-contentful-paint']?.displayValue,
+        cls: informe.audits['cumulative-layout-shift']?.displayValue,
+        cpu: informe.environment?.benchmarkIndex,
+      });
+    }
+    if (tandas.length) {
+      // Mediana por nota: una sola pasada varía mucho si la máquina está cargada.
+      const mediana = (k) => { const v = tandas.map((t) => t[k]).sort((a, b) => a - b); return v[Math.floor((v.length - 1) / 2)]; };
+      const notas = Object.fromEntries(['rendimiento', 'accesibilidad', 'buenasPracticas', 'seo', 'seoSinNoindexDemo'].map((k) => [k, mediana(k)]));
+      H(`Lighthouse móvil (mediana de ${tandas.length}): ${JSON.stringify(notas)}`);
+      H(`pasadas: ${tandas.map((t) => `rend. ${t.rendimiento}, LCP ${t.lcp}, CLS ${t.cls}, CPU ${Math.round(t.cpu)}`).join(' | ')}`);
+      for (const [k, v] of Object.entries(notas)) if (k !== 'seo' && v < 90) E(`Lighthouse ${k} = ${v} (< 90, mediana)`);
     }
   } else A('Lighthouse omitido (--sin-lighthouse)');
 } finally {

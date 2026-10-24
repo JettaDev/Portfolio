@@ -100,7 +100,8 @@ const enlaces = [
     text-decoration: none;
   }
   .cabecera__tel .icono { width: 1.25rem; height: 1.25rem; color: var(--c-primario); }
-  .cabecera__reservar { display: none; }
+  /* En móvil la reserva ya está en la barra fija. Doble clase para ganar a .boton. */
+  .cabecera .cabecera__reservar { display: none; }
 
   @media (min-width: 900px) {
     .cabecera {
@@ -140,6 +141,6 @@ const enlaces = [
       border: 0;
     }
     .cabecera__estado::after { content: none; }
-    .cabecera__reservar { display: inline-flex; grid-area: reservar; }
+    .cabecera .cabecera__reservar { display: inline-flex; grid-area: reservar; }
   }
 </style>

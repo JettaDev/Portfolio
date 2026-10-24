@@ -10,14 +10,16 @@ interface Props {
   descripcion?: string;
   /** Las páginas legales no necesitan JSON-LD. */
   conJsonLd?: boolean;
+  /** Campos extra del JSON-LD propios de la plantilla (servesCuisine, acceptsReservations…). */
+  jsonLdExtra?: Record<string, unknown>;
 }
-const { config: c, titulo = c.meta.titulo, descripcion = c.meta.descripcion, conJsonLd = true } = Astro.props;
+const { config: c, titulo = c.meta.titulo, descripcion = c.meta.descripcion, conJsonLd = true, jsonLdExtra = {} } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const canonica = new URL(Astro.url.pathname, Astro.site ?? c.meta.url).href;
 // URL raíz real del despliegue (la del cliente o la subruta del portfolio) para el JSON-LD.
 const raiz = new URL(base, Astro.site ?? c.meta.url).href;
-const datos = jsonLd({ ...c, meta: { ...c.meta, url: raiz } });
+const datos = { ...jsonLd({ ...c, meta: { ...c.meta, url: raiz } }), ...jsonLdExtra };
 const og = new URL(base + c.meta.imagenOg.replace(/^\//, ''), Astro.site ?? c.meta.url).href;
 const vars = Object.entries(c.tema.colores)
   .map(([k, v]) => `--c-${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}:${v}`)

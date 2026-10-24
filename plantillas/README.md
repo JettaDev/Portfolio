@@ -36,6 +36,7 @@ plantillas/
   build.mjs               compila hacia ../public/plantillas/<slug>/
   verificar.mjs           capturas, axe, enlaces, terceros, datos reales y Lighthouse
   exportar.mjs            saca una plantilla a una carpeta independiente para un cliente
+  indice.mjs              miniaturas y og.png del índice de demos (_indice/)
   CHECKLIST-CALIDAD.md    lo que debe cumplir cada plantilla antes de darla por buena
   PLANTILLA-README.md     modelo del README de cada plantilla
 ```
@@ -63,8 +64,9 @@ Desde `plantillas/`:
 npm install                      # herramientas de verificación (una vez)
 npm test                         # pruebas de _comun
 node build.mjs [slug]            # compila hacia ../public/plantillas/<slug>/
-node verificar.mjs <slug>        # verificación completa (tras el build)
+node verificar.mjs <slug>        # verificación completa (tras el build; Lighthouse ×3, mediana)
 node exportar.mjs <slug> <dest>  # carpeta independiente para un cliente
+node indice.mjs                  # miniaturas del índice (tras el build; luego otro build para copiarlas)
 ```
 
 Dentro de cada plantilla: `npm run dev`, `npm run build`, `npm run comprobar`.

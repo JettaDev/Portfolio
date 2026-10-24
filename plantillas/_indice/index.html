@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webs para negocios de Guadalajara · JettaDev</title>
+  <meta name="description" content="Cuatro webs de demostración para negocios locales de Guadalajara: restaurante, peluquería, autoescuela y fisioterapia. Rápidas, pensadas para el móvil y adaptables en menos de una hora." />
+  <link rel="canonical" href="https://portfolio.igp06.workers.dev/plantillas/" />
+  <meta name="theme-color" content="#10291c" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:title" content="Webs para negocios de Guadalajara" />
+  <meta property="og:description" content="Restaurante, peluquería, autoescuela y fisioterapia: cuatro demos listas para adaptar a un negocio real." />
+  <meta property="og:url" content="https://portfolio.igp06.workers.dev/plantillas/" />
+  <meta property="og:image" content="https://portfolio.igp06.workers.dev/plantillas/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preload" href="fuentes/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    @font-face {
+      font-family: 'Bricolage Grotesque Variable';
+      font-style: normal;
+      font-display: swap;
+      font-weight: 200 800;
+      src: url(fuentes/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+    }
+    :root {
+      --bosque: #10291c;
+      --bosque-hondo: #0a1d13;
+      --musgo: #183a27;
+      --corteza: #2f5640;
+      --liquen: #e6eee4;
+      --helecho: #93ad9c;
+      --calendula: #ffb547;
+      --calendula-hondo: #e89a24;
+      --brote: #7fe0a6;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bosque);
+      color: var(--liquen);
+      font: 1.0625rem/1.6 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+    }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--brote); outline-offset: 3px; }
+    .saltar { position: absolute; left: -9999px; }
+    .saltar:focus { left: 1rem; top: 1rem; z-index: 10; padding: .5rem 1rem; background: var(--musgo); }
+    .marco { max-width: 72rem; margin: 0 auto; padding: 0 1.25rem; }
+
+    header.marco { padding-top: 1.5rem; }
+    .volver {
+      display: inline-flex; align-items: center; min-height: 44px;
+      color: var(--helecho); text-decoration: none; font-weight: 500;
+    }
+    .volver:hover { color: var(--liquen); }
+    h1 {
+      margin: 2.5rem 0 1rem;
+      font-size: clamp(2.25rem, 7vw, 4.25rem);
+      line-height: 1.02;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      font-variation-settings: 'opsz' 96;
+      max-width: 14ch;
+    }
+    .entrada { max-width: 38rem; color: var(--helecho); font-size: 1.1875rem; margin: 0 0 1rem; }
+    .claves {
+      display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+      margin: 0; padding: 0; list-style: none; color: var(--liquen); font-size: .9375rem;
+    }
+    .claves li::before { content: ''; display: inline-block; width: .5rem; height: .5rem; margin-right: .5rem; border-radius: 50%; background: var(--brote); vertical-align: .1em; }
+
+    .lista { list-style: none; margin: 3.5rem 0 0; padding: 0; display: grid; gap: 1.25rem; }
+    .demo {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem;
+      border-radius: .875rem;
+      background: var(--musgo);
+    }
+    .demo__movil {
+      position: relative;
+      justify-self: center;
+      width: min(15rem, 70%);
+      align-self: start;
+      border-radius: 1.75rem;
+      padding: .5rem;
+      background: var(--bosque-hondo);
+      box-shadow: inset 0 0 0 1px var(--corteza);
+      overflow: hidden;
+    }
+    .demo__movil img {
+      display: block; width: 100%; height: auto; aspect-ratio: 390 / 760;
+      border-radius: 1.3rem; background: var(--corteza);
+    }
+    .demo__texto { display: flex; flex-direction: column; gap: .75rem; }
+    .demo__tipo { margin: 0; color: var(--helecho); font-size: .9375rem; }
+    .demo h2 { margin: 0; font-size: clamp(1.625rem, 4vw, 2.25rem); line-height: 1.1; letter-spacing: -0.015em; }
+    .demo p { margin: 0; }
+    .demo__que { max-width: 34rem; }
+    .paleta { display: flex; gap: .375rem; margin: .25rem 0; padding: 0; list-style: none; }
+    .paleta li { width: 1.75rem; height: 1.75rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18); }
+    .detalles { margin: 0; padding: 0; list-style: none; display: grid; gap: .25rem; color: var(--helecho); font-size: .9375rem; }
+    .detalles strong { color: var(--liquen); font-weight: 600; }
+    .acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: auto; padding-top: .5rem; }
+    .boton {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; padding: 0 1.5rem; border-radius: 999px;
+      font-weight: 600; text-decoration: none; transition: transform .15s, background-color .15s;
+    }
+    .boton:active { transform: scale(.97); }
+    .boton-principal { background: var(--calendula); color: var(--bosque-hondo); }
+    .boton-principal:hover { background: var(--calendula-hondo); }
+    .boton-secundario { box-shadow: inset 0 0 0 1.5px var(--corteza); color: var(--liquen); }
+    .boton-secundario:hover { background: var(--corteza); }
+
+    .como { margin: 4.5rem 0 0; display: grid; gap: 1.5rem; }
+    .como h2 { margin: 0; font-size: clamp(1.5rem, 3.5vw, 2rem); letter-spacing: -0.015em; }
+    .pasos { margin: 0; padding: 0; list-style: none; display: grid; gap: 1rem; counter-reset: paso; }
+    .pasos li { padding: 1rem 0 0; border-top: 1px solid var(--corteza); color: var(--helecho); }
+    .pasos strong { display: block; color: var(--liquen); font-size: 1.125rem; margin-bottom: .25rem; }
+
+    footer.marco { margin-top: 4.5rem; padding-bottom: 3rem; color: var(--helecho); font-size: .9375rem; }
+    footer a { color: var(--liquen); }
+
+    @media (min-width: 760px) {
+      .demo { grid-template-columns: 15rem 1fr; gap: 2rem; padding: 1.75rem; align-items: stretch; }
+      .demo__movil { width: 15rem; }
+      .pasos { grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+    }
+    @media (min-width: 1100px) {
+      .lista { grid-template-columns: 1fr 1fr; }
+      .demo { grid-template-columns: 13rem 1fr; }
+      .demo__movil { width: 13rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boton { transition: none; }
+      .boton:active { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="marco">
+    <a class="volver" href="/">JettaDev · portfolio</a>
+  </header>
+
+  <main id="contenido" class="marco">
+    <h1>Webs para negocios de Guadalajara</h1>
+    <p class="entrada">Cuatro webs de demostración con negocios inventados. Cada una tiene su propia identidad y se adapta a un negocio real en menos de una hora, cambiando un solo archivo.</p>
+    <ul class="claves">
+      <li>Pensadas para el móvil</li>
+      <li>Reservas y citas por WhatsApp</li>
+      <li>Sin cookies ni cuotas de plataforma</li>
+      <li>Rápidas y accesibles</li>
+    </ul>
+
+    <ul class="lista">
+      <li class="demo">
+        <a class="demo__movil" href="restaurante/" tabindex="-1" aria-hidden="true"><img src="capturas/restaurante.webp" alt="" width="390" height="760" loading="lazy" /></a>
+        <div class="demo__texto">
+          <p class="demo__tipo">Restaurante o mesón</p>
+          <h2>Mesón La Trébede</h2>
+          <p class="demo__que">La carta parece impresa y la reserva se rellena como una comanda que se envía por WhatsApp.</p>
+          <ul class="paleta" aria-label="Paleta: papel, tinta, vino y aceite">
+            <li style="background:#FBF6EC"></li><li style="background:#231F1A"></li><li style="background:#7A1F2B"></li><li style="background:#55652A"></li>
+          </ul>
+          <ul class="detalles">
+            <li><strong>Carta</strong> con filtros por categoría y alérgenos</li>
+            <li><strong>Menú del día</strong> según el día de la semana</li>
+            <li><strong>Reservas</strong> con número de personas y opción para grupos</li>
+          </ul>
+          <div class="acciones"><a class="boton boton-principal" href="restaurante/">Ver la demo</a></div>
+        </div>
+      </li>
+
+      <li class="demo">
+        <a class="demo__movil" href="peluqueria/" tabindex="-1" aria-hidden="true"><img src="capturas/peluqueria.webp" alt="" width="390" height="760" loading="lazy" /></a>
+        <div class="demo__texto">
+          <p class="demo__tipo">Peluquería o centro de estética</p>
+          <h2>Atelier Malva</h2>
+          <p class="demo__que">Eliges servicios y un anillo te dice cuánto cuesta y cuánto tardas. Luego eliges día y franja.</p>
+          <ul class="paleta" aria-label="Paleta: crema, malva, rosa empolvado y tinta">
+            <li style="background:#F7F1EB"></li><li style="background:#6B4466"></li><li style="background:#E9CBC4"></li><li style="background:#2B2128"></li>
+          </ul>
+          <ul class="detalles">
+            <li><strong>Servicios</strong> con precio y duración</li>
+            <li><strong>Precio y tiempo</strong> calculados al elegir</li>
+            <li><strong>Cita</strong> por día y franja, enviada por WhatsApp</li>
+          </ul>
+          <div class="acciones"><a class="boton boton-secundario" href="peluqueria/">Ver la demo</a></div>
+        </div>
+      </li>
+
+      <li class="demo">
+        <a class="demo__movil" href="autoescuela/" tabindex="-1" aria-hidden="true"><img src="capturas/autoescuela.webp" alt="" width="390" height="760" loading="lazy" /></a>
+        <div class="demo__texto">
+          <p class="demo__tipo">Autoescuela</p>
+          <h2>Autoescuela Rotonda</h2>
+          <p class="demo__que">Con el lenguaje de las señales de tráfico: eliges carnet, calculas el precio y sigues la carretera hasta el examen.</p>
+          <ul class="paleta" aria-label="Paleta: azul de indicación, amarillo de obras, blanco y negro">
+            <li style="background:#0B4F9C"></li><li style="background:#F5C400"></li><li style="background:#FFFFFF"></li><li style="background:#111111"></li>
+          </ul>
+          <ul class="detalles">
+            <li><strong>Calculadora</strong> de precio por permiso</li>
+            <li><strong>De la matrícula al carnet</strong>, paso a paso</li>
+            <li><strong>Mini-test</strong> y preguntas frecuentes</li>
+          </ul>
+          <div class="acciones"><a class="boton boton-secundario" href="autoescuela/">Ver la demo</a></div>
+        </div>
+      </li>
+
+      <li class="demo">
+        <a class="demo__movil" href="fisioterapia/" tabindex="-1" aria-hidden="true"><img src="capturas/fisioterapia.webp" alt="" width="390" height="760" loading="lazy" /></a>
+        <div class="demo__texto">
+          <p class="demo__tipo">Clínica de fisioterapia</p>
+          <h2>Clínica Eje</h2>
+          <p class="demo__que">Tocas dónde te duele y te muestra quién lo trata. Para pedir cita no se piden datos de salud.</p>
+          <ul class="paleta" aria-label="Paleta: hueso, salvia, pizarra y coral">
+            <li style="background:#F6F7F4"></li><li style="background:#2F5E4E"></li><li style="background:#1F3344"></li><li style="background:#C2553A"></li>
+          </ul>
+          <ul class="detalles">
+            <li><strong>Mapa del cuerpo</strong> que lleva a cada especialidad</li>
+            <li><strong>Equipo</strong> y primera visita explicada</li>
+            <li><strong>Cita</strong> solo con nombre, teléfono, especialidad y franja</li>
+          </ul>
+          <div class="acciones"><a class="boton boton-secundario" href="fisioterapia/">Ver la demo</a></div>
+        </div>
+      </li>
+    </ul>
+
+    <section class="como" aria-labelledby="t-como">
+      <h2 id="t-como">Cómo sería la de tu negocio</h2>
+      <ol class="pasos">
+        <li><strong>Eliges la que más se parece</strong>Tus colores, tu logo, tus textos y tus precios.</li>
+        <li><strong>Me pasas tus datos</strong>Horario, servicios o carta, teléfono, dirección y alguna foto si la tienes.</li>
+        <li><strong>La publico en tu dominio</strong>Sin cuotas de plataforma: el alojamiento de una web así es gratuito.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="marco">
+    <p>Negocios, teléfonos y direcciones ficticios. Si te interesa una para tu negocio, <a href="/contacto/">escríbeme</a>.</p>
+  </footer>
+</body>
+</html>

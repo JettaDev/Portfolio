@@ -31,6 +31,7 @@ test('cerrado entre franjas: abre hoy o otro día', () => {
 test('franja que cruza la medianoche', () => {
   // Sábado 00:30 sigue abierto por la franja del viernes.
   assert.deepEqual(estadoAhora(franjas, [], madrid('2026-10-24T00:30:00')), { abierto: true, cierra: '01:00' });
+  assert.equal(textoEstado({ abierto: true, cierra: '00:00' }), 'Abierto · cierra a medianoche');
   assert.equal(estadoAhora(franjas, [], madrid('2026-10-24T01:30:00')).abierto, false);
 });
 
@@ -43,11 +44,12 @@ test('días de cierre', () => {
 
 test('horario agrupado', () => {
   assert.deepEqual(horarioAgrupado(franjas), [
-    { dias: 'Lun', horas: 'Cerrado' },
-    { dias: 'Mar–Jue', horas: '13:00–16:00' },
-    { dias: 'Vie–Sáb', horas: '13:00–16:00 · 20:30–01:00' },
-    { dias: 'Dom', horas: 'Cerrado' },
+    { dias: 'Lun', horas: 'Cerrado', desde: 'lu', hasta: 'lu', cerrado: true },
+    { dias: 'Mar–Jue', horas: '13:00–16:00', desde: 'ma', hasta: 'ju', cerrado: false },
+    { dias: 'Vie–Sáb', horas: '13:00–16:00 · 20:30–01:00', desde: 'vi', hasta: 'sa', cerrado: false },
+    { dias: 'Dom', horas: 'Cerrado', desde: 'do', hasta: 'do', cerrado: true },
   ]);
+  assert.equal(textoEstado(estadoAhora([{ dias: ['ju'], abre: '09:30', cierra: '14:00' }], [], madrid('2026-10-21T20:00:00'))), 'Cerrado · abre mañana a las 9:30');
 });
 
 test('enlaces y formatos', () => {
