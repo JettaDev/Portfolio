@@ -1,0 +1,60 @@
+---
+// Mini-test tipo DGT: un fieldset por pregunta con radios nativos. Se corrige al elegir y al final hay un resumen.
+import Rotulo from './Rotulo.astro';
+import Senal from './Senal.astro';
+import config from '../../config.ts';
+
+const c = config;
+const t = c.textos;
+---
+<section id="test" class="seccion test" aria-labelledby="t-test">
+  <div class="seccion__cabeza">
+    <Rotulo id="t-test" numero={4}>{t.testTitulo}</Rotulo>
+    <p class="seccion__entradilla">{t.testEntradilla}</p>
+  </div>
+  <form class="test__form" data-test data-textos={JSON.stringify({ resultado: t.testResultado, bien: t.testBien, mal: t.testMal })}>
+    <ol class="test__preguntas">
+      {c.extra.test.map((q, i) => (
+        <li>
+          <fieldset class="pregunta" data-correcta={q.correcta}>
+            <legend>
+              <span class="pregunta__num">Pregunta {i + 1} de {c.extra.test.length}</span>
+              <span class="pregunta__texto">{q.pregunta}</span>
+            </legend>
+            <Senal nombre={q.pictograma} class="pregunta__senal" />
+            <div class="pregunta__opciones">
+              {q.opciones.map((o, j) => (
+                <label class="respuesta">
+                  <input type="radio" name={`p${i}`} value={j} />
+                  <span class="respuesta__letra" aria-hidden="true">{String.fromCharCode(65 + j)}</span>
+                  <span class="respuesta__texto">{o}</span>
+                  <span class="respuesta__marca" data-marca></span>
+                </label>
+              ))}
+            </div>
+            <div class="pregunta__correccion" aria-live="polite" data-correccion>
+              <p class="pregunta__veredicto" data-veredicto></p>
+              <p class="pregunta__explica" data-explica hidden>{q.explicacion}</p>
+            </div>
+          </fieldset>
+        </li>
+      ))}
+    </ol>
+    <div class="test__resumen" aria-live="polite" data-resumen>
+      <div class="test__resumen-dentro" hidden data-resumen-dentro>
+        <p class="test__nota" data-resumen-nota></p>
+        <p data-resumen-texto></p>
+        <p class="test__examen">{t.testExamen}</p>
+        <div class="test__acciones">
+          <a class="boton boton--azul" href="#reserva">{t.matricularme}</a>
+          <button class="boton boton--borde" type="reset">{t.testRepetir}</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</section>
+
+<script>
+  import { iniciarTest } from '../scripts/test.ts';
+  iniciarTest();
+</script>

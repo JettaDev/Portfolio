@@ -1,0 +1,27 @@
+---
+// Profesores: placa redonda con las iniciales (o la foto, si el config la trae). Si `equipo` está vacío, no se pinta.
+import config from '../../config.ts';
+
+const c = config;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const iniciales = (n: string) => n.split(/\s+/).slice(0, 2).map((p) => p[0]).join('');
+---
+{c.equipo.length > 0 && (
+  <section class="seccion equipo" aria-labelledby="t-equipo">
+    <h2 id="t-equipo" class="equipo__titulo">{c.textos.equipoTitulo}</h2>
+    <ul class="equipo__lista">
+      {c.equipo.map((p) => (
+        <li class="persona">
+          {p.foto
+            ? <img class="persona__foto" src={`${base}${p.foto.replace(/^\//, '')}`} alt="" width="72" height="72" loading="lazy" />
+            : <span class="persona__foto" aria-hidden="true">{iniciales(p.nombre)}</span>}
+          <div>
+            <h3>{p.nombre}</h3>
+            <p class="persona__rol">{p.rol}</p>
+            {p.bio && <p class="persona__bio">{p.bio}</p>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

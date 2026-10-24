@@ -1,0 +1,58 @@
+---
+// Primera pantalla: titular y un cartel de orientación cuyas filas son los destinos (permisos, precio, cómo llegar, llamar).
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { enlaceTelefono, formatearPrecio } from '@comun/enlaces.ts';
+import { presupuesto } from '../lib/precio.ts';
+import config from '../../config.ts';
+
+const c = config;
+const items = c.catalogo.items;
+const estrella = items.find((i) => i.destacado) ?? items[0];
+const { total } = presupuesto(estrella, c.extra.tasaDGT, estrella.clasesRecomendadas);
+const codigos = items.map((i) => i.codigo).join('\u2002');
+
+// Flechas del cartel: recto, a la derecha y salida.
+const flecha = {
+  arriba: 'M12 21V5M5 11l7-7 7 7',
+  derecha: 'M3 12h16M13 5l7 7-7 7',
+  diagonal: 'M6 18 18 6M8 6h10v10',
+};
+const filas = [
+  { href: '#permisos', texto: c.textos.panelPermisos, valor: codigos, flecha: flecha.arriba },
+  { href: '#reserva', texto: c.textos.panelPrecio, valor: `${estrella.codigo} · ${formatearPrecio(Math.round(total))}`, flecha: flecha.arriba },
+  { href: c.contacto.mapsUrl, texto: c.textos.panelLlegar, valor: c.contacto.direccion.calle, flecha: flecha.diagonal, fuera: true },
+  { href: enlaceTelefono(c.contacto.telefono), texto: 'Llamar', valor: c.contacto.telefonoVisible, flecha: flecha.derecha },
+];
+---
+<section class="portada" aria-labelledby="titular">
+  <div class="portada__texto">
+    <p class="portada__ante">{c.textos.antetitulo}</p>
+    <h1 id="titular">{c.textos.titular}</h1>
+    <p class="portada__entradilla">{c.textos.entradilla}</p>
+    <div class="portada__acciones">
+      <a class="boton boton--obras" href="#reserva">{c.textos.panelPrecio}</a>
+      <a class="estado-enlace" href="#horario">
+        <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} porDefecto="Ver horario de oficina" />
+      </a>
+    </div>
+  </div>
+
+  <div class="cartel">
+    <nav class="cartel__panel" aria-label="Accesos directos">
+      <ul>
+        {filas.map((f) => (
+          <li>
+            <a href={f.href} {...(f.fuera ? { target: '_blank', rel: 'noopener' } : {})}>
+              <svg class="cartel__flecha" viewBox="0 0 24 24" aria-hidden="true"><path d={f.flecha} fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square" /></svg>
+              <span class="cartel__destino">{f.texto}</span>
+              <span class="cartel__valor">{f.valor}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <span class="cartel__poste" aria-hidden="true"></span>
+    <span class="cartel__poste" aria-hidden="true"></span>
+  </div>
+</section>
+<div class="baliza" aria-hidden="true"></div>

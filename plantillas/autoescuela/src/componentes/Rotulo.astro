@@ -1,0 +1,15 @@
+---
+// Título de sección como placa de orientación: fondo azul, borde blanco interior y número de salida.
+interface Props {
+  id: string;
+  numero?: number;
+  /** Nivel del encabezado (h2 por defecto). */
+  nivel?: 2 | 3;
+}
+const { id, numero, nivel = 2 } = Astro.props;
+const Etiqueta = `h${nivel}` as 'h2' | 'h3';
+---
+<div class="rotulo">
+  {numero !== undefined && <span class="rotulo__salida" aria-hidden="true">{numero}</span>}
+  <Etiqueta id={id} class="rotulo__texto"><slot /></Etiqueta>
+</div>

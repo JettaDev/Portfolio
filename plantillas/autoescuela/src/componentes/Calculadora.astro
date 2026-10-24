@@ -1,0 +1,133 @@
+---
+// Calculadora del carnet (#reserva): permiso, clases o pack, desglose como un panel de peaje y «Matricularme».
+// Sin JS se ve el presupuesto del permiso destacado; con JS se recalcula al momento.
+import { formatearPrecio } from '@comun/enlaces.ts';
+import Rotulo from './Rotulo.astro';
+import { presupuesto } from '../lib/precio.ts';
+import config from '../../config.ts';
+
+const c = config;
+const items = c.catalogo.items;
+const inicial = items.find((i) => i.destacado) ?? items[0];
+const { lineas, total } = presupuesto(inicial, c.extra.tasaDGT, inicial.clasesRecomendadas);
+const packsIniciales = c.extra.packs.filter((p) => p.permiso === inicial.id);
+
+// Lo que necesita el script del navegador (solo datos, nada de HTML).
+const datos = {
+  tasa: c.extra.tasaDGT,
+  minutos: c.extra.minutosClase,
+  permisos: items.map(({ id, codigo, nombre, matricula, teorico, precioClase, clasesRecomendadas, tasaDGT }) => ({ id, codigo, nombre, matricula, teorico, precioClase, clasesRecomendadas, tasaDGT })),
+  packs: c.extra.packs,
+  canal: c.formulario.canal,
+  saludo: c.formulario.saludo,
+  contacto: { whatsapp: c.contacto.whatsapp, email: c.contacto.email },
+};
+---
+<section id="reserva" class="seccion calc" aria-labelledby="t-calc">
+  <div class="seccion__cabeza">
+    <Rotulo id="t-calc" numero={2}>{c.textos.calculadoraTitulo}</Rotulo>
+    <p class="seccion__entradilla">{c.textos.calculadoraEntradilla}</p>
+  </div>
+
+  <form class="calc__form" id="form-matricula">
+    <div class="calc__controles">
+      <fieldset class="calc__grupo">
+        <legend>Permiso</legend>
+        <div class="calc__permisos">
+          {items.map((p) => (
+            <label class="chip">
+              <input type="radio" name="permiso" value={p.id} checked={p.id === inicial.id} />
+              <span class="chip__codigo">{p.codigo}</span>
+              <span class="chip__nombre">{p.nombre}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset class="calc__grupo" data-calc-modo hidden={!packsIniciales.length}>
+        <legend>Prácticas</legend>
+        <div class="calc__modos">
+          <label class="opcion">
+            <input type="radio" name="modo" value="sueltas" checked />
+            <span class="opcion__punto" aria-hidden="true"></span>
+            <span class="opcion__texto">
+              <strong>{c.textos.sueltas}</strong>
+              <small data-precio-clase>{formatearPrecio(inicial.precioClase)} cada una</small>
+            </span>
+          </label>
+          {c.extra.packs.map((pk) => (
+            <label class="opcion" data-pack-de={pk.permiso} hidden={pk.permiso !== inicial.id}>
+              <input type="radio" name="modo" value={pk.id} />
+              <span class="opcion__punto" aria-hidden="true"></span>
+              <span class="opcion__texto">
+                <strong>{pk.nombre}</strong>
+                <small>{pk.nota ?? `${pk.clases} clases`}</small>
+              </span>
+              <span class="opcion__precio">{formatearPrecio(pk.precio)}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div class="calc__clases" data-calc-clases>
+        <label class="calc__etiqueta" for="clases">Clases prácticas <span>de {c.extra.minutosClase} minutos</span></label>
+        <div class="paso">
+          <button type="button" class="paso__boton" data-paso="-1" aria-controls="clases" aria-label="Quitar una clase">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="3" /></svg>
+          </button>
+          <input id="clases" name="clases" type="number" inputmode="numeric" min="1" max="80" value={inicial.clasesRecomendadas} aria-describedby="clases-ayuda" />
+          <button type="button" class="paso__boton" data-paso="1" aria-controls="clases" aria-label="Añadir una clase">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="3" /></svg>
+          </button>
+        </div>
+        <p class="calc__ayuda" id="clases-ayuda">Recomendadas para el <span data-ayuda-codigo>{inicial.codigo}</span>: <strong data-ayuda-clases>{inicial.clasesRecomendadas}</strong></p>
+      </div>
+    </div>
+
+    <div class="calc__lado">
+      <div class="recibo">
+        <p class="recibo__titulo">
+          <span>Tu presupuesto</span>
+          <span class="recibo__permiso" data-recibo-permiso>{inicial.codigo} · {inicial.nombre}</span>
+        </p>
+        <dl class="recibo__lineas" data-recibo-lineas>
+          {lineas.map((l) => (
+            <div>
+              <dt>{l.etiqueta}{l.detalle && <small>{l.detalle}</small>}</dt>
+              <dd>{formatearPrecio(l.importe)}</dd>
+            </div>
+          ))}
+        </dl>
+        <p class="recibo__total" aria-live="polite" aria-atomic="true">
+          <span>Total orientativo</span>
+          <strong data-recibo-total>{formatearPrecio(total)}</strong>
+        </p>
+      </div>
+      <p class="calc__nota">{c.textos.notaPrecios}</p>
+
+      <div class="calc__datos">
+        <div class="campo">
+          <label for="nombre">Tu nombre <span>(opcional)</span></label>
+          <input id="nombre" name="nombre" type="text" autocomplete="given-name" />
+        </div>
+        <div class="campo">
+          <label for="turno">Turno de prácticas</label>
+          <select id="turno" name="turno">
+            {c.extra.turnos.map((t) => <option>{t}</option>)}
+          </select>
+        </div>
+      </div>
+      <button class="boton boton--obras boton--ancho" type="submit">
+        {c.textos.matricularme}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" /></svg>
+      </button>
+      <p class="calc__aviso">{c.textos.notaFormulario}</p>
+    </div>
+  </form>
+  <script type="application/json" id="datos-calc" set:html={JSON.stringify(datos)} />
+</section>
+
+<script>
+  import { iniciarCalculadora } from '../scripts/calculadora.ts';
+  iniciarCalculadora();
+</script>

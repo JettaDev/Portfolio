@@ -1,0 +1,42 @@
+---
+// «De la matrícula al carnet»: una carretera vertical con una señal por paso y un coche que avanza con el scroll.
+// El movimiento es CSS puro (animation-timeline); sin soporte o con movimiento reducido queda quieto y se entiende igual.
+import Rotulo from './Rotulo.astro';
+import Senal from './Senal.astro';
+import config from '../../config.ts';
+
+const c = config;
+---
+<section id="ruta" class="seccion ruta" aria-labelledby="t-ruta">
+  <div class="seccion__cabeza">
+    <Rotulo id="t-ruta" numero={3}>{c.textos.rutaTitulo}</Rotulo>
+    <p class="seccion__entradilla">{c.textos.rutaEntradilla}</p>
+  </div>
+  <div class="ruta__via">
+    <div class="ruta__asfalto" aria-hidden="true">
+      <div class="ruta__carril">
+        <svg class="ruta__coche" viewBox="0 0 40 72">
+          <!-- Coche visto desde arriba, con faros hacia abajo (el sentido de la lectura). -->
+          <rect x="3" y="2" width="34" height="68" rx="10" fill="var(--c-acento)" stroke="var(--c-texto)" stroke-width="2.5" />
+          <path d="M8 46h24l-3 10H11z" fill="var(--c-texto)" />
+          <path d="M9 24h22l-2-9H11z" fill="var(--c-texto)" />
+          <rect x="9" y="28" width="22" height="15" rx="2" fill="none" stroke="var(--c-texto)" stroke-width="2" />
+          <rect x="6" y="63" width="8" height="4" rx="1.5" fill="var(--c-fondo)" />
+          <rect x="26" y="63" width="8" height="4" rx="1.5" fill="var(--c-fondo)" />
+        </svg>
+      </div>
+    </div>
+    <ol class="ruta__pasos">
+      {c.extra.pasos.map((p, i) => (
+        <li class="hito">
+          <span class="hito__senal"><Senal nombre={p.senal} /></span>
+          <div class="hito__texto">
+            <p class="hito__km">Paso {i + 1}</p>
+            <h3>{p.titulo}</h3>
+            <p>{p.texto}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
