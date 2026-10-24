@@ -1,0 +1,87 @@
+---
+// El mesón en dos frases, con la trébede a línea de tinta (o una foto propia desde el config) y quién cocina.
+import Trebede from './Trebede.astro';
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const foto = c.extra.fotoPresentacion;
+---
+<section class="presentacion seccion" aria-labelledby="t-presentacion">
+  <div class="envoltura presentacion__rejilla">
+    <figure class="presentacion__imagen">
+      {foto ? <img src={`${base}${foto.src.replace(/^\//, '')}`} alt={foto.alt} loading="lazy" decoding="async" /> : <Trebede />}
+    </figure>
+    <div class="presentacion__texto">
+      <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.casaAntetitulo}</p>
+      <h2 id="t-presentacion" class="titulo-seccion">{c.textos.presentacionTitulo}</h2>
+      <p class="presentacion__cuerpo">{c.textos.presentacion}</p>
+      {c.equipo.length > 0 && (
+        <ul class="presentacion__equipo" aria-label="Quién está detrás">
+          {c.equipo.map((p) => (
+            <li>
+              <span class="presentacion__rol">{p.rol}</span>
+              <span class="presentacion__nombre">{p.nombre}</span>
+              {p.bio && <span class="presentacion__bio">{p.bio}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .presentacion__rejilla {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+  }
+  .presentacion__imagen {
+    margin: 0;
+    max-width: 22rem;
+    width: 80%;
+    justify-self: center;
+  }
+  .presentacion__imagen img { display: block; width: 100%; height: auto; border-radius: 2px; }
+  .presentacion__cuerpo {
+    margin: 1.25rem 0 0;
+    max-width: 52ch;
+    font-size: 1.1875rem;
+    line-height: 1.6;
+  }
+  .presentacion__cuerpo::first-letter {
+    float: left;
+    margin: 0.08em 0.12em 0 0;
+    font: 400 3.4em/0.8 var(--f-titular);
+    color: var(--c-primario);
+  }
+  .presentacion__equipo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem 2.5rem;
+    margin: 2rem 0 0;
+    padding: 1.25rem 0 0;
+    list-style: none;
+    border-top: 1.5px dashed var(--c-borde);
+  }
+  .presentacion__equipo li { display: grid; gap: 0.2rem; }
+  .presentacion__rol {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-acento);
+  }
+  .presentacion__nombre { font: 400 1.375rem/1.2 var(--f-titular); }
+  .presentacion__bio { font-size: 0.9375rem; color: var(--c-texto-suave); }
+
+  @media (min-width: 900px) {
+    .presentacion__rejilla { grid-template-columns: 5fr 7fr; gap: 5rem; }
+    .presentacion__imagen { width: 100%; max-width: 30rem; }
+  }
+</style>

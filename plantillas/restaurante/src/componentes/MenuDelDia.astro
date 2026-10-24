@@ -1,0 +1,205 @@
+---
+// Menú del día: ticket clavado con una chincheta. Se pintan todos los días en la misma celda
+// (no salta el diseño) y el script deja visible el de hoy o, si hoy no hay, el siguiente.
+import { NOMBRE_DIA } from '@comun/horario.ts';
+import { formatearPrecio } from '@comun/enlaces.ts';
+import { rangoDias, turnosDelDia } from '../lib/fechas.ts';
+import config from '../../config.ts';
+
+const c = config;
+const m = c.extra.menuDelDia;
+const platosDe = (d: (typeof m.dias)[number]) => ({
+  primeros: m.porDia?.[d]?.primeros ?? m.primeros,
+  segundos: m.porDia?.[d]?.segundos ?? m.segundos,
+  postres: m.porDia?.[d]?.postres ?? m.postres,
+});
+// ¿Se sirve solo a mediodía? Lo dice el horario de esos días.
+const soloMediodia = m.dias.every((d) => turnosDelDia(c.horario.franjas, d, 0).length <= 1);
+const cuandoPorDefecto = `${rangoDias(m.dias).replace(/^./, (x) => x.toUpperCase())}${soloMediodia ? ', a mediodía' : ''}.`;
+const grupos = [
+  ['primeros', 'Primeros'],
+  ['segundos', 'Segundos'],
+  ['postres', 'Postre'],
+] as const;
+---
+<div
+  class="mdd"
+  id="menu-del-dia"
+  data-mdd
+  data-dias={JSON.stringify(m.dias)}
+  data-cierres={JSON.stringify(c.horario.cierres ?? [])}
+  data-sin-hoy={c.textos.menuDelDiaSinHoy}
+  data-sufijo={soloMediodia ? ' · a mediodía' : ''}
+>
+  <svg class="mdd__chincheta" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+    <ellipse cx="27" cy="38" rx="9" ry="3" fill="var(--c-texto)" opacity="0.18" />
+    <path d="M24 26v14" stroke="var(--c-texto-suave)" stroke-width="2.5" stroke-linecap="round" />
+    <path d="M14 22c0-3 4-5 10-5s10 2 10 5-4 5-10 5-10-2-10-5Z" fill="var(--c-primario)" />
+    <path d="M18 18c0-5 2.5-10 6-10s6 5 6 10" fill="var(--c-primario)" />
+    <circle cx="24" cy="10" r="7" fill="var(--c-primario)" />
+    <circle cx="21.5" cy="7.5" r="2.2" fill="var(--c-superficie)" opacity="0.55" />
+  </svg>
+
+  <div class="ticket-sombra">
+    <article class="ticket mdd__ticket" aria-labelledby="mdd-titulo">
+      <header class="mdd__cabeza">
+        <p class="mdd__casa">{c.negocio.nombre}</p>
+        <h2 id="mdd-titulo" class="mdd__titulo">{c.textos.menuDelDiaTitulo}</h2>
+        <p class="mdd__cuando" data-mdd-cuando>{cuandoPorDefecto}</p>
+      </header>
+
+      <div class="perforado"></div>
+
+      <div class="mdd__dias">
+        {m.dias.map((d, i) => {
+          const p = platosDe(d);
+          return (
+            <div class="mdd__dia" data-dia={d} data-activo={i === 0 ? '' : undefined}>
+              <p class="sr">{NOMBRE_DIA[d]}</p>
+              {grupos.map(([clave, nombre]) => (
+                <section class="mdd__grupo">
+                  <h3>{nombre}</h3>
+                  <ul>{p[clave].map((x) => <li>{x}</li>)}</ul>
+                </section>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      <div class="perforado"></div>
+
+      <p class="mdd__precio">
+        <span>Precio</span>
+        <span class="puntos" aria-hidden="true"></span>
+        <strong>{formatearPrecio(m.precio)}</strong>
+      </p>
+      <p class="mdd__incluye">Incluye {m.incluye.replace(/^./, (x) => x.toLowerCase())}.</p>
+    </article>
+  </div>
+</div>
+
+<script>
+  import { NOMBRE_DIA, ahoraEnMadrid } from '@comun/horario.ts';
+  import type { Cierre, Dia } from '@comun/tipos.ts';
+  import { cierreDe, diaDeFecha, fechaLarga, sumarDias } from '../lib/fechas.ts';
+
+  const raiz = document.querySelector<HTMLElement>('[data-mdd]');
+  if (raiz) {
+    const dias = JSON.parse(raiz.dataset.dias ?? '[]') as Dia[];
+    const cierres = JSON.parse(raiz.dataset.cierres ?? '[]') as Cierre[];
+    const { iso } = ahoraEnMadrid();
+    const sirve = (f: string) => dias.includes(diaDeFecha(f)) && !cierreDe(f, cierres);
+
+    // Hoy o el próximo día con menú (hasta un mes vista, por si hay vacaciones).
+    let n = 0;
+    while (n < 31 && !sirve(sumarDias(iso, n))) n++;
+    if (n < 31) {
+      const fecha = sumarDias(iso, n);
+      const dia = diaDeFecha(fecha);
+      for (const el of raiz.querySelectorAll<HTMLElement>('[data-dia]')) el.toggleAttribute('data-activo', el.dataset.dia === dia);
+      const cuando = raiz.querySelector<HTMLElement>('[data-mdd-cuando]');
+      if (cuando) {
+        const nombre = NOMBRE_DIA[dia].toLowerCase();
+        cuando.textContent = n === 0
+          ? `Hoy, ${fechaLarga(fecha)}${raiz.dataset.sufijo ?? ''}.`
+          : `${raiz.dataset.sinHoy}. Vuelve ${n === 1 ? 'mañana' : `el ${nombre}`}; este es el suyo:`;
+        raiz.toggleAttribute('data-sin-hoy-activo', n > 0);
+      }
+    }
+  }
+</script>
+
+<style is:global>
+  .mdd {
+    position: relative;
+    width: min(100%, 24rem);
+    margin-inline: auto;
+    padding-top: 1.25rem;
+    transform: rotate(-1.2deg);
+  }
+  .mdd__chincheta {
+    position: absolute;
+    z-index: 2;
+    top: -0.35rem;
+    left: 50%;
+    width: 3rem;
+    height: 3rem;
+    translate: -50% 0;
+  }
+  .mdd__ticket { padding-top: 2.4rem; }
+  .mdd__cabeza { text-align: center; }
+  .mdd__casa {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--c-texto-suave);
+  }
+  .mdd__titulo {
+    margin-top: 0.35rem;
+    font-size: 2rem;
+    color: var(--c-primario);
+  }
+  .mdd__cuando {
+    min-height: 3em;
+    margin: 0.5rem auto 0;
+    max-width: 26ch;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--c-texto-suave);
+  }
+  [data-sin-hoy-activo] .mdd__cuando { color: var(--c-texto); font-weight: 600; }
+
+  /* Todos los días en la misma celda: la altura es la del más largo y no hay saltos. */
+  .mdd__dias { display: grid; }
+  .mdd__dia { grid-area: 1 / 1; visibility: hidden; }
+  .mdd__dia[data-activo] { visibility: visible; }
+  .mdd__grupo + .mdd__grupo { margin-top: 0.9rem; }
+  .mdd__grupo h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.3rem;
+    font: 700 0.75rem/1.2 var(--f-texto);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-acento);
+  }
+  .mdd__grupo h3::after { content: ''; flex: 1; border-top: 1.5px dashed var(--c-borde); }
+  .mdd__grupo ul { margin: 0; padding: 0; list-style: none; }
+  .mdd__grupo li { padding: 0.15rem 0; line-height: 1.4; }
+
+  .mdd__precio {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+    font-weight: 600;
+  }
+  .mdd__precio strong {
+    font: 400 2rem/1 var(--f-titular);
+    color: var(--c-primario);
+  }
+  .mdd__incluye {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--c-texto-suave);
+  }
+  .puntos {
+    flex: 1;
+    min-width: 1rem;
+    border-bottom: 2px dotted var(--c-borde);
+    transform: translateY(-0.3em);
+  }
+
+  @media (min-width: 900px) {
+    .mdd { width: 100%; max-width: 25rem; transform: rotate(1.2deg); margin-top: 1rem; }
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .mdd { transition: transform 0.5s cubic-bezier(0.3, 1.4, 0.5, 1); }
+    .mdd:hover { transform: rotate(0deg); }
+  }
+</style>

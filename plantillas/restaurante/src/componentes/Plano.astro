@@ -1,0 +1,53 @@
+---
+// Plano dibujado a mano (decorativo): calles sin nombre, la ruta a pie y el punto del mesón.
+// No es un mapa real: el botón «Cómo llegar» abre Google Maps.
+---
+<svg class="plano" viewBox="0 0 400 300" aria-hidden="true" focusable="false">
+  <rect x="0.75" y="0.75" width="398.5" height="298.5" fill="var(--c-superficie)" stroke="var(--c-borde)" stroke-width="1.5" />
+  <!-- Manzanas -->
+  <g fill="var(--c-papel-oscuro)">
+    <path d="M24 22h104l-8 70H24Z" />
+    <path d="M152 22h96l4 64-104 10Z" />
+    <path d="M276 22h100v86l-118 4Z" />
+    <path d="M24 120h92l-6 72H24Z" />
+    <path d="M140 124l112-6 4 74H136Z" />
+    <path d="M280 136h96v58h-94Z" />
+    <path d="M24 220h84v58H24Z" />
+    <path d="M132 220h120v58H132Z" />
+    <path d="M276 220h100v58H276Z" />
+  </g>
+  <!-- Plaza -->
+  <rect x="140" y="124" width="58" height="68" fill="var(--c-superficie)" stroke="var(--c-borde)" stroke-width="1.5" stroke-dasharray="3 4" />
+  <g fill="var(--c-acento)" opacity="0.75">
+    <circle cx="156" cy="140" r="5" /><circle cx="182" cy="140" r="5" /><circle cx="156" cy="176" r="5" /><circle cx="182" cy="176" r="5" />
+  </g>
+  <!-- Aparcamiento -->
+  <g>
+    <rect x="300" y="236" width="26" height="26" rx="3" fill="var(--c-texto)" />
+    <path d="M309 255v-12h5a3.5 3.5 0 0 1 0 7h-5" fill="none" stroke="var(--c-superficie)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <!-- Ruta a pie -->
+  <path class="plano__ruta" d="M313 236v-30h-50l-6-92-6-4" fill="none" stroke="var(--c-primario)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 9" />
+  <!-- El mesón -->
+  <g transform="translate(250 104)">
+    <circle r="22" fill="var(--c-primario)" opacity="0.14" class="plano__onda" />
+    <path d="M0 6s-12-10-12-19a12 12 0 0 1 24 0C12-4 0 6 0 6Z" fill="var(--c-primario)" />
+    <circle cy="-13" r="4.5" fill="var(--c-superficie)" />
+  </g>
+  <!-- Norte -->
+  <g transform="translate(366 268)" fill="none" stroke="var(--c-texto)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 10V-10M-5-4 0-10l5 6" />
+  </g>
+</svg>
+
+<style is:global>
+  .plano { display: block; width: 100%; height: auto; }
+  .plano__onda { transform-box: fill-box; transform-origin: center; animation: onda 2.6s ease-out infinite; }
+  @keyframes onda {
+    from { transform: scale(0.5); opacity: 0.35; }
+    to { transform: scale(1.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .plano__onda { animation: none; }
+  }
+</style>

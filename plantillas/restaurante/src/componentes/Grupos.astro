@@ -1,0 +1,143 @@
+---
+// Grupos y celebraciones: los menús cerrados como una carta plegada en columnas.
+// «Elegir este menú» lleva a la comanda ya en modo grupo y con el menú marcado.
+import { formatearPrecio } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+const x = c.extra;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+---
+{x.menusGrupo.length > 0 && (
+  <section id="grupos" class="grupos seccion" aria-labelledby="t-grupos">
+    <div class="envoltura">
+      <div class="grupos__cabeza">
+        <div>
+          <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.gruposAntetitulo}</p>
+          <h2 id="t-grupos" class="titulo-seccion">{c.textos.gruposTitulo}</h2>
+        </div>
+        <div>
+          <p class="entradilla">{c.textos.gruposEntradilla}</p>
+          <p class="grupos__minimo">Desde {x.umbralGrupo} personas · precios por persona, IVA incluido</p>
+          {x.pdfGrupos && (
+            <a class="boton grupos__pdf" href={`${base}${x.pdfGrupos.replace(/^\//, '')}`} download>Descargar los menús (PDF)</a>
+          )}
+        </div>
+      </div>
+
+      <ol class="grupos__lista">
+        {x.menusGrupo.map((m, i) => (
+          <li class="menu-grupo">
+            <p class="menu-grupo__n" aria-hidden="true">{ROMANOS[i] ?? i + 1}</p>
+            <h3 class="menu-grupo__nombre">{m.nombre}</h3>
+            <p class="menu-grupo__precio">{formatearPrecio(m.precio)}<span> / persona</span></p>
+            <p class="menu-grupo__desc">{m.descripcion}</p>
+            {m.platos && m.platos.length > 0 && (
+              <ul class="menu-grupo__platos">{m.platos.map((p) => <li>{p}</li>)}</ul>
+            )}
+            <a class="menu-grupo__elegir" href="#reserva" data-elegir-menu={i}>
+              Elegir este menú<span class="sr">: {m.nombre}</span><Icono id="i-flecha" />
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+)}
+
+<style is:global>
+  .grupos__cabeza { display: grid; gap: 0.5rem; }
+  .grupos__minimo {
+    margin: 1rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-acento);
+  }
+  .grupos__pdf { margin-top: 1.25rem; }
+  .grupos__lista {
+    display: grid;
+    margin: 2.5rem 0 0;
+    padding: 0.5rem 1.25rem;
+    list-style: none;
+    background: var(--c-superficie);
+    border: 1px solid var(--c-borde);
+    outline: 1px solid var(--c-borde);
+    outline-offset: -8px;
+  }
+  .menu-grupo {
+    display: flex;
+    flex-direction: column;
+    padding: 1.75rem 0.5rem;
+  }
+  .menu-grupo + .menu-grupo { border-top: 1.5px dashed var(--c-borde); }
+  .menu-grupo__n {
+    margin: 0;
+    font: 400 0.9375rem/1 var(--f-titular);
+    color: var(--c-acento);
+    letter-spacing: 0.1em;
+  }
+  .menu-grupo__nombre { margin-top: 0.5rem; font-size: 1.75rem; }
+  .menu-grupo__precio {
+    margin: 0.75rem 0 0;
+    font: 400 2.5rem/1 var(--f-titular);
+    color: var(--c-primario);
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .menu-grupo__precio span { font: 500 0.9375rem var(--f-texto); color: var(--c-texto-suave); }
+  .menu-grupo__desc { margin: 0.75rem 0 0; color: var(--c-texto-suave); }
+  .menu-grupo__platos {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.45rem;
+  }
+  .menu-grupo__platos li {
+    position: relative;
+    padding-left: 1.1rem;
+    line-height: 1.45;
+  }
+  .menu-grupo__platos li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.4rem;
+    height: 0.4rem;
+    background: var(--c-primario);
+    transform: rotate(45deg);
+  }
+  .menu-grupo__elegir {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    align-self: flex-start;
+    min-height: 44px;
+    margin-top: auto;
+    padding-top: 1.25rem;
+    font-weight: 700;
+    color: var(--c-primario);
+    text-decoration: none;
+  }
+  .menu-grupo__elegir:hover { text-decoration: underline; }
+  .menu-grupo__elegir .icono { transition: transform 0.2s ease; }
+  .menu-grupo__elegir:hover .icono { transform: translateX(4px); }
+
+  @media (min-width: 900px) {
+    .grupos__cabeza { grid-template-columns: 5fr 6fr; gap: 5rem; align-items: end; }
+    .grupos__cabeza .entradilla { margin-top: 0; }
+    .grupos__lista {
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      grid-auto-flow: column;
+      padding: 1.5rem 0;
+    }
+    .menu-grupo { padding: 1.5rem 2.5rem 1.25rem; }
+    .menu-grupo + .menu-grupo { border-top: 0; border-left: 1.5px dashed var(--c-borde); }
+  }
+</style>

@@ -1,0 +1,9 @@
+---
+// Icono del sprite (ver Iconos.astro). Siempre decorativo: el texto va al lado o en .sr.
+interface Props {
+  id: string;
+  class?: string;
+}
+const { id, class: clase } = Astro.props;
+---
+<svg class:list={['icono', clase]} aria-hidden="true" focusable="false"><use href={`#${id}`} /></svg>

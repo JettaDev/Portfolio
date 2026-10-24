@@ -1,0 +1,147 @@
+---
+// Horario (#horario) día a día con el de hoy marcado, cierres por vacaciones y cómo llegar.
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { DIAS, NOMBRE_DIA } from '@comun/horario.ts';
+import { enlaceTelefono } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import Plano from './Plano.astro';
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+const d = c.contacto.direccion;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const aMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
+const horasDe = (dia: (typeof DIAS)[number]) =>
+  c.horario.franjas
+    .filter((f) => f.dias.includes(dia))
+    .sort((a, b) => aMin(a.abre) - aMin(b.abre))
+    .map((f) => `${f.abre}–${f.cierra}`);
+const fecha = (iso: string) =>
+  new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+const hoyIso = new Date().toISOString().slice(0, 10);
+const cierres = (c.horario.cierres ?? []).filter((ci) => ci.hasta >= hoyIso);
+---
+<section id="horario" class="horario seccion" aria-labelledby="t-horario">
+  <div class="envoltura">
+    <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.horarioAntetitulo}</p>
+    <div class="horario__rejilla">
+      <div class="horario__tabla">
+        <h2 id="t-horario" class="titulo-seccion">{c.textos.horarioTitulo}</h2>
+        <p class="horario__estado"><EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} porDefecto="Consulta el horario" /></p>
+        <table data-tabla-horario>
+          <caption class="sr">Horario por días de la semana</caption>
+          <tbody>
+            {DIAS.map((dia) => {
+              const h = horasDe(dia);
+              return (
+                <tr data-dia={dia} class:list={{ cerrado: !h.length }}>
+                  <th scope="row">{NOMBRE_DIA[dia]}<span class="hoy-marca"> hoy</span></th>
+                  <td>{h.length ? h.map((x, i) => <>{i > 0 && <span class="horario__y"> y </span>}<span class="horario__franja">{x}</span></>) : 'Cerrado'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {c.horario.nota && <p class="horario__nota">{c.horario.nota}</p>}
+        {cierres.map((ci) => (
+          <p class="horario__cierre"><strong>Cerrado del {fecha(ci.desde)} al {fecha(ci.hasta)}</strong> por {ci.motivo}.</p>
+        ))}
+      </div>
+
+      <div class="llegar">
+        <h2 class="llegar__titulo">{c.textos.llegarTitulo}</h2>
+        <address class="llegar__direccion">
+          {d.calle}<br />{d.codigoPostal} {d.localidad}
+        </address>
+        {c.contacto.comoLlegar && <p class="llegar__pista">{c.contacto.comoLlegar}</p>}
+        <div class="llegar__acciones">
+          <a class="boton boton--primario" href={c.contacto.mapsUrl} target="_blank" rel="noopener"><Icono id="i-pin" />Abrir en Google Maps</a>
+          <a class="boton" href={enlaceTelefono(c.contacto.telefono)}><Icono id="i-telefono" />Llamar · {c.contacto.telefonoVisible}</a>
+          <a class="boton" href={`${base}contacto.vcf`} download><Icono id="i-contacto" />Añadir a contactos</a>
+        </div>
+      </div>
+
+      <a class="horario__plano" href={c.contacto.mapsUrl} target="_blank" rel="noopener" aria-label={`Ver ${d.calle} en Google Maps`}>
+        <Plano />
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { ahoraEnMadrid } from '@comun/horario.ts';
+  const fila = document.querySelector<HTMLElement>(`[data-tabla-horario] tr[data-dia="${ahoraEnMadrid().dia}"]`);
+  if (fila) fila.dataset.hoy = '';
+</script>
+
+<style is:global>
+  .horario { padding-top: calc(var(--seccion) * 0.6); }
+  .horario__rejilla { display: grid; gap: 3rem; }
+  .horario__estado { margin: 0.75rem 0 1.25rem; font-weight: 600; }
+  .horario table { width: 100%; border-collapse: collapse; font-variant-numeric: lining-nums tabular-nums; }
+  .horario th, .horario td {
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--c-borde);
+    text-align: left;
+    vertical-align: baseline;
+  }
+  .horario th { font-weight: 600; width: 42%; }
+  .horario td { text-align: right; }
+  .horario__franja { display: block; white-space: nowrap; }
+  .horario__y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .horario tr.cerrado td, .horario tr.cerrado th { color: var(--c-texto-suave); font-weight: 400; }
+  .hoy-marca {
+    display: none;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 2px;
+    background: var(--c-primario);
+    color: var(--c-texto-sobre-primario);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    vertical-align: 0.15em;
+  }
+  .horario tr[data-hoy] { background: var(--c-superficie); }
+  .horario tr[data-hoy] th { padding-left: 0.6rem; }
+  .horario tr[data-hoy] td { padding-right: 0.6rem; }
+  .horario tr[data-hoy] .hoy-marca { display: inline-block; }
+  .horario__nota { margin: 1rem 0 0; font-size: 0.9375rem; color: var(--c-texto-suave); }
+  .horario__cierre {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--c-primario);
+    background: var(--c-superficie);
+    font-size: 0.9375rem;
+  }
+
+  .llegar__titulo { font-size: clamp(1.75rem, 1.4rem + 1.5vw, 2.25rem); }
+  .llegar__direccion {
+    margin-top: 1rem;
+    font: 400 1.5rem/1.3 var(--f-titular);
+    font-style: normal;
+  }
+  .llegar__pista { margin: 0.75rem 0 0; color: var(--c-texto-suave); max-width: 40ch; }
+  .llegar__acciones { display: grid; gap: 0.6rem; margin-top: 1.5rem; justify-items: stretch; }
+  .llegar__acciones .boton { justify-content: flex-start; }
+
+  .horario__plano {
+    display: block;
+    align-self: start;
+    transform: rotate(-1deg);
+    box-shadow: var(--sombra-papel);
+    transition: transform 0.3s ease;
+  }
+  .horario__plano:hover { transform: rotate(0deg); }
+
+  @media (min-width: 900px) {
+    .horario__rejilla { grid-template-columns: minmax(0, 4fr) minmax(0, 3.4fr) minmax(0, 4fr); gap: 4rem; }
+    .llegar__titulo { margin-top: 0.4rem; }
+    .horario__plano { margin-top: 0.5rem; }
+  }
+</style>

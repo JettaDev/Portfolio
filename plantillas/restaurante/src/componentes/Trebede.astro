@@ -1,0 +1,76 @@
+---
+// Ilustración a línea de tinta: cazuela de barro sobre una trébede, con leña y brasas.
+// Decorativa (aria-hidden). Colores con las variables del tema.
+interface Props {
+  class?: string;
+}
+const { class: clase } = Astro.props;
+---
+<svg class:list={['trebede', clase]} viewBox="0 0 360 300" aria-hidden="true" focusable="false">
+  <g fill="none" stroke="var(--c-texto)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Vapor -->
+    <g class="trebede__vapor" stroke="var(--c-texto-suave)" stroke-width="2">
+      <path d="M148 72c-9-9 9-17 0-26s9-17 0-26" />
+      <path d="M180 66c-9-9 9-17 0-26s9-17 0-26" />
+      <path d="M212 72c-9-9 9-17 0-26s9-17 0-26" />
+    </g>
+
+    <!-- Aro trasero de la trébede -->
+    <path d="M68 168a112 20 0 0 1 224 0" stroke-width="4" />
+
+    <!-- Cazuela -->
+    <path d="M88 96c2 31 18 53 40 61h104c22-8 38-30 40-61Z" fill="var(--c-papel-oscuro)" />
+    <path d="M96 120c52 15 116 15 168 0" stroke-dasharray="2 7" />
+    <path d="M110 140c40 9 100 9 140 0" stroke-dasharray="2 7" />
+    <path d="M88 101c-15-1-20 13-6 18" />
+    <path d="M272 101c15-1 20 13 6 18" />
+    <ellipse cx="180" cy="96" rx="92" ry="16" fill="var(--c-superficie)" />
+    <ellipse cx="180" cy="97.5" rx="78" ry="10" fill="var(--c-primario)" stroke="none" />
+    <path d="M140 95c6-3 12-3 18 0M196 99c6-3 12-3 18 0" stroke="var(--c-superficie)" stroke-width="2" />
+
+    <!-- Aro delantero y patas -->
+    <path d="M68 168a112 20 0 0 0 224 0" stroke-width="4" />
+    <path d="M76 178 62 262h-8M284 178l14 84h8M180 188v80h8" stroke-width="4" />
+
+    <!-- Leña y brasas -->
+    <path d="M112 266l66-13M248 266l-66-13" stroke-width="9" />
+    <path d="M112 266l66-13M248 266l-66-13" stroke="var(--c-papel-oscuro)" stroke-width="4" />
+    <g class="trebede__llamas" stroke="var(--c-primario)" fill="var(--c-primario)" stroke-width="1.6">
+      <path d="M160 246c-8-9 2-15-2-25 11 7 14 16 8 25Z" />
+      <path d="M182 244c-9-12 4-19-1-31 13 9 16 21 9 31Z" />
+      <path d="M204 247c-7-8 2-13-1-21 9 6 12 14 7 21Z" />
+    </g>
+    <g fill="var(--c-acento)" stroke="none">
+      <circle cx="146" cy="258" r="2.6" />
+      <circle cx="222" cy="257" r="2.6" />
+      <circle cx="196" cy="262" r="2" />
+    </g>
+
+    <!-- Suelo -->
+    <path d="M24 272h312" />
+    <path d="M40 280l-6 6M70 280l-6 6M100 280l-6 6M262 280l-6 6M292 280l-6 6M322 280l-6 6" stroke-width="1.6" />
+  </g>
+</svg>
+
+<style is:global>
+  .trebede { display: block; width: 100%; height: auto; }
+  .trebede__vapor path {
+    transform-box: fill-box;
+    animation: vapor 6s ease-in-out infinite;
+  }
+  .trebede__vapor path:nth-child(2) { animation-delay: -2s; }
+  .trebede__vapor path:nth-child(3) { animation-delay: -4s; }
+  .trebede__llamas path { transform-box: fill-box; transform-origin: 50% 100%; animation: llama 2.4s ease-in-out infinite alternate; }
+  .trebede__llamas path:nth-child(2) { animation-delay: -0.8s; }
+  .trebede__llamas path:nth-child(3) { animation-delay: -1.6s; }
+  @keyframes vapor {
+    0%, 100% { transform: translateY(0); opacity: 0.9; }
+    50% { transform: translateY(-7px); opacity: 0.35; }
+  }
+  @keyframes llama {
+    to { transform: scaleY(0.86) skewX(-3deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .trebede__vapor path, .trebede__llamas path { animation: none; }
+  }
+</style>

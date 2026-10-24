@@ -1,0 +1,454 @@
+---
+// La carta como una carta impresa: pestañas por categoría, puntos guía hasta el precio
+// y un filtro «Soy alérgico a…» con los 14 alérgenos de la UE que oculta platos y anuncia cuántos quedan.
+import { formatearPrecio } from '@comun/enlaces.ts';
+import Icono from './Icono.astro';
+import { ALERGENOS, NOMBRE_ALERGENO } from '../datos/alergenos.ts';
+import config from '../../config.ts';
+
+interface Props {
+  n: string;
+}
+const { n } = Astro.props;
+const c = config;
+const cats = c.catalogo.categorias.filter((cat) => c.catalogo.items.some((i) => i.categoria === cat.id));
+const RACION = { tapa: 'Tapa', media: 'Media ración', entera: 'Ración' } as const;
+const total = c.catalogo.items.length;
+---
+<section id="carta" class="carta seccion" aria-labelledby="t-carta" data-carta data-total={total}>
+  <div class="envoltura carta__rejilla">
+    <div class="carta__lado">
+      <p class="antetitulo"><span class="antetitulo__n">{n}</span>{c.textos.cartaAntetitulo}</p>
+      <h2 id="t-carta" class="titulo-seccion">{c.catalogo.titulo}</h2>
+      <p class="entradilla">{c.textos.cartaEntradilla}</p>
+
+      <div class="carta__pestanas" role="tablist" aria-label={`Secciones de ${c.catalogo.titulo.toLowerCase()}`}>
+        {cats.map((cat, i) => (
+          <button
+            type="button"
+            role="tab"
+            class="pestana"
+            id={`tab-${cat.id}`}
+            aria-controls={`panel-${cat.id}`}
+            aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1}
+          >
+            <span>{cat.nombre}</span>
+            <span class="pestana__n" data-n={cat.id}>{c.catalogo.items.filter((it) => it.categoria === cat.id).length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div class="filtro">
+        <button type="button" class="filtro__boton" aria-expanded="false" aria-controls="filtro-alergenos" data-filtro-boton>
+          <Icono id="i-filtro" />
+          <span>Soy alérgico a…</span>
+          <span class="filtro__cuenta" data-filtro-cuenta hidden></span>
+        </button>
+        <div class="filtro__panel" id="filtro-alergenos" hidden>
+          <fieldset>
+            <legend>Oculta los platos que lleven:</legend>
+            <div class="filtro__chips">
+              {ALERGENOS.map((a) => (
+                <label class="chip">
+                  <input type="checkbox" name="alergeno" value={a.id} />
+                  <Icono id={`al-${a.id}`} />
+                  <span>{a.nombre}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <button type="button" class="filtro__limpiar" data-filtro-limpiar>Quitar el filtro</button>
+        </div>
+        <p class="filtro__estado" role="status" aria-live="polite" data-carta-estado>{total} platos y bebidas en la carta.</p>
+      </div>
+      <p class="carta__aviso">{c.textos.alergenosAviso}</p>
+    </div>
+
+    <div class="carta__paneles">
+      {cats.map((cat, i) => (
+        <div class="panel" role="tabpanel" id={`panel-${cat.id}`} aria-labelledby={`tab-${cat.id}`} tabindex="0" hidden={i > 0}>
+          <header class="panel__cabeza">
+            <h3>{cat.nombre}</h3>
+            {cat.descripcion && <p>{cat.descripcion}</p>}
+          </header>
+          <ul class="platos">
+            {c.catalogo.items.filter((it) => it.categoria === cat.id).map((it) => (
+              <li class="plato" data-alergenos={it.alergenos.join(' ')}>
+                <div class="plato__linea">
+                  <h4 class="plato__nombre">
+                    {it.nombre}
+                    {it.destacado && <span class="sello">De la casa</span>}
+                  </h4>
+                  <span class="puntos" aria-hidden="true"></span>
+                  <span class="plato__precio">{formatearPrecio(it.precio, it.desde)}</span>
+                </div>
+                {(it.descripcion || it.racion) && (
+                  <p class="plato__desc">
+                    {it.racion && <span class="plato__racion">{RACION[it.racion]}</span>}
+                    {it.descripcion}
+                  </p>
+                )}
+                {it.alergenos.length > 0 ? (
+                  <ul class="plato__alergenos" aria-label="Alérgenos">
+                    {it.alergenos.map((a) => <li><Icono id={`al-${a}`} />{NOMBRE_ALERGENO[a]}</li>)}
+                  </ul>
+                ) : (
+                  <p class="plato__sin">Sin alérgenos declarados</p>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p class="panel__vacio" data-vacio hidden>Con ese filtro no queda nada en esta sección. Mira en otra o pregúntanos al reservar.</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  const raiz = document.querySelector<HTMLElement>('[data-carta]');
+  if (raiz) {
+    // ── Pestañas (patrón ARIA: flechas, Inicio y Fin) ──
+    const tabs = [...raiz.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const elegir = (tab: HTMLButtonElement, foco = false) => {
+      for (const t of tabs) {
+        const activa = t === tab;
+        t.setAttribute('aria-selected', String(activa));
+        t.tabIndex = activa ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')!)!.hidden = !activa;
+      }
+      if (foco) tab.focus();
+      tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    };
+    for (const t of tabs) {
+      t.addEventListener('click', () => elegir(t));
+      t.addEventListener('keydown', (ev) => {
+        const i = tabs.indexOf(t);
+        const destino = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: tabs.length - 1 }[ev.key];
+        if (destino === undefined) return;
+        ev.preventDefault();
+        elegir(tabs[(destino + tabs.length) % tabs.length], true);
+      });
+    }
+
+    // ── Filtro de alérgenos ──
+    const boton = raiz.querySelector<HTMLButtonElement>('[data-filtro-boton]')!;
+    const panel = document.getElementById(boton.getAttribute('aria-controls')!)!;
+    const cuenta = raiz.querySelector<HTMLElement>('[data-filtro-cuenta]')!;
+    const estado = raiz.querySelector<HTMLElement>('[data-carta-estado]')!;
+    const casillas = [...raiz.querySelectorAll<HTMLInputElement>('input[name="alergeno"]')];
+    const platos = [...raiz.querySelectorAll<HTMLElement>('.plato')];
+    const total = platos.length;
+
+    const abrirPanel = (abrir: boolean) => {
+      boton.setAttribute('aria-expanded', String(abrir));
+      panel.hidden = !abrir;
+    };
+    boton.addEventListener('click', () => abrirPanel(panel.hidden));
+    panel.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape') return;
+      abrirPanel(false);
+      boton.focus();
+    });
+
+    const lista = (n: string[]) => (n.length > 1 ? `${n.slice(0, -1).join(', ')} o ${n.at(-1)}` : n[0]);
+    const aplicar = () => {
+      const marcados = casillas.filter((x) => x.checked);
+      const fuera = new Set(marcados.map((x) => x.value));
+      let quedan = 0;
+      for (const p of platos) {
+        const oculto = (p.dataset.alergenos ?? '').split(' ').some((a) => fuera.has(a));
+        p.hidden = oculto;
+        if (!oculto) quedan++;
+      }
+      for (const pn of raiz.querySelectorAll<HTMLElement>('[role="tabpanel"]')) {
+        const n = pn.querySelectorAll('.plato:not([hidden])').length;
+        pn.querySelector<HTMLElement>('[data-vacio]')!.hidden = n > 0;
+        const id = pn.id.replace('panel-', '');
+        raiz.querySelector<HTMLElement>(`[data-n="${id}"]`)!.textContent = String(n);
+      }
+      cuenta.hidden = !marcados.length;
+      cuenta.textContent = String(marcados.length);
+      const nombres = marcados.map((x) => x.parentElement!.textContent!.trim().toLowerCase());
+      estado.textContent = marcados.length
+        ? `Ocultos los platos con ${lista(nombres)}: quedan ${quedan} de ${total}.`
+        : `${total} platos y bebidas en la carta.`;
+    };
+    for (const x of casillas) x.addEventListener('change', aplicar);
+    raiz.querySelector('[data-filtro-limpiar]')!.addEventListener('click', () => {
+      for (const x of casillas) x.checked = false;
+      aplicar();
+      casillas[0]?.focus();
+    });
+    // Si el navegador recordó casillas marcadas al volver atrás.
+    if (casillas.some((x) => x.checked)) aplicar();
+  }
+</script>
+
+<style is:global>
+  .carta { background: var(--c-superficie); border-block: 1px solid var(--c-borde); }
+  .carta__rejilla { display: grid; gap: 1.5rem; }
+  .carta__lado { min-width: 0; }
+
+  /* Pestañas: fila desplazable en móvil, índice vertical en escritorio. */
+  .carta__pestanas {
+    display: flex;
+    gap: 0.4rem;
+    margin: 1.75rem calc(-1 * var(--margen)) 0;
+    padding: 0.25rem var(--margen) 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .carta__pestanas::-webkit-scrollbar { display: none; }
+  .pestana {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border: 1.5px solid var(--c-borde);
+    border-radius: 3px;
+    background: var(--c-fondo);
+    color: var(--c-texto);
+    font: 600 0.9375rem/1 var(--f-texto);
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+  }
+  .pestana:hover { border-color: var(--c-texto); }
+  .pestana[aria-selected='true'] {
+    background: var(--c-texto);
+    border-color: var(--c-texto);
+    color: var(--c-fondo);
+  }
+  .pestana__n {
+    min-width: 1.5em;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-variant-numeric: lining-nums tabular-nums;
+    opacity: 0.8;
+  }
+
+  /* Filtro de alérgenos */
+  .filtro { margin-top: 1rem; }
+  .filtro__boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 44px;
+    padding: 0 1rem 0 0.8rem;
+    border: 1.5px dashed var(--c-acento);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--c-acento);
+    font: 700 0.9375rem/1 var(--f-texto);
+    cursor: pointer;
+  }
+  .filtro__boton[aria-expanded='true'] { border-style: solid; background: var(--c-fondo); }
+  .filtro__cuenta {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.35rem;
+    border-radius: 99px;
+    background: var(--c-acento);
+    color: var(--c-superficie);
+    font-size: 0.8125rem;
+  }
+  .filtro__panel { margin-top: 0.75rem; }
+  .filtro__panel fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .filtro__panel legend { padding: 0; margin-bottom: 0.6rem; font-size: 0.9375rem; font-weight: 600; }
+  .filtro__chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+  .chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.35rem 0.65rem;
+    border: 1.5px solid var(--c-borde);
+    border-radius: 3px;
+    background: var(--c-fondo);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+  }
+  .chip input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .chip .icono { color: var(--c-acento); }
+  .chip:hover { border-color: var(--c-texto); }
+  .chip:has(input:checked) {
+    background: var(--c-primario);
+    border-color: var(--c-primario);
+    color: var(--c-texto-sobre-primario);
+  }
+  .chip:has(input:checked) .icono { color: currentColor; }
+  .chip:has(input:focus-visible) { outline: 3px solid var(--c-primario); outline-offset: 2px; }
+  .filtro__limpiar {
+    min-height: 44px;
+    margin-top: 0.5rem;
+    padding: 0 0.25rem;
+    border: 0;
+    background: none;
+    color: var(--c-primario);
+    font: 600 0.9375rem/1 var(--f-texto);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+  .filtro__estado { margin: 0.75rem 0 0; font-size: 0.9375rem; color: var(--c-texto-suave); }
+  .carta__aviso {
+    margin: 1rem 0 0;
+    padding-left: 0.85rem;
+    border-left: 3px solid var(--c-acento);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--c-texto-suave);
+    max-width: 46ch;
+  }
+
+  /* Paneles: la carta impresa */
+  .panel { outline-offset: 6px; }
+  .panel__cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 4px double var(--c-texto);
+  }
+  .panel__cabeza h3 { font-size: 1.75rem; color: var(--c-primario); }
+  .panel__cabeza p { margin: 0; color: var(--c-texto-suave); font-size: 0.9375rem; }
+  .platos { margin: 0; padding: 0; list-style: none; }
+  .plato {
+    padding: 1.1rem 0 1rem;
+    border-bottom: 1px dashed var(--c-borde);
+  }
+  .plato__linea { display: flex; align-items: baseline; gap: 0.5rem; }
+  .plato__nombre {
+    font: 600 1.0625rem/1.35 var(--f-texto);
+    letter-spacing: 0;
+    text-wrap: pretty;
+  }
+  .sello {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    border: 1.5px solid var(--c-primario);
+    border-radius: 2px;
+    color: var(--c-primario);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    vertical-align: 0.15em;
+    white-space: nowrap;
+    transform: rotate(-2deg);
+  }
+  .plato .puntos {
+    flex: 1;
+    min-width: 1.5rem;
+    border-bottom: 2px dotted var(--c-borde);
+    transform: translateY(-0.3em);
+    transition: border-color 0.2s;
+  }
+  .plato:hover .puntos { border-color: var(--c-primario); }
+  .plato__precio {
+    flex: none;
+    min-width: 4.5ch;
+    text-align: right;
+    font: 400 1.1875rem/1 var(--f-titular);
+    font-variant-numeric: lining-nums tabular-nums;
+    white-space: nowrap;
+  }
+  .plato__desc { margin: 0.3rem 0 0; color: var(--c-texto-suave); font-size: 0.9375rem; line-height: 1.5; max-width: 52ch; }
+  .plato__racion {
+    margin-right: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--c-texto);
+  }
+  .plato__alergenos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+    margin: 0.55rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .plato__alergenos li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8125rem;
+    color: var(--c-acento);
+    font-weight: 600;
+  }
+  .plato__alergenos .icono { width: 1.1rem; height: 1.1rem; }
+  .plato__sin { margin: 0.55rem 0 0; font-size: 0.8125rem; color: var(--c-texto-suave); }
+  .panel__vacio {
+    margin: 1.5rem 0 0;
+    padding: 1rem 1.25rem;
+    border: 1.5px dashed var(--c-borde);
+    color: var(--c-texto-suave);
+  }
+
+  @media (min-width: 900px) {
+    .carta__rejilla { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 5rem; align-items: start; }
+    .carta__pestanas {
+      flex-direction: column;
+      gap: 0;
+      margin: 2rem 0 0;
+      padding: 0;
+      overflow: visible;
+      border-top: 1px solid var(--c-borde);
+    }
+    .pestana {
+      justify-content: space-between;
+      width: 100%;
+      min-height: 48px;
+      padding: 0 0.75rem 0 1rem;
+      border: 0;
+      border-bottom: 1px solid var(--c-borde);
+      border-radius: 0;
+      background: transparent;
+      font: 400 1.25rem/1 var(--f-titular);
+      text-align: left;
+      position: relative;
+    }
+    .pestana::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.6rem;
+      bottom: 0.6rem;
+      width: 3px;
+      background: var(--c-primario);
+      transform: scaleY(0);
+      transition: transform 0.25s ease;
+    }
+    .pestana:hover { background: var(--c-fondo); }
+    .pestana[aria-selected='true'] { background: var(--c-fondo); color: var(--c-primario); }
+    .pestana[aria-selected='true']::before { transform: scaleY(1); }
+    .pestana__n { font-family: var(--f-texto); color: var(--c-texto-suave); opacity: 1; }
+    .filtro__chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel__cabeza h3 { font-size: 2.25rem; }
+    .plato__nombre { font-size: 1.125rem; }
+    .plato__precio { font-size: 1.3125rem; }
+  }
+</style>
