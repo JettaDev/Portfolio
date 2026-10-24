@@ -1,0 +1,88 @@
+---
+// Aviso de web de demostración + diálogo que muestra la llamada o el mensaje en vez de enviarlo.
+// No pinta nada si config.demo es false. Ponlo justo después de abrir <body>.
+// Estilo: usa las variables --c-*; cada plantilla puede retocar .demo-aviso y .demo-dialogo.
+interface Props {
+  demo: boolean;
+  nombre: string;
+}
+const { demo, nombre } = Astro.props;
+---
+{demo && (
+  <>
+    <p class="demo-aviso">
+      Web de demostración: <strong>{nombre}</strong> es un negocio ficticio. Los teléfonos y mensajes no se envían.
+    </p>
+    <dialog id="demo-dialogo" class="demo-dialogo" aria-labelledby="demo-dialogo-titulo">
+      <form method="dialog">
+        <p class="demo-dialogo__etiqueta">Modo demostración</p>
+        <h2 id="demo-dialogo-titulo" data-demo-tipo>Aquí se abriría WhatsApp</h2>
+        <p>Destino: <strong data-demo-destino></strong></p>
+        <pre data-demo-mensaje hidden></pre>
+        <p class="demo-dialogo__nota">En la web real del negocio, este botón lo hace de verdad.</p>
+        <button value="cerrar" autofocus>Entendido</button>
+      </form>
+    </dialog>
+  </>
+)}
+
+<script>
+  import { iniciarDemo } from '../cliente/demo.ts';
+  iniciarDemo();
+</script>
+
+<style is:global>
+  .demo-aviso {
+    margin: 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    text-align: center;
+    background: var(--c-texto);
+    color: var(--c-fondo);
+  }
+  .demo-dialogo {
+    width: min(28rem, calc(100vw - 2rem));
+    padding: 1.5rem;
+    border: 1px solid var(--c-borde);
+    border-radius: 0.75rem;
+    background: var(--c-superficie);
+    color: var(--c-texto);
+  }
+  .demo-dialogo::backdrop {
+    background: rgb(0 0 0 / 0.55);
+  }
+  .demo-dialogo h2 {
+    margin: 0.25rem 0 0.75rem;
+    font-size: 1.25rem;
+  }
+  .demo-dialogo__etiqueta,
+  .demo-dialogo__nota {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--c-texto-suave);
+  }
+  .demo-dialogo pre {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    max-height: 40vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    font: inherit;
+    font-size: 0.9375rem;
+    background: var(--c-fondo);
+    border-radius: 0.5rem;
+  }
+  .demo-dialogo button {
+    margin-top: 1rem;
+    min-height: 48px;
+    width: 100%;
+    border: 0;
+    border-radius: 0.5rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--c-primario);
+    color: var(--c-texto-sobre-primario);
+    cursor: pointer;
+  }
+</style>

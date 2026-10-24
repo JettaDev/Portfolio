@@ -11,6 +11,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "demos": "node demos/build.mjs",
+    "plantillas": "node plantillas/build.mjs",
+    "test:plantillas": "node --test plantillas/_comun/*.test.ts",
     "og": "node scripts/og.mjs",
     "test": "vitest run",
     "check": "astro check",

@@ -1,0 +1,64 @@
+---
+// Barra fija inferior en móvil: acción principal + llamar + cómo llegar. Siempre a 1 toque.
+// En escritorio (≥ 900 px) se oculta: la cabecera de cada plantilla lleva las mismas acciones.
+// Estilo base mínimo con --c-*; cada plantilla lo reviste a su manera (.barra-acciones…).
+// Deja padding-bottom en <body> (o usa la clase .con-barra) para que no tape el final de la página.
+import { enlaceTelefono, enlaceWhatsApp } from '../enlaces.ts';
+import type { ConfigPlantilla, ItemBase } from '../tipos.ts';
+
+interface Props {
+  config: ConfigPlantilla<ItemBase, unknown>;
+  /** Ancla del formulario cuando accionPrincipal.tipo es «formulario» (p. ej. "#reserva"). */
+  ancla?: string;
+}
+const { config: c, ancla = '#reserva' } = Astro.props;
+const ap = c.accionPrincipal;
+const principal =
+  ap.tipo === 'whatsapp' ? enlaceWhatsApp(c.contacto.whatsapp, c.formulario.saludo)
+  : ap.tipo === 'llamar' ? enlaceTelefono(c.contacto.telefono)
+  : ancla;
+---
+<nav class="barra-acciones" aria-label="Contacto rápido">
+  <a class="barra-acciones__principal" href={principal}>{ap.texto}</a>
+  {ap.tipo !== 'llamar' && <a href={enlaceTelefono(c.contacto.telefono)}>Llamar</a>}
+  {ap.tipo === 'llamar' && c.contacto.whatsapp && <a href={enlaceWhatsApp(c.contacto.whatsapp)}>WhatsApp</a>}
+  <a href={c.contacto.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>
+</nav>
+
+<style is:global>
+  .barra-acciones {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+    background: var(--c-superficie);
+    border-top: 1px solid var(--c-borde);
+  }
+  .barra-acciones a {
+    display: grid;
+    place-items: center;
+    min-height: 48px;
+    padding: 0 0.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    color: var(--c-texto);
+    border: 1px solid var(--c-borde);
+  }
+  .barra-acciones a.barra-acciones__principal {
+    background: var(--c-primario);
+    color: var(--c-texto-sobre-primario);
+    border-color: var(--c-primario);
+  }
+  .con-barra {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 900px) {
+    .barra-acciones { display: none; }
+    .con-barra { padding-bottom: 0; }
+  }
+</style>

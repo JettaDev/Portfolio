@@ -1,0 +1,20 @@
+{
+  "name": "plantillas-negocios",
+  "private": true,
+  "type": "module",
+  "description": "Herramientas comunes de las plantillas: tests, build hacia el portfolio, verificación y exportación.",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "test": "node --test _comun/*.test.ts",
+    "build": "node build.mjs",
+    "verificar": "node verificar.mjs",
+    "exportar": "node exportar.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.14.0",
+    "lighthouse": "13.5.0",
+    "playwright-core": "1.64.0"
+  }
+}

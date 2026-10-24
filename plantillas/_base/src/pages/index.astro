@@ -1,0 +1,40 @@
+---
+// Página de ejemplo mínima: muestra cómo se usan los datos del config y los componentes comunes.
+// Cada plantilla la sustituye por su propio diseño.
+import Base from '../layouts/Base.astro';
+import EstadoHorario from '@comun/componentes/EstadoHorario.astro';
+import { horarioAgrupado } from '@comun/horario.ts';
+import { enlaceTelefono, formatearPrecio } from '@comun/enlaces.ts';
+import config from '../../config.ts';
+
+const c = config;
+---
+<Base>
+  <header>
+    <p><strong>{c.negocio.logo.texto}</strong></p>
+    <h1>{c.textos.titular}</h1>
+    <p>{c.textos.entradilla}</p>
+    <EstadoHorario franjas={c.horario.franjas} cierres={c.horario.cierres} />
+  </header>
+
+  <section aria-labelledby="t-catalogo">
+    <h2 id="t-catalogo">{c.catalogo.titulo}</h2>
+    <ul>
+      {c.catalogo.items.map((i) => <li>{i.nombre} — {formatearPrecio(i.precio, i.desde)}</li>)}
+    </ul>
+  </section>
+
+  <section id="horario" aria-labelledby="t-horario">
+    <h2 id="t-horario">Horario</h2>
+    <dl>
+      {horarioAgrupado(c.horario.franjas).map((f) => (<><dt>{f.dias}</dt><dd>{f.horas}</dd></>))}
+    </dl>
+    {c.horario.nota && <p>{c.horario.nota}</p>}
+  </section>
+
+  <section id="contacto" aria-labelledby="t-contacto">
+    <h2 id="t-contacto">Contacto</h2>
+    <p><a href={enlaceTelefono(c.contacto.telefono)}>{c.contacto.telefonoVisible}</a></p>
+    <p><a href={c.contacto.mapsUrl} target="_blank" rel="noopener">{c.contacto.direccion.calle}, {c.contacto.direccion.localidad}</a></p>
+  </section>
+</Base>

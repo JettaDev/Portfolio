@@ -1,0 +1,47 @@
+---
+// <head> común: título, descripción, Open Graph, JSON-LD, robots, colores del tema como variables CSS.
+// Uso: <Cabeza config={config} /> dentro de <head>. Para páginas secundarias pasa titulo/descripcion.
+import { jsonLd } from '../seo.ts';
+import type { ConfigPlantilla, ItemBase } from '../tipos.ts';
+
+interface Props {
+  config: ConfigPlantilla<ItemBase, unknown>;
+  titulo?: string;
+  descripcion?: string;
+  /** Las páginas legales no necesitan JSON-LD. */
+  conJsonLd?: boolean;
+}
+const { config: c, titulo = c.meta.titulo, descripcion = c.meta.descripcion, conJsonLd = true } = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const canonica = new URL(Astro.url.pathname, Astro.site ?? c.meta.url).href;
+// URL raíz real del despliegue (la del cliente o la subruta del portfolio) para el JSON-LD.
+const raiz = new URL(base, Astro.site ?? c.meta.url).href;
+const datos = jsonLd({ ...c, meta: { ...c.meta, url: raiz } });
+const og = new URL(base + c.meta.imagenOg.replace(/^\//, ''), Astro.site ?? c.meta.url).href;
+const vars = Object.entries(c.tema.colores)
+  .map(([k, v]) => `--c-${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}:${v}`)
+  .join(';');
+---
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>{titulo}</title>
+<meta name="description" content={descripcion} />
+<link rel="canonical" href={canonica} />
+{c.demo && <meta name="robots" content="noindex, nofollow" />}
+<meta name="theme-color" content={c.tema.colores.fondo} />
+<link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="es_ES" />
+<meta property="og:site_name" content={c.negocio.nombre} />
+<meta property="og:title" content={titulo} />
+<meta property="og:description" content={descripcion} />
+<meta property="og:url" content={canonica} />
+<meta property="og:image" content={og} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+
+{conJsonLd && <script type="application/ld+json" set:html={JSON.stringify(datos)} />}
+<style set:html={`:root{${vars}}`}></style>

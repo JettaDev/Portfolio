@@ -1,0 +1,62 @@
+---
+// Layout común: <head> con SEO, aviso de demo, barra fija en móvil y pie con lo legal.
+// Las plantillas lo copian y lo visten; lo que no debe faltar está marcado con «contrato».
+import Cabeza from '@comun/componentes/Cabeza.astro';
+import Demo from '@comun/componentes/Demo.astro';
+import BarraAcciones from '@comun/componentes/BarraAcciones.astro';
+import config from '../../config.ts';
+
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  conJsonLd?: boolean;
+}
+const { titulo, descripcion, conJsonLd } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+<!doctype html>
+<html lang="es" data-demo={String(config.demo)}>
+  <head>
+    <Cabeza config={config} titulo={titulo} descripcion={descripcion} conJsonLd={conJsonLd} />
+  </head>
+  <body class="con-barra">
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Demo demo={config.demo} nombre={config.negocio.nombre} /> {/* contrato */}
+    <main id="contenido">
+      <slot />
+    </main>
+    <footer class="pie">
+      <p>{config.negocio.nombre} · {config.contacto.direccion.calle}, {config.contacto.direccion.localidad}</p>
+      <p>
+        <a href={`${base}aviso-legal/`}>Aviso legal</a> ·
+        <a href={`${base}privacidad/`}>Privacidad</a> ·
+        <a href={`${base}contacto.vcf`} download>Añadir a contactos</a>
+      </p>
+    </footer>
+    <BarraAcciones config={config} /> {/* contrato */}
+  </body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font: 1.0625rem/1.6 system-ui, sans-serif;
+    background: var(--c-fondo);
+    color: var(--c-texto);
+  }
+  a { color: var(--c-primario); }
+  :focus-visible { outline: 3px solid var(--c-primario); outline-offset: 2px; }
+  .saltar {
+    position: absolute;
+    left: -9999px;
+  }
+  .saltar:focus { left: 1rem; top: 1rem; z-index: 100; background: var(--c-superficie); padding: 0.5rem 1rem; }
+  main, .pie { max-width: 60rem; margin: 0 auto; padding: 1rem; }
+  .pie { color: var(--c-texto-suave); font-size: 0.9375rem; }
+  .pie a { color: inherit; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+</style>

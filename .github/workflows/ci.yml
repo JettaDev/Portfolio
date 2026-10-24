@@ -21,6 +21,8 @@ jobs:
         run: npm run check
       - name: Pruebas (Vitest)
         run: npm test
+      - name: Pruebas de las plantillas
+        run: npm run test:plantillas
       - name: Build
         run: npm run build
       # El runner no tiene GPU: WebGL por SwiftShader y la ciudad forzada a nivel bajo

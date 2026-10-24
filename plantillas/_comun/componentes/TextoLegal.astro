@@ -1,0 +1,51 @@
+---
+// Contenido del aviso legal o de la política de privacidad, generado desde config.legal.
+// Solo el contenido (h1 + secciones): cada plantilla lo mete en su propio layout.
+// Es un texto base: para un cliente real lo debe revisar su gestoría o asesor (ver README).
+import type { ConfigPlantilla, ItemBase } from '../tipos.ts';
+
+interface Props {
+  config: ConfigPlantilla<ItemBase, unknown>;
+  tipo: 'aviso-legal' | 'privacidad';
+}
+const { config: c, tipo } = Astro.props;
+const l = c.legal;
+const canal = c.formulario.canal === 'whatsapp' ? 'WhatsApp' : 'correo electrónico';
+---
+{tipo === 'aviso-legal' ? (
+  <article class="texto-legal">
+    <h1>Aviso legal</h1>
+    <h2>Titular del sitio web</h2>
+    <p>
+      En cumplimiento del artículo 10 de la Ley 34/2002, de servicios de la sociedad de la información y de comercio electrónico (LSSI-CE), se informa de que este sitio web pertenece a <strong>{l.titular}</strong>, con NIF {l.nif} y domicilio en {l.domicilio}. Correo de contacto: <a href={`mailto:${l.email}`}>{l.email}</a>.
+      {l.registro && <> {l.registro}.</>}
+    </p>
+    <h2>Uso del sitio</h2>
+    <p>La información de esta web tiene carácter informativo. Precios, horarios y servicios pueden cambiar; confírmalos con el negocio antes de acudir.</p>
+    <h2>Propiedad intelectual</h2>
+    <p>Los textos, el diseño y los logotipos de esta web pertenecen a su titular o se usan con permiso. No se permite su reproducción sin autorización.</p>
+    <h2>Cookies</h2>
+    <p>Este sitio no usa cookies ni herramientas de analítica o publicidad de terceros.</p>
+  </article>
+) : (
+  <article class="texto-legal">
+    <h1>Política de privacidad</h1>
+    <h2>Responsable</h2>
+    <p>{l.titular} (NIF {l.nif}), {l.domicilio}. Contacto: <a href={`mailto:${l.email}`}>{l.email}</a>.</p>
+    <h2>Qué datos tratamos y para qué</h2>
+    <p>
+      Esta web no guarda datos en ningún servidor. Los formularios solo preparan un mensaje en tu dispositivo y lo abren en {canal}; tú decides si lo envías. Si lo envías, recibiremos los datos que hayas escrito (nombre, teléfono y lo que hayas elegido) y los usaremos únicamente para responder a tu solicitud.
+    </p>
+    <h2>Base legal y conservación</h2>
+    <p>La base es tu consentimiento al enviarnos el mensaje y la aplicación de medidas precontractuales a petición tuya. Conservamos la conversación el tiempo necesario para atender la solicitud y, después, durante los plazos que marque la ley.</p>
+    <h2>Terceros</h2>
+    <p>
+      {c.formulario.canal === 'whatsapp'
+        ? 'Los mensajes por WhatsApp los gestiona WhatsApp Ireland Limited (grupo Meta), que tiene su propia política de privacidad.'
+        : 'Los mensajes de correo pasan por tu proveedor de correo y el nuestro.'}{' '}
+      No cedemos tus datos a nadie más.
+    </p>
+    <h2>Tus derechos</h2>
+    <p>Puedes pedir acceso, rectificación, supresión, oposición, limitación o portabilidad escribiendo a {l.email}. Si crees que no hemos atendido bien tu petición, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+  </article>
+)}

@@ -1,0 +1,25 @@
+---
+// «Abierto · cierra a las 23:30». Se calcula en el navegador con la hora de Madrid.
+// Sin JS muestra `porDefecto`. El elemento lleva data-abierto="true|false" para darle color.
+import type { Cierre, Franja } from '../tipos.ts';
+
+interface Props {
+  franjas: Franja[];
+  cierres?: Cierre[];
+  porDefecto?: string;
+  class?: string;
+}
+const { franjas, cierres = [], porDefecto = 'Ver horario', class: clase } = Astro.props;
+---
+<span
+  class:list={['estado-horario', clase]}
+  data-estado-horario
+  data-franjas={JSON.stringify(franjas)}
+  data-cierres={JSON.stringify(cierres)}
+  ><span class="estado-horario__punto" aria-hidden="true"></span><span data-estado-texto>{porDefecto}</span></span
+>
+
+<script>
+  import { iniciarEstado } from '../cliente/estado.ts';
+  iniciarEstado();
+</script>
